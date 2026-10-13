@@ -1,0 +1,645 @@
+# companion-party-overhaul (base, from companion-tactics): what each kind of companion does at any boss, and in every fight.
+# Taken from the app's own example mod examples/mods/companion-roles (v1.5.4), which was
+# play-tested against Phreeoni; kept as is so it stays easy to compare with upstream.
+# The everyday roles and the party-chat orders are in db/when/<setting>/.
+# Reference: docs/mods/companion-strategies/ (guide, team play, cookbook, reference, FAQ)
+#
+# A companion's part comes from its class family: a Priest heals, a Wizard or Sage
+# casts, a Knight, Assassin or Monk fights in melee, a Hunter shoots. Job: Priest is
+# the whole family (High Priest, Arch Bishop, Cardinal, Baby Priest). A Duty given in
+# party chat overrides it: a Priest told "attacker" leaves the healer plan, since each
+# role plan Requires its Role or none.
+#
+# Boss plans add to this (this table has Phreeoni and the Stalactic Golem). The
+# priority bands keep the two apart:
+#   100 and up  survival and resurrection
+#   80 - 99     a boss's own mechanics (the boss plan's rules)
+#   40 - 79     the role's core: heal, position, buffs
+#   below 40    filler, and Hold
+# Rotation: a role plan says whether the engine's skill rotation runs (healers: no,
+# damage dealers: yes, minus a Ban list). A boss plan that says nothing leaves it to
+# the role; one that says false wins.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  # --- Every fight -----------------------------------------------------------
+  - Mob: All
+    Jobs:
+      - Job: Priest
+        Rules:
+          # A party member is about to take a Stun Attack: wall them before it lands.
+          - Name: wall_the_stunned
+            Priority: 80
+            On: { Event: monster_casts, Skill: NPC_STUNATTACK, At: party }
+            Cast: MG_SAFETYWALL
+            Target: event
+            OnePerParty: true
+          # Anyone in the party can ask for a wall in party chat.
+          - Name: wall_on_request
+            Priority: 70
+            On: { Event: party_chat, Match: "wall me" }
+            Cast: MG_SAFETYWALL
+            Target: event
+            Say: "Wall on {ally}!"
+          # Keep Blessing on whoever tanks.
+          - Name: bless_the_tank
+            Priority: 30
+            Cast: AL_BLESSING
+            Target: { Ally: missing, Status: SC_BLESSING, Role: tank }
+
+      # The healer's survival and resurrection, in every fight and not only near a boss:
+      # in Mob: Boss they were lost whenever the Priest stepped more than 14 cells from
+      # the boss (walking to a body, keeping its distance), and the engine's own
+      # behaviour, Sanctuary included, came back (Phreeoni playtest 7).
+      - Job: Priest
+        Build: healer
+        Requires: { Role: [support, none] }
+        Rules:
+          # Survive first.
+          - Name: heal_self
+            Priority: 110
+            Cast: AL_HEAL
+            Target: self
+            When: self_hp_pct_lt50
+          # Then bring them back. With something on it, every hit breaks the cast: wall
+          # its own cell first, Kyrie, then revive. This rule revives, so the engine's
+          # immediate attempt stands aside.
+          - Name: wall_before_rez
+            Priority: 108
+            Present: { Ally: dead, Range: 9 }
+            When: [self_targeted, not_self_safetywall]
+            Cast: MG_SAFETYWALL
+            Target: self
+          - Name: kyrie_before_rez
+            Priority: 107
+            Present: { Ally: dead, Range: 9 }
+            When: [self_targeted, not_self_kyrie]
+            Cast: PR_KYRIE
+            Target: self
+          - Name: resurrect
+            Priority: 106
+            When: { OR: [self_safetywall, not_self_targeted] }
+            Cast: ALL_RESURRECTION
+            Target: dead_ally
+            Say: "Getting you up, {ally}!"
+          # Resurrection reaches 9 cells: walk to a body that lies further away, and keep
+          # walking every turn until it is within reach. An event rule is answered by its
+          # first step, and the positioning rules below then pulled the healer straight
+          # back (Phreeoni playtest 6: the owner lay 10 cells off and was never revived).
+          - Name: close_to_the_fallen
+            Priority: 104
+            Target: { Ally: dead, NotSelf: true }
+            KeepDistance: { Min: 1, Max: 8 }
+          # Beyond sight (14 cells), where no selector looks: the death itself starts the walk.
+          - Name: go_to_the_fallen
+            Priority: 103
+            On: { Event: party_member_died, Within: 30000 }
+            Target: event
+            When: ally_distance_gt8
+            MoveTo: event
+          # Petrified, frozen or stunned members cannot come to it. Status Recovery cures
+          # a Stone Curse already while it sets in (SC_STONEWAIT).
+          - Name: unstone_early
+            Priority: 102
+            Cast: PR_STRECOVERY
+            Target: { Ally: having, Status: SC_STONEWAIT }
+          - Name: unstone
+            Priority: 101
+            Cast: PR_STRECOVERY
+            Target: { Ally: having, Status: SC_STONE }
+          - Name: unfreeze
+            Priority: 100
+            Cast: PR_STRECOVERY
+            Target: { Ally: having, Status: SC_FREEZE }
+
+      # Casters and healers never hit with a rod or a mace -- companions and the AI
+      # characters around the world alike (For: all). Out of SP, they stand rather than
+      # walk up and poke. Acolyte and Mage as themselves only (Exact): a Monk is built
+      # on the Acolyte and does melee.
+      - Job: [Priest, Wizard, Sage]
+        For: all
+        Attack: false
+      - Job: [Acolyte, Mage]
+        Exact: true
+        For: all
+        Attack: false
+
+      # A Sage that sees a Storm Gust coming lays Land Protector at its feet and calls
+      # the party to it; everyone else comes when called.
+      - Job: Sage
+        Rules:
+          - Name: lp_for_the_group
+            Priority: 90
+            On: { Event: casts, Skill: WZ_STORMGUST }
+            Cast: SA_LANDPROTECTOR
+            Target: self
+            Signal: on_me
+            Say: "On me!"
+
+      # Casters stand on a party member's Land Protector, safe from ground spells,
+      # and cast nothing at a monster that reflects magic back.
+      - Job: Wizard
+        Start: normal
+        Strategies:
+          - Name: normal
+            Rules:
+              - Name: mirror_up
+                When: enemy_magicmirror
+                Switch: mirrored
+                Say: "It reflects magic, holding my spells."
+          - Name: mirrored
+            Rotation: false
+            Rules:
+              - Name: mirror_down
+                When: not_enemy_magicmirror
+                Switch: normal
+        Rules:
+          - Name: lp_incoming
+            Priority: 85
+            On: { Event: casts, By: party, Skill: SA_LANDPROTECTOR }
+            MoveTo: event_cell
+          - Name: onto_lp          # and stays on it: following waits while it holds
+            Priority: 84
+            MoveTo: { Field: SA_LANDPROTECTOR, Owner: party, Within: 8 }
+
+      - Job: All
+        Rules:
+          # Out of a monster's ground spell: Storm Gust, Meteor Storm, a trap.
+          - Name: leave_hostile_ground
+            Priority: 99
+            Leave: { Owner: monster }
+          - Name: gather
+            Priority: 88
+            On: { Event: signal, Name: on_me }
+            MoveTo: event
+          # Never hit a boss from where it cannot fight back: that makes most of them teleport.
+          - Name: no_rude_attack
+            Priority: 98
+            Enemy: { Boss: true }
+            Reach: false
+            MoveTo: reachable
+          - Name: no_rude_attack_hold
+            Priority: 97
+            Enemy: { Boss: true }
+            Reach: false
+            Hold: true
+          # A boss teleported away: one says so, everyone regroups on the owner. Here
+          # rather than under Mob: Boss, whose plan has stopped applying by then.
+          - Name: boss_gone_say
+            Priority: 96
+            On: { Event: encounter_ended, Reason: vanished }
+            Say: "It teleported, back to you, {owner}."
+            OnePerParty: true
+          - Name: boss_gone_regroup
+            Priority: 95
+            On: { Event: encounter_ended, Reason: vanished }
+            Retreat: owner
+          # A tank provokes what is hitting someone else, the healer first, and keeps it.
+          - Name: peel
+            Priority: 80
+            Requires: { Role: tank }
+            Cast: SM_PROVOKE
+            Target: { Enemy: attacking, Who: party, NotSelf: true, Prefer: support }
+            When: not_enemy_provoke
+            SetTarget: true
+            OnePerParty: true
+
+  # --- Any boss: everyone ------------------------------------------------------
+  # Mob: Boss applies while a boss-class monster is near (the one it fights, else the
+  # nearest), whatever each companion targets.
+  - Mob: Boss
+    Jobs:
+      - Job: All
+        Start: fight
+        Rules:
+          # A hidden boss heals or waits for an opening: find it. Only the boss (a
+          # burrowing slave is hiding too), and only within reach: Ruwach shows 2 cells, Sight 3.
+          - Name: reveal_ruwach
+            Priority: 92
+            Count: { Enemy: hidden, Boss: true, Range: 2, AtLeast: 1 }
+            Cast: AL_RUWACH
+          - Name: reveal_sight
+            Priority: 91
+            Count: { Enemy: hidden, Boss: true, Range: 3, AtLeast: 1 }
+            When: not_self_sight
+            Cast: MG_SIGHT
+          # The healer died and no other is up: fall back to the owner instead of
+          # fighting on without one. A party that never had a Priest is not affected.
+          - Name: healer_down
+            Priority: 105
+            On: party_member_died
+            Present: { Ally: dead, Job: Priest }
+            Absent: { Ally: nearest, Job: Priest }
+            Switch: fallback
+          - Name: healer_down_say
+            Priority: 104
+            On: party_member_died
+            Present: { Ally: dead, Job: Priest }
+            Absent: { Ally: nearest, Job: Priest }
+            Say: "Our healer is down! Falling back to {owner}."
+            OnePerParty: true
+          # Petrification setting in (Wide Stone Curse): stand still, so the healer can
+          # reach and cure it. Running drags the cure after it. The healer itself goes on.
+          - Name: wait_for_the_cure
+            Priority: 100
+            When: self_stonewait
+            Present: { Ally: nearest, Job: Priest, NotSelf: true }
+            Hold: true
+        Strategies:
+          - Name: fight
+          - Name: fallback            # stay with the owner, fight nothing, until a healer is up
+            Rotation: false
+            Rules:
+              - Name: healer_back
+                Priority: 103
+                Target: { Ally: nearest, Job: Priest }
+                Switch: fight
+              - Name: to_owner
+                Priority: 102
+                Retreat: owner
+              - Name: stand
+                Priority: 101
+                Hold: true
+
+      # --- Healer: the Priest family, unless told to do something else ----------
+      # Its survival, resurrection and cures are in the Mob: All healer plan above. Here:
+      # every turn ends in one of its rules (the last is Hold), so it never walks up and
+      # hits with its staff, and the engine's own buffing never comes round: what it
+      # keeps up is named here.
+      - Job: Priest
+        Build: healer
+        Requires: { Role: [support, none] }
+        Rotation: false
+        Allow: []                       # the engine casts nothing on its own: no Sanctuary
+        Rules:
+          - Name: stay_near_the_stoned
+            Priority: 79
+            Target: { Ally: having, Status: SC_STONE, NotSelf: true, Range: 14 }
+            KeepDistance: { Min: 1, Max: 7 }
+          # Whoever the monsters are on comes first. SP is kept back for Resurrection
+          # (60): heals stop below 70 SP, everything else below 120.
+          - Name: heal_attacked
+            Priority: 78
+            Cast: AL_HEAL
+            Target: { Ally: attacked }
+            When: [ally_hp_pct_lt85, self_sp_ge70]
+          - Name: heal_low
+            Priority: 77
+            Cast: AL_HEAL
+            Target: { Ally: lowest_hp }
+            When: [ally_hp_pct_lt55, self_sp_ge70]
+          # Safety Wall stops melee hits only while the member stands on it, and they move:
+          # not where a party wall already stands, and not more often than every 6 s.
+          - Name: wall_attacked
+            Priority: 76
+            Cast: MG_SAFETYWALL
+            Target: { Ally: attacked }
+            When: [not_ally_safetywall, self_sp_ge120]
+            Field: { Skill: MG_SAFETYWALL, Owner: party, At: target, Range: 0, Below: 1 }
+            Cooldown: 6000
+          - Name: kyrie_attacked
+            Priority: 75
+            Cast: PR_KYRIE
+            Target: { Ally: attacked }
+            When: [not_ally_kyrie, self_sp_ge120]
+          # Where to stand: out of the boss's melee, and within Heal's reach (9 cells) of
+          # whoever is being hit -- or, with nobody hit, of the nearest member.
+          - Name: stay_back
+            Priority: 74
+            Target: { Enemy: boss, Range: 14 }
+            KeepDistance: 5
+          - Name: stay_near_the_hit
+            Priority: 73
+            Target: { Ally: attacked, NotSelf: true, Range: 14 }
+            KeepDistance: { Min: 1, Max: 7 }
+          - Name: stay_with_the_party
+            Priority: 72
+            Target: { Ally: nearest, NotSelf: true, Range: 14 }
+            KeepDistance: { Min: 1, Max: 7 }
+          - Name: blessing
+            Priority: 50
+            Cast: AL_BLESSING
+            Target: { Ally: missing, Status: SC_BLESSING }
+            When: self_sp_ge120
+          - Name: increase_agi
+            Priority: 49
+            Cast: AL_INCAGI
+            Target: { Ally: missing, Status: SC_INCREASEAGI }
+            When: self_sp_ge120
+          - Name: impositio
+            Priority: 48
+            Cast: PR_IMPOSITIO
+            Target: { Ally: missing, Status: SC_IMPOSITIO, NotSelf: true }
+            When: self_sp_ge120
+          - Name: magnificat
+            Priority: 47
+            When: [self_sp_pct_lt50, not_self_magnificat]
+            Cast: PR_MAGNIFICAT
+          - Name: lex
+            Priority: 45
+            Cast: PR_LEXAETERNA
+            Target: { Enemy: boss }
+            When: [not_enemy_aeterna, self_sp_ge120]
+            OnePerParty: true
+          # Nothing to cast: stand rather than walk up and hit it with a staff. Only with a
+          # monster near: Hold stops following too, and with the fight elsewhere it would
+          # leave the Priest behind.
+          - Name: no_melee
+            Priority: 1
+            Present: { Enemy: nearest, Range: 14 }
+            Hold: true
+
+      # --- Casters: Wizards and Sages -------------------------------------------
+      # Named spells only. With the rotation on, a Wizard at Phreeoni took whatever the
+      # engine targeted (bystanders too), walked to it after every cast, and cast what was
+      # ready: Thunder Storm at nothing, Meteor Storm at a single Sandman. Now: a bolt
+      # chosen by element (Cast: [..] takes the one the target is weakest to) at what is
+      # on the party, an area spell only on a pack, and it stands between casts.
+      - Job: [Wizard, Sage]
+        Build: caster
+        Requires: { Role: [attacker, none] }
+        Rotation: false
+        Allow: []                       # only what its rules name
+        Rules:
+          # Hurt, with something on it: step away and let the healer catch up.
+          - Name: step_away
+            Priority: 76
+            When: self_hp_pct_lt50
+            Target: { Enemy: attacking, Who: self, Range: 3 }
+            KeepDistance: 4
+          - Name: stay_back
+            Priority: 74
+            Target: { Enemy: boss, Range: 14 }
+            KeepDistance: { Min: 6, Max: 8 }
+          # Three or more together on the party: the area spell its element suits best.
+          - Name: aoe_the_pack
+            Priority: 45
+            Cast: [WZ_METEOR, WZ_STORMGUST, WZ_VERMILION, WZ_HEAVENDRIVE]
+            Target: { Enemy: attacking }
+            Count: { Enemy: attacking, Around: target, Range: 3, AtLeast: 3 }
+            When: self_sp_pct_ge30
+            Cooldown: 5000
+          # Bolts, in this order: what is on itself, what is on the healer, the boss, then
+          # anything else on the party -- never a monster nobody is fighting.
+          - Name: bolt_my_attacker
+            Priority: 43
+            Cast: [MG_COLDBOLT, MG_FIREBOLT, MG_LIGHTNINGBOLT, WZ_EARTHSPIKE, MG_SOULSTRIKE]
+            Target: { Enemy: attacking, Who: self }
+            When: self_sp_pct_ge15
+          - Name: bolt_the_healers_attacker
+            Priority: 42
+            Cast: [MG_COLDBOLT, MG_FIREBOLT, MG_LIGHTNINGBOLT, WZ_EARTHSPIKE, MG_SOULSTRIKE]
+            Target: { Enemy: attacking, Job: Priest }
+            When: self_sp_pct_ge15
+          - Name: bolt_the_boss
+            Priority: 41
+            Cast: [MG_COLDBOLT, MG_FIREBOLT, MG_LIGHTNINGBOLT, WZ_EARTHSPIKE, MG_SOULSTRIKE]
+            Target: { Enemy: boss }
+            When: self_sp_pct_ge15
+          - Name: bolt
+            Priority: 40
+            Cast: [MG_COLDBOLT, MG_FIREBOLT, MG_LIGHTNINGBOLT, WZ_EARTHSPIKE, MG_SOULSTRIKE]
+            Target: { Enemy: attacking }
+            When: self_sp_pct_ge15
+          # Nothing to cast: stand, rather than walk up and hit it with a rod. Only while
+          # something is on the party, so it still follows its owner otherwise.
+          - Name: no_melee
+            Priority: 1
+            Present: { Enemy: attacking, Range: 14 }
+            Hold: true
+
+      # --- Ranged: Hunters --------------------------------------------------------
+      - Job: Hunter
+        Build: ranged
+        Requires: { Role: [attacker, none] }
+        Rotation: true
+        Rules:
+          - Name: stay_back
+            Priority: 74
+            Target: { Enemy: boss, Range: 14 }
+            KeepDistance: { Min: 4, Max: 8 }
+
+      # --- Melee ------------------------------------------------------------------
+      # The rotation runs while SP lasts, then plain hits until it is back, so there is
+      # SP for the skill that matters later. Low on HP with the boss on it: run it round
+      # the healer -- away from the boss, within Heal's reach, never onto the healer.
+      # A family with named skills of its own (the Assassins, below) turns the rotation
+      # off for itself; the rest of this plan (kiting, the boss, the healer) still applies.
+      - Job: [Knight, Crusader, Assassin, Rogue, Blacksmith, Monk, Star_Gladiator]
+        Build: melee
+        Requires: { Role: [attacker, none] }
+        Start: fight
+        Ban:
+          - TF_BACKSLIDING    # jumps away from the fight
+          - TF_HIDING         # stops fighting
+          - AS_CLOAKING
+          - RG_INTIMIDATE     # fails on a boss
+        Rules:
+          - Name: kite_round_the_healer
+            Priority: 60
+            When: self_hp_pct_lt30
+            Target: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
+            Kite: { Away: 4, Within: 7, Gap: 3 }
+          # Nothing chasing it, so nothing to kite: go and stand by the healer instead of
+          # waiting beside the boss (Phreeoni playtest 6).
+          - Name: go_to_the_healer
+            Priority: 59
+            When: self_hp_pct_lt30
+            Target: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
+            KeepDistance: { Min: 1, Max: 4 }
+          - Name: wait_for_heal
+            Priority: 58
+            When: self_hp_pct_lt30
+            Present: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
+            Hold: true
+          # Slaves on the healer: one of them takes them off.
+          - Name: guard_the_healer
+            Priority: 57
+            Target: { Enemy: attacking, Job: Priest }
+            SetTarget: true
+            OnePerParty: true
+          # Otherwise the boss, not its slaves.
+          - Name: focus_boss
+            Priority: 30
+            Target: { Enemy: boss, Range: 12 }
+            SetTarget: true
+        Strategies:
+          - Name: fight
+            Rotation: true
+            Rules:
+              - Name: low_sp
+                When: self_sp_pct_lt25
+                Switch: save
+          - Name: save
+            Rotation: false
+            Rules:
+              - Name: sp_back
+                When: self_sp_pct_ge60
+                Switch: fight
+
+      # --- Melee, Assassins (Assassin Cross, Guillotine Cross, Shadow Cross) -------
+      # Named skills only: on its rotation an Assassin Cross cast whatever was ready
+      # (Envenom, Soul Destroyer, Meteor Assault at a single target). Poison on the
+      # weapon, the strong single hit at the boss, the area hit only on a pack.
+      - Job: Assassin
+        Build: assassin
+        Requires: { Role: [attacker, none] }
+        Rotation: false
+        Allow: []                       # only what its rules name
+        Rules:
+          - Name: enchant_deadly_poison
+            Priority: 50
+            When: [not_self_edp, self_sp_pct_ge40]
+            Enemy: { Boss: true }
+            Cast: ASC_EDP                  # pre-renewal also wants a Poison Bottle: not paid yet
+            Target: self
+          - Name: enchant_poison
+            Priority: 49
+            When: [not_self_encpoison, not_self_edp]
+            Cast: AS_ENCHANTPOISON
+            Target: self
+          # Three or more around it: Meteor Assault hits all of them.
+          - Name: meteor_assault_the_pack
+            Priority: 45
+            Cast: ASC_METEORASSAULT
+            Target: self
+            Count: { Enemy: attacking, Range: 2, AtLeast: 3 }
+            When: self_sp_pct_ge40
+          # At the boss: Soul Destroyer when the SP is there, else Sonic Blow.
+          - Name: burst_the_boss
+            Priority: 42
+            Enemy: { Boss: true }
+            Cast: [ASC_BREAKER, AS_SONICBLOW]
+            When: self_sp_pct_ge30
+
+      # --- Tank: whoever is told "tank" ---------------------------------------------
+      # Provoke does not work on a boss; it holds the boss itself while the others
+      # take what it brings.
+      - Job: All
+        Build: tank
+        Requires: { Role: tank }
+        Rotation: true
+        Rules:
+          - Name: hold_the_boss
+            Priority: 70
+            Target: { Enemy: boss }
+            SetTarget: true
+
+  # --- Kinds of monster ----------------------------------------------------------
+  # Mob: { Race, Element } follows the monster a companion fights, or with none (a Priest
+  # seldom has a target) the nearest one on the party. The rotation already picks spells
+  # by element, so these are for what it does not cover.
+
+  # Undead, by race or by element: Heal hurts them, and holy is what they fear.
+  - Mobs: [{ Race: Undead }, { Element: Undead }]
+    Jobs:
+      - Job: Priest
+        Build: healer
+        Requires: { Role: [support, none] }
+        Rules:
+          # Below the party's heals (75-79), above buffs: Resurrection, Heal and Turn Undead
+          # as attacks, Sanctuary and Magnus on a pack. SP is kept back for reviving and
+          # the party's heals. rAthena turns Heal and Resurrection into attacks only when a
+          # player character casts them at the undead; shells are player characters.
+          # Resurrection destroys an undead monster outright; a boss shrugs it off.
+          - Name: resurrect_the_undead
+            Priority: 66
+            Cast: ALL_RESURRECTION
+            Target: { Enemy: attacking, Race: Undead }
+            When: [not_enemy_is_boss, self_sp_ge150]
+          - Name: resurrect_the_undead_element
+            Priority: 66
+            Cast: ALL_RESURRECTION
+            Target: { Enemy: attacking, Element: Undead }
+            When: [not_enemy_is_boss, self_sp_ge150]
+          # Sanctuary hurts what it would heal: only where no living monster stands in it
+          # (the engine refuses otherwise), and only for two or more.
+          - Name: sanctuary_the_undead
+            Priority: 64
+            Cast: PR_SANCTUARY
+            Target: { Enemy: attacking, Race: Undead }
+            Count: { Enemy: attacking, Race: Undead, Around: target, Range: 2, AtLeast: 2 }
+            When: self_sp_ge150
+            Consume: true                  # a Blue Gemstone in pre-renewal, once companions carry them
+            Cooldown: 6000
+          - Name: magnus_the_pack
+            Priority: 62
+            Cast: PR_MAGNUS
+            Target: { Enemy: attacking, Race: Undead }
+            Count: { Enemy: attacking, Race: Undead, Around: target, Range: 3, AtLeast: 3 }
+            When: self_sp_ge150
+            Consume: true                  # a Blue Gemstone, once companions carry them
+            Cooldown: 6000
+          - Name: heal_the_undead
+            Priority: 61
+            Cast: AL_HEAL
+            Target: { Enemy: attacking, Race: Undead }
+            When: self_sp_ge120
+          - Name: heal_the_undead_element
+            Priority: 61
+            Cast: AL_HEAL
+            Target: { Enemy: attacking, Element: Undead }
+            When: self_sp_ge120
+          # Blessing on an undead or demon monster halves its STR, INT and DEX (on anything
+          # else it would buff it, so the selector keeps to these). Bosses resist it.
+          - Name: bless_the_undead
+            Priority: 58
+            Cast: AL_BLESSING
+            Target: { Enemy: attacking, Race: Undead }
+            When: [not_enemy_blessing, not_enemy_is_boss, self_sp_ge120]
+          - Name: bless_the_undead_element
+            Priority: 58
+            Cast: AL_BLESSING
+            Target: { Enemy: attacking, Element: Undead }
+            When: [not_enemy_blessing, not_enemy_is_boss, self_sp_ge120]
+          - Name: turn_undead
+            Priority: 60
+            Cast: PR_TURNUNDEAD
+            Target: { Enemy: attacking, Race: Undead }
+            When: self_sp_ge150
+          # Holy on the melee's weapons.
+          - Name: aspersio
+            Priority: 55
+            Cast: PR_ASPERSIO
+            Target: { Ally: missing, Status: SC_ASPERSIO, Job: [Knight, Crusader, Assassin, Rogue, Blacksmith, Monk, Star_Gladiator] }
+            When: self_sp_ge120
+            Consume: true                  # a Holy Water, once companions carry them
+
+  # Demons: Sanctuary hurts them as it does the undead (Heal does not).
+  - Mob: { Race: Demon }
+    Jobs:
+      - Job: Priest
+        Build: healer
+        Requires: { Role: [support, none] }
+        Rules:
+          # Blessing on an undead or demon monster halves its STR, INT and DEX (on anything
+          # else it would buff it, so the selector keeps to these). Bosses resist it.
+          - Name: bless_the_demons
+            Priority: 58
+            Cast: AL_BLESSING
+            Target: { Enemy: attacking, Race: Demon }
+            When: [not_enemy_blessing, not_enemy_is_boss, self_sp_ge120]
+          - Name: sanctuary_the_demons
+            Priority: 64
+            Cast: PR_SANCTUARY
+            Target: { Enemy: attacking, Race: Demon }
+            Count: { Enemy: attacking, Race: Demon, Around: target, Range: 2, AtLeast: 2 }
+            When: self_sp_ge150
+            Cooldown: 6000
+
+  # Ghost: a plain weapon does little or nothing to it. Holy on the melee's weapons.
+  - Mob: { Element: Ghost }
+    Jobs:
+      - Job: Priest
+        Build: healer
+        Requires: { Role: [support, none] }
+        Rules:
+          - Name: aspersio
+            Priority: 55
+            Cast: PR_ASPERSIO
+            Target: { Ally: missing, Status: SC_ASPERSIO, Job: [Knight, Crusader, Assassin, Rogue, Blacksmith, Monk, Star_Gladiator] }
+            When: self_sp_ge120
+            Consume: true

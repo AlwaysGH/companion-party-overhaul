@@ -1,0 +1,99 @@
+# companion-party-overhaul: companions sit down when you've stood around a while (setting "idle_sit").
+# No monster within 14 cells and you within 7 cells (any spacing) for a minute: they sit, like
+# players waiting on a friend. They get up when a monster comes into sight or you
+# walk off more than 7 cells (the engine also stands a sitter up while you walk).
+# Below their rest marks (Companions window, Battle tab) the engine's own resting
+# comes first, as before; "take a break" in party chat still works the same.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      - Job: All
+        Build: ct_lounge
+        Start: up
+        Strategies:
+          - Name: up
+            Rules:
+              - Name: ct_lounge_quiet
+                Priority: 135
+                Count: { Enemy: any, Range: 14, Below: 1 }
+                When: master_distance_le7
+                Switch: calm
+          - Name: calm
+            Rules:
+              - Name: ct_lounge_stir
+                Priority: 135
+                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Switch: up
+              - Name: ct_lounge_moved
+                Priority: 135
+                When: master_distance_gt7
+                Switch: up
+              - Name: ct_lounge_a_while
+                Priority: 135
+                InStrategy: { AtLeast: 60000 }
+                Switch: lounging
+          - Name: lounging
+            Rules:
+              - Name: ct_lounge_get_up
+                Priority: 135
+                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Switch: up
+              - Name: ct_lounge_follow
+                Priority: 135
+                When: master_distance_gt7
+                Switch: up
+              # Not while the script has it up for a stretch, a glance or a new spot
+              # (restless_sitting): the same Entry_Queue_Apply_Delay marker as the strolls.
+              - Name: ct_lounge_sit
+                Priority: 21
+                When: not_self_entry_queue_apply_delay
+                Sit: true
+
+      # Archers, Hunters, Bards, Dancers, Gunslingers: scouts. They keep checking
+      # the perimeter (scout_patrol walks them in laps around the party) and only
+      # sit after three minutes.
+      - Job: [Archer, Gunslinger]
+        Disable: [ct_lounge_sit]
+        Build: ct_scout
+        Start: up
+        Strategies:
+          - Name: up
+            Rules:
+              - Name: ct_scout_quiet
+                Priority: 135
+                Count: { Enemy: any, Range: 14, Below: 1 }
+                When: master_distance_le7
+                Switch: calm
+          - Name: calm
+            Rules:
+              - Name: ct_scout_stir
+                Priority: 135
+                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Switch: up
+              - Name: ct_scout_moved
+                Priority: 135
+                When: master_distance_gt7
+                Switch: up
+              - Name: ct_scout_a_while
+                Priority: 135
+                InStrategy: { AtLeast: 180000 }
+                Switch: lounging
+          - Name: lounging
+            Rules:
+              - Name: ct_scout_get_up
+                Priority: 135
+                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Switch: up
+              - Name: ct_scout_follow
+                Priority: 135
+                When: master_distance_gt7
+                Switch: up
+              - Name: ct_scout_sit
+                Priority: 21
+                When: not_self_entry_queue_apply_delay
+                Sit: true

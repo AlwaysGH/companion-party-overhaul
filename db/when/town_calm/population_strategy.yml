@@ -1,0 +1,59 @@
+# companion-party-overhaul: calm in town (setting "town_calm").
+# The engine can't tell a town from a field, but it can see monsters: with no
+# monster within 14 cells (a town, an inn, a quiet corner) companions put their
+# buffs, songs and stances away. As soon as a monster is in sight (any field or
+# dungeon), or you say "buff" in party chat, they buff as usual again. They go
+# back to calm after a minute with no monster in sight.
+#
+# Heals, Resurrection, Safety Wall and attacks are never held back. The Ban below
+# binds the engine's own buffing and every other plan's buff rules too.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      - Job: All
+        Build: ct_town
+        Start: calm
+        Rules:
+          # "buff me", "buff up", "buffs please": any line with "buff" in it.
+          - Name: ct_town_buff_order
+            Priority: 132
+            On: { Event: party_chat, Match: "buff", From: owner, Within: 4000 }
+            Switch: alert
+          - Name: ct_town_kyrie_order
+            Priority: 132
+            On: { Event: party_chat, Match: "kyrie me", From: owner, Within: 4000 }
+            Switch: alert
+        Strategies:
+          - Name: calm
+            Ban: [AL_BLESSING, AL_INCAGI, AL_ANGELUS, PR_KYRIE, PR_MAGNIFICAT, PR_GLORIA,
+                  PR_IMPOSITIO, PR_SUFFRAGIUM, PR_ASPERSIO, HP_ASSUMPTIO,
+                  SA_FLAMELAUNCHER, SA_FROSTWEAPON, SA_LIGHTNINGLOADER, SA_SEISMICWEAPON,
+                  SA_AUTOSPELL, PF_MEMORIZE,
+                  CR_DEVOTION, CR_AUTOGUARD, CR_REFLECTSHIELD, CR_SPEARQUICKEN,
+                  KN_TWOHANDQUICKEN, LK_AURABLADE, LK_CONCENTRATION, LK_PARRYING,
+                  SM_ENDURE, AC_CONCENTRATION, MG_ENERGYCOAT,
+                  BS_ADRENALINE, BS_WEAPONPERFECT, BS_OVERTHRUST, BS_MAXIMIZE,
+                  WS_OVERTHRUSTMAX, WS_CARTBOOST, MO_EXPLOSIONSPIRITS, ST_PRESERVE,
+                  BA_WHISTLE, BA_ASSASSINCROSS, BA_POEMBRAGI, BA_APPLEIDUN,
+                  DC_HUMMING, DC_FORTUNEKISS, DC_SERVICEFORYOU,
+                  SL_KAIZEL, SL_KAAHI, SL_KAUPE, SL_KAITE, SL_HIGH,
+                  SL_ALCHEMIST, SL_MONK, SL_STAR, SL_SAGE, SL_CRUSADER, SL_SUPERNOVICE,
+                  SL_KNIGHT, SL_WIZARD, SL_PRIEST, SL_BARDDANCER, SL_ROGUE, SL_ASSASIN,
+                  SL_BLACKSMITH, SL_HUNTER, SL_SOULLINKER]
+            Rules:
+              - Name: ct_town_monster_in_sight
+                Priority: 133
+                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Switch: alert
+          - Name: alert
+            Rules:
+              - Name: ct_town_all_quiet
+                Priority: 133
+                InStrategy: { AtLeast: 60000 }
+                Count: { Enemy: any, Range: 14, Below: 1 }
+                Switch: calm

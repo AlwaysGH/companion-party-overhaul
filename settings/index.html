@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Companion Party Overhaul</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --dim: #6b7280; --line: #d9dde3;
+    --accent: #2f7de1; --accent-soft: #2f7de11a; --warn: #b45309;
+    --c-party: #2f9e6e; --c-battle: #dc2626; --c-talk: #8b5cf6; --c-purse: #d97706; --c-care: #2f7de1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181e; --card: #1e222a; --text: #e6e8ec; --dim: #9aa1ad; --line: #323844;
+      --accent: #5b9cf0; --accent-soft: #5b9cf022; --warn: #f59e0b;
+      --c-party: #4cc08e; --c-battle: #f26b6b; --c-talk: #a78bfa; --c-purse: #f0a440; --c-care: #5b9cf0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 18px 20px 24px; background: var(--bg); color: var(--text);
+         font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+  header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  #ver { color: var(--dim); font-size: 12px; }
+  p.lead { color: var(--dim); margin: 0 0 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+          margin-bottom: 12px; overflow: hidden; border-left: 4px solid var(--c); }
+  .card.party { --c: var(--c-party); } .card.battle { --c: var(--c-battle); }
+  .card.talk { --c: var(--c-talk); } .card.purse { --c: var(--c-purse); }
+  .card.care { --c: var(--c-care); } .card.general { --c: var(--line); }
+  .head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .head .t { flex: 1; }
+  .head b { font-size: 14px; display: block; }
+  .head small { color: var(--dim); }
+  .body { padding: 2px 14px 12px 14px; border-top: 1px solid var(--line); }
+  .row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .row + .row { border-top: 1px dashed var(--line); }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t small { display: block; color: var(--dim); }
+  .row.off { opacity: .45; }
+  .num { display: flex; align-items: center; gap: 4px; color: var(--dim); white-space: nowrap; }
+  .num input, input.txt { padding: 4px 6px; font: inherit; color: var(--text); background: var(--bg);
+               border: 1px solid var(--line); border-radius: 6px; }
+  .num input { width: 64px; text-align: right; }
+  input.txt { width: 210px; }
+  .preview { margin-top: 2px; font-size: 12px; color: var(--c); }
+  /* Spacing: four buttons, one lit */
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex: none; }
+  .seg label { padding: 5px 12px; cursor: pointer; user-select: none; border-left: 1px solid var(--line); }
+  .seg label:first-child { border-left: none; }
+  .seg input { display: none; }
+  .seg label:has(input:checked) { background: var(--c); color: #fff; font-weight: 600; }
+  /* Switch */
+  .sw { position: relative; width: 38px; height: 22px; flex: none; }
+  .sw input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .sw span { position: absolute; inset: 0; border-radius: 999px; background: var(--line); transition: background .15s; }
+  .sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px;
+                    border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px #0004; }
+  .sw input:checked + span { background: var(--c, var(--accent)); }
+  .sw input:checked + span::after { transform: translateX(16px); }
+  .sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .actions { display: flex; gap: 8px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  button { font: inherit; padding: 7px 14px; border-radius: 7px; border: 1px solid var(--line);
+           background: var(--card); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  #reset { margin-left: auto; }
+  #status { margin-top: 10px; color: var(--dim); min-height: 1.4em; }
+  #status.dirty { color: var(--warn); }
+</style>
+</head>
+<body>
+<header><h1>Companion Party Overhaul</h1><span id="ver"></span></header>
+<p class="lead">How your companions fight, live and talk with you. In game, <b>Alt+N</b> (or the Companions button)
+opens their window: status, memories, bags, gear you gave, colours and the party purse.
+Changes take effect when the server restarts.</p>
+
+<div id="cards"></div>
+
+<div class="actions">
+  <button id="save">Save</button>
+  <button id="apply" class="primary">Save &amp; restart server</button>
+  <button id="reset" title="Put every setting back to its default">Reset to defaults</button>
+</div>
+<div id="status"></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+// 'spacing' is the four-way choice drawn over the three spacing_* switches.
+const CARDS = [
+  { cls: 'party', title: 'Party behaviour', blurb: 'How they stand, wander and rest between fights.',
+    rows: ['spacing', 'look_around', 'scout_patrol', 'idle_sit', 'sit_with_favourite', 'restless_sitting'] },
+  { cls: 'battle', title: 'In battle', blurb: 'Each class in its part, your orders, and your items.',
+    rows: ['everyday_roles', 'chat_orders', 'use_items', 'town_calm'] },
+  { cls: 'talk', title: 'Talk & personality', blurb: 'What they say, to you and to each other.',
+    rows: ['titles', 'greetings', 'world_reactions', 'combat_callouts', 'chat_replies', 'daily_life', 'emotes', 'banter_minutes'] },
+  { cls: 'purse', title: 'Bag & purse', blurb: 'The party purse: a shared fund for gearing your companions.',
+    rows: ['purse_per_level', 'purse_talk'] },
+  { cls: 'care', title: 'Memories & care', blurb: 'What they remember, and how they are looked after.',
+    rows: ['memories', 'companion_growth', 'growth_announce', 'companion_return', 'return_announce'] },
+  { cls: 'general', title: 'Window', rows: ['window_button'] },
+];
+const SPACING = [
+  { id: 'off', label: 'Off', hint: "The game's own tight follow: they stand 1-2 cells from you." },
+  { id: 'close', label: 'Close', hint: 'They stand within 2 cells of you, and follow once you are 3 away.' },
+  { id: 'normal', label: 'Normal', hint: 'They stand within 4 cells of you, and follow once you are 5 away.' },
+  { id: 'far', label: 'Far', hint: 'They stand within 6 cells of you, and follow once you are 7 away.' },
+];
+const UNITS = { banter_minutes: 'min', purse_per_level: 'zeny' };
+// The app hands the page values but not defaults; keep these in step with mod.json.
+const DEFAULTS = {
+  spacing_close: false, spacing_normal: true, spacing_far: false, look_around: true, scout_patrol: true, idle_sit: true, sit_with_favourite: true,
+  restless_sitting: true, everyday_roles: true, chat_orders: true, use_items: true, town_calm: true,
+  titles: 'Boss,Captain,Leader', greetings: true, world_reactions: true, combat_callouts: true, chat_replies: true,
+  daily_life: true, emotes: true, banter_minutes: 4, purse_per_level: 2, purse_talk: true,
+  memories: true, companion_growth: true, growth_announce: false, companion_return: true, return_announce: true,
+  window_button: true,
+};
+
+let byKey = {};
+const inputs = {};
+let spacingInputs = {};
+let baseline = '';
+
+function textBlock(label, hint) {
+  const t = document.createElement('div');
+  t.className = 't';
+  t.textContent = label;
+  if (hint) { const s = document.createElement('small'); s.textContent = hint; t.append(s); }
+  return t;
+}
+
+function spacingRow() {
+  const r = document.createElement('div');
+  r.className = 'row';
+  const t = textBlock('Party spacing', 'How far from you they stand between fights.');
+  const p = document.createElement('div');
+  p.className = 'preview';
+  p.id = 'pv_spacing';
+  t.append(p);
+  const seg = document.createElement('div');
+  seg.className = 'seg';
+  const now = byKey.spacing_close?.value ? 'close' : byKey.spacing_far?.value ? 'far'
+    : byKey.spacing_normal?.value ? 'normal' : 'off';
+  for (const o of SPACING) {
+    const l = document.createElement('label');
+    const i = document.createElement('input');
+    i.type = 'radio';
+    i.name = 'spacing';
+    i.value = o.id;
+    i.checked = o.id === now;
+    spacingInputs[o.id] = i;
+    l.append(i, o.label);
+    seg.append(l);
+  }
+  r.append(t, seg);
+  return r;
+}
+
+function row(key) {
+  if (key === 'spacing') return spacingRow();
+  const s = byKey[key];
+  if (!s) return null;
+  const r = document.createElement('div');
+  r.className = 'row';
+  r.id = 'row_' + key;
+  const t = textBlock(s.label || key, s.description);
+  r.append(t);
+  if (s.type === 'boolean') {
+    const wrap = document.createElement('label');
+    wrap.className = 'sw';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = s.value === true;
+    input.setAttribute('aria-label', s.label || key);
+    inputs[key] = input;
+    wrap.append(input, document.createElement('span'));
+    r.append(wrap);
+  } else if (s.type === 'string') {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'txt';
+    if (s.maxLength) input.maxLength = s.maxLength;
+    input.value = s.value;
+    inputs[key] = input;
+    r.append(input);
+  } else {
+    const box = document.createElement('span');
+    box.className = 'num';
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = 1;
+    if (s.min !== undefined) input.min = s.min;
+    if (s.max !== undefined) input.max = s.max;
+    input.value = s.value;
+    inputs[key] = input;
+    box.append(input);
+    if (UNITS[key]) box.append(UNITS[key]);
+    r.append(box);
+  }
+  const p = document.createElement('div');
+  p.className = 'preview';
+  p.id = 'pv_' + key;
+  t.append(p);
+  return r;
+}
+
+function build() {
+  const root = $('cards');
+  for (const card of CARDS) {
+    const el = document.createElement('section');
+    el.className = 'card ' + card.cls;
+    const head = document.createElement('div');
+    head.className = 'head';
+    const t = document.createElement('div');
+    t.className = 't';
+    const b = document.createElement('b'); b.textContent = card.title;
+    const sm = document.createElement('small'); sm.textContent = card.blurb || '';
+    t.append(b, sm);
+    head.append(t);
+    const body = document.createElement('div');
+    body.className = 'body';
+    for (const key of card.rows) {
+      const r = row(key);
+      if (r) body.append(r);
+    }
+    el.append(head, body);
+    root.append(el);
+  }
+}
+
+function clamp(key, raw) {
+  const s = byKey[key];
+  let v = Math.round(Number(raw));
+  if (!Number.isFinite(v)) v = s.value;
+  if (s.min !== undefined) v = Math.max(s.min, v);
+  if (s.max !== undefined) v = Math.min(s.max, v);
+  return v;
+}
+
+function spacing() {
+  return Object.keys(spacingInputs).find(k => spacingInputs[k].checked) || 'normal';
+}
+
+function values() {
+  const out = {};
+  for (const [key, input] of Object.entries(inputs)) {
+    const type = byKey[key].type;
+    out[key] = type === 'boolean' ? input.checked : type === 'string' ? input.value : clamp(key, input.value);
+  }
+  const sp = spacing();
+  for (const k of ['close', 'normal', 'far'])
+    if (byKey['spacing_' + k]) out['spacing_' + k] = sp === k;
+  return out;
+}
+
+function refresh() {
+  const v = values();
+  const set = (key, text) => { const e = $('pv_' + key); if (e) e.textContent = text; };
+  set('spacing', (SPACING.find(o => o.id === spacing()) || {}).hint || '');
+  set('banter_minutes', v.banter_minutes === 0 ? 'Off: they never chat among themselves.'
+    : `About every ${v.banter_minutes} min; with 3+ companions about every ${Math.max(1, Math.round(v.banter_minutes * 0.6 * 10) / 10)} min.`);
+  set('purse_per_level', v.purse_per_level === 0 ? 'The purse is off.'
+    : `A level 40 monster with 3 companions adds ${(v.purse_per_level * 40 * 3).toLocaleString('en-US')} zeny.`);
+  // Options that only matter with another one on.
+  const dim = (key, on) => { const r = $('row_' + key); if (r) r.classList.toggle('off', !on); };
+  dim('sit_with_favourite', v.idle_sit);
+  dim('restless_sitting', v.idle_sit);
+  dim('growth_announce', v.companion_growth);
+  dim('return_announce', v.companion_return);
+  dim('purse_talk', v.purse_per_level > 0);
+  const dirty = JSON.stringify(v) !== baseline;
+  const st = $('status');
+  if (!st.dataset.busy) {
+    st.textContent = dirty ? 'Unsaved changes.' : '';
+    st.className = dirty ? 'dirty' : '';
+  }
+}
+
+function status(text) { const st = $('status'); st.textContent = text; st.className = ''; }
+
+async function run(work, done) {
+  document.querySelectorAll('button').forEach(b => b.disabled = true);
+  $('status').dataset.busy = '1';
+  try { await work(); baseline = JSON.stringify(values()); status(done); }
+  catch (e) { status('Error: ' + (e && e.message || e)); }
+  delete $('status').dataset.busy;
+  document.querySelectorAll('button').forEach(b => b.disabled = false);
+}
+
+(async () => {
+  try {
+    const mod = await window.modSettings.get();
+    $('ver').textContent = 'v' + mod.version + (mod.enabled ? '' : ' (switched off in the Mods tab)');
+    byKey = Object.fromEntries(mod.settings.map(s => [s.key, s]));
+    build();
+    baseline = JSON.stringify(values());
+    document.addEventListener('input', refresh);
+    document.addEventListener('change', e => {
+      const k = Object.keys(inputs).find(k => inputs[k] === e.target);
+      if (k && byKey[k].type === 'number') e.target.value = clamp(k, e.target.value);
+      refresh();
+    });
+    refresh();
+  } catch (e) {
+    status('Could not read settings: ' + (e && e.message || e));
+  }
+})();
+
+$('save').onclick = () => run(() => window.modSettings.set(values()),
+  'Saved. Takes effect the next time the server starts.');
+$('apply').onclick = () => run(async () => {
+  await window.modSettings.set(values());
+  status('Restarting the server...');
+  await window.modSettings.apply();
+}, 'Saved, and the server restarted.');
+$('reset').onclick = () => {
+  for (const [key, input] of Object.entries(inputs)) {
+    const d = DEFAULTS[key];
+    if (d === undefined) continue;
+    if (byKey[key].type === 'boolean') input.checked = d === true; else input.value = d;
+  }
+  spacingInputs.normal.checked = true;
+  refresh();
+};
+</script>
+</body>
+</html>

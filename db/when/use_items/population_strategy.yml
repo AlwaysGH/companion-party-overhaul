@@ -1,0 +1,69 @@
+# companion-party-overhaul: companions use the items you give them (setting "use_items").
+# Only with Settings > Population > Companion inventory on: then a companion carries
+# what you trade it, and a rule only exists for a companion that carries its item.
+# (The engine already drinks HP and SP potions by itself, below 40% HP or 20% SP.)
+#
+#   poisoned                 Green Herb, Green Potion, Panacea or Royal Jelly
+#   silenced or blinded      Green Potion, Panacea or Royal Jelly
+#   confused, cursed, hallucinating   Panacea or Royal Jelly; cursed: Holy Water too
+#   under 20% HP and being hit       Yggdrasil Seed, then Yggdrasil Berry
+#   a boss nearby            its speed potion: Berserk, Awakening or Concentration
+#                            (each class can only drink the ones it's allowed)
+#
+# In a list the first item it carries is the one used, so the cheap ones come first.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      - Job: All
+        Rules:
+          - Name: ct_item_poison
+            Priority: 118
+            UseItem: [Green_Herb, Green_Potion, Panacea, Royal_Jelly]
+            When: self_poison
+            Cooldown: 3000
+          - Name: ct_item_silence_blind
+            Priority: 118
+            UseItem: [Green_Potion, Panacea, Royal_Jelly]
+            When: { OR: [self_silence, self_blind] }
+            Cooldown: 3000
+          - Name: ct_item_curse
+            Priority: 118
+            UseItem: [Holy_Water, Panacea, Royal_Jelly]
+            When: self_curse
+            Cooldown: 3000
+          - Name: ct_item_mind
+            Priority: 118
+            UseItem: [Panacea, Royal_Jelly]
+            When: { OR: [self_confusion, self_hallucination] }
+            Cooldown: 3000
+          - Name: ct_item_last_resort
+            Priority: 119
+            UseItem: [Seed_Of_Yggdrasil, Yggdrasilberry]
+            When: self_hp_pct_lt20
+            Present: { Enemy: attacking, Who: self }
+            Cooldown: 10000
+
+  - Mob: Boss
+    Jobs:
+      - Job: All
+        Rules:
+          - Name: ct_item_berserk
+            Priority: 62
+            UseItem: Berserk_Potion
+            When: [not_self_aspdpotion0, not_self_aspdpotion1, not_self_aspdpotion2]
+            Cooldown: 5000
+          - Name: ct_item_awakening
+            Priority: 61
+            UseItem: Awakening_Potion
+            When: [not_self_aspdpotion0, not_self_aspdpotion1, not_self_aspdpotion2]
+            Cooldown: 5000
+          - Name: ct_item_concentration
+            Priority: 60
+            UseItem: Center_Potion
+            When: [not_self_aspdpotion0, not_self_aspdpotion1, not_self_aspdpotion2]
+            Cooldown: 5000

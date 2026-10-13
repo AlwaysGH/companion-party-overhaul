@@ -1,0 +1,229 @@
+//===== Ragnarok Offline: companion-party-overhaul, companion growth ======
+//= (Moved here from population-tweaks 4.1.0, which replaced its stat fix. App 1.5.3 fixed the
+//= "about 100 in every stat" bug itself: shells now get the stat points a
+//= character of their level has, so the AI-player part and @statfix went.)
+//=
+//= What is still missing in the engine (1.5.4): a companion earns stat
+//= points as it levels, but the engine only spends them on the stats its
+//= profile names (pop_companion_spend_stat_points), and the low-level
+//= profiles name none. A companion recruited from them banks its points
+//= forever. Here those points are spent like a player would: one at a time,
+//= at the real cost, on the stat furthest behind its job's build.
+//=
+//= Also, once: a companion still saved with the old ~100-everywhere stats
+//= (recruited before 1.5.3) is given a normal build for its level.
+//=
+//= How: a timer on each player (every 3 s) looks at the party's companions
+//= (char id 95000000+), attaches to each one, and attaches back.
+//===========================================================================
+-	script	PopCompanionGrowth	-1,{
+	end;
+
+OnInit:
+	.mod$ = "companion-party-overhaul";
+	.on = callfunc("F_ModSetting", .mod$, "companion_growth", 1);
+	.say = callfunc("F_ModSetting", .mod$, "growth_announce", 0);
+
+	// Build weights per base job: Str,Agi,Vit,Int,Dex,Luk. A stat with 0
+	// gets nothing. Transcendent jobs use their normal job's weights.
+	.wdef$ = "3,2,2,2,2,1";
+	setd ".w_0$", "3,2,2,0,2,1";	// Novice
+	setd ".w_1$", "5,3,3,0,2,1";	// Swordman
+	setd ".w_7$", "5,3,3,0,2,1";	// Knight
+	setd ".w_14$", "4,1,4,2,3,0";	// Crusader
+	setd ".w_2$", "0,1,2,6,4,0";	// Mage
+	setd ".w_9$", "0,0,2,6,4,0";	// Wizard
+	setd ".w_16$", "0,2,2,5,4,0";	// Sage
+	setd ".w_3$", "1,4,1,0,6,2";	// Archer
+	setd ".w_11$", "1,4,1,1,6,2";	// Hunter
+	setd ".w_19$", "1,4,2,2,5,0";	// Bard
+	setd ".w_20$", "1,4,2,2,5,0";	// Dancer
+	setd ".w_4$", "5,2,4,4,3,1";	// Acolyte (mace)
+	setd ".w_8$", "1,1,4,6,3,0";	// Priest
+	setd ".w_15$", "5,3,3,1,3,1";	// Monk
+	setd ".w_5$", "5,1,3,0,3,2";	// Merchant
+	setd ".w_10$", "5,2,3,0,3,1";	// Blacksmith
+	setd ".w_18$", "4,1,3,2,3,0";	// Alchemist
+	setd ".w_6$", "4,5,1,0,2,2";	// Thief
+	setd ".w_12$", "4,5,1,0,2,2";	// Assassin
+	setd ".w_17$", "4,4,1,0,3,2";	// Rogue
+	setd ".w_23$", "3,2,2,1,2,1";	// Super Novice
+	setd ".w_24$", "0,4,1,0,6,2";	// Gunslinger
+	setd ".w_25$", "3,3,1,3,4,0";	// Ninja
+	setd ".w_4046$", "4,4,2,0,3,1";	// Taekwon
+	setd ".w_4047$", "4,4,2,0,3,1";	// Star Gladiator
+	setd ".w_4049$", "0,1,2,6,4,0";	// Soul Linker
+	initnpctimer;	// the tick below
+	end;
+
+// The tick: one NPC timer for everyone, every 3000 ms. `addrid 0, 1` runs the
+// tick for each player but skips anyone busy in another script (an NPC
+// dialog). Before, each player had a timer of their own, and during a long
+// dialog those queued up until the queue was full and were dropped ("event
+// queue is full"), which stopped them for good.
+OnTimer3000:
+	initnpctimer;
+	if (!.on)
+		end;
+	addrid 0, 1;
+	if (getcharid(3) >= 95000000)
+		end;	// an AI player, not a person
+	goto OnTick;
+
+OnPCLoginEvent:
+	if (!.on)
+		end;
+	end;
+
+OnTick:
+	if (!getcharid(1))
+		end;
+	.@me = getcharid(3);
+	getpartymember getcharid(1), 1;
+	getpartymember getcharid(1), 2;
+	.@nc = 0;
+	for (.@i = 0; .@i < $@partymembercount; .@i++) {
+		if ($@partymembercid[.@i] >= 95000000 && $@partymemberaid[.@i] != .@me) {
+			.@ca[.@nc] = $@partymemberaid[.@i];
+			.@nc++;
+		}
+	}
+	if (!.@nc)
+		end;
+	.nrep = 0;
+	deletearray .rep$;
+	freeloop(1);
+	for (.@i = 0; .@i < .@nc; .@i++) {
+		if (!isloggedin(.@ca[.@i]) || !attachrid(.@ca[.@i], 1))
+			continue;
+		callsub L_Weights;
+		if (callsub(L_Broken))
+			callsub L_Rebuild;
+		else if (readparam(StatusPoint) > 0)
+			callsub L_Spend;
+	}
+	freeloop(0);
+	attachrid(.@me);
+	if (.say) {
+		for (.@i = 0; .@i < .nrep; .@i++)
+			dispbottom "[Companions] " + .rep$[.@i], 0x99DDFF;
+	}
+	end;
+
+// The attached companion's build weights into .@w[0..5] (caller's scope
+// is shared through .w[]).
+L_Weights:
+	.@ea = eaclass(Class);
+	.@job = roclass(.@ea & ~(EAJL_UPPER | EAJL_BABY));
+	.@w$ = "";
+	if (.@job >= 0)
+		.@w$ = getd(".w_" + .@job + "$");
+	if (.@w$ == "")
+		.@w$ = .wdef$;
+	explode(.@ws$, .@w$, ",");
+	for (.@s = 0; .@s < 6; .@s++)
+		.w[.@s] = atoi(.@ws$[.@s]);
+	return;
+
+// Str..Luk of the attached unit into .st[0..5]. Always readparam: the bare
+// names read 0 on an attached shell.
+L_Read:
+	setarray .st[0], readparam(bStr), readparam(bAgi), readparam(bVit), readparam(bInt), readparam(bDex), readparam(bLuk);
+	return;
+
+// 1 when the attached companion still has the old 90-109 in all six.
+L_Broken:
+	callsub L_Read;
+	for (.@s = 0; .@s < 6; .@s++) {
+		if (.st[.@s] < 90 || .st[.@s] > 109)
+			return 0;
+	}
+	return 1;
+
+// Spend the attached companion's own stat points, one at a time at the real
+// cost, on the stat furthest behind its weight. A stat the server refuses
+// (at its cap) is passed over from then on.
+L_Spend:
+	callsub L_Read;
+	.@before$ = .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
+	setarray .@full[0], 0, 0, 0, 0, 0, 0;
+	.@spent = 0;
+	for (.@guard = 0; .@guard < 300; .@guard++) {
+		.@pts = readparam(StatusPoint);
+		.@best = -1;
+		for (.@s = 0; .@s < 6; .@s++) {
+			if (.w[.@s] <= 0 || .@full[.@s])
+				continue;
+			// Two ifs: this server evaluates both sides of ||, and .w[-1] is an error.
+			if (.@best < 0)
+				.@best = .@s;
+			else if (.st[.@s] * .w[.@best] < .st[.@best] * .w[.@s])
+				.@best = .@s;
+		}
+		if (.@best < 0)
+			break;
+		.@cost = (.st[.@best] - 1) / 10 + 2;
+		if (.@cost > .@pts)
+			break;	// saving up for the next point there
+		switch (.@best) {
+		case 0: statusup bStr; break;
+		case 1: statusup bAgi; break;
+		case 2: statusup bVit; break;
+		case 3: statusup bInt; break;
+		case 4: statusup bDex; break;
+		default: statusup bLuk; break;
+		}
+		.@was = .st[.@best];
+		callsub L_Read;
+		if (.st[.@best] == .@was)
+			.@full[.@best] = 1;
+		else
+			.@spent++;
+	}
+	if (.@spent) {
+		.rep$[.nrep] = strcharinfo(0) + " (" + jobname(Class) + " Lv " + BaseLevel + ") spent " + .@spent + " stat point(s): "
+			+ .@before$ + " -> " + .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
+		.nrep++;
+	}
+	return;
+
+// The old broken build: set the stats to what a real player of this level
+// and job has (pre-renewal costs), without handing out points.
+L_Rebuild:
+	.@pts = 48;
+	if (eaclass(Class) & EAJL_UPPER)
+		.@pts += 52;
+	for (.@l = 2; .@l <= BaseLevel; .@l++)
+		.@pts += (.@l - 1) / 5 + 3;
+	setarray .@t[0], 1, 1, 1, 1, 1, 1;
+	while (1) {
+		.@best = -1;
+		for (.@s = 0; .@s < 6; .@s++) {
+			if (.w[.@s] <= 0 || .@t[.@s] >= 99)
+				continue;
+			if (.@best < 0)
+				.@best = .@s;
+			else if (.@t[.@s] * .w[.@best] < .@t[.@best] * .w[.@s])
+				.@best = .@s;
+		}
+		if (.@best < 0)
+			break;
+		.@cost = (.@t[.@best] - 1) / 10 + 2;
+		if (.@cost > .@pts)
+			break;
+		.@pts -= .@cost;
+		.@t[.@best]++;
+	}
+	.@before$ = .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
+	if (.@t[0] != .st[0]) statusup2 bStr, .@t[0] - .st[0];
+	if (.@t[1] != .st[1]) statusup2 bAgi, .@t[1] - .st[1];
+	if (.@t[2] != .st[2]) statusup2 bVit, .@t[2] - .st[2];
+	if (.@t[3] != .st[3]) statusup2 bInt, .@t[3] - .st[3];
+	if (.@t[4] != .st[4]) statusup2 bDex, .@t[4] - .st[4];
+	if (.@t[5] != .st[5]) statusup2 bLuk, .@t[5] - .st[5];
+	callsub L_Read;
+	.rep$[.nrep] = strcharinfo(0) + " (" + jobname(Class) + " Lv " + BaseLevel + ") had the old broken stats: "
+		+ .@before$ + " -> " + .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
+	.nrep++;
+	return;
+}

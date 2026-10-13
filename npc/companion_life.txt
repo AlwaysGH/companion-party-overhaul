@@ -1,0 +1,2877 @@
+//===== Ragnarok Offline: companion-party-overhaul (was companion-life) ======
+//= Companions talk like people who live in this world with you: greetings
+//= by time away, reactions to towns/fields/dungeons and level-ups, combat
+//= callouts with RO emotes, and conversations with each other when calm.
+//=
+//= How it works: a timer on each player (every 1.5 s) reads the party.
+//= Companions are population-engine shells (char id 95000000 and up) and
+//= real party members, so readparam/strcharinfo by char id and
+//= unittalk/emotion by account id reach them. The engine drops script
+//= events for shells, so everything is polled from the owner's side.
+//=
+//= Lines: .<category>_<personality>$ arrays, {t} = the speaker's title for
+//= you, {a} = another companion's name. Personalities: 0 Rookie (Novice),
+//= 1 Guardian (Swordman), 2 Scholar (Mage, Soul Linker), 3 Wanderer
+//= (Archer, Bard, Dancer, Gunslinger), 4 Healer (Acolyte, Priest),
+//= 5 Brawler (Monk, Taekwon, Star Gladiator), 6 Rogue (Thief, Ninja),
+//= 7 Merchant.
+//=
+//= 1.1.0: daily life (own level-ups and job changes, resting, you going
+//= quiet, time of day, long sessions) here; party-chat answers and battle
+//= reactions are the engine's companion strategies (app 1.5.4), in
+//= db/when/<setting>/population_strategy.yml, made by tools/make_strategy.ps1.
+//= 1.2.0: memories (mod store, char scope, m.c<companion char id>.*) and
+//= @clstat for the Companions window (client/index.js). Growth and the
+//= fallen-companion return are npc/companion_growth.txt / companion_return.txt.
+//===========================================================================
+-	script	CompanionLife	-1,{
+	end;
+
+OnInit:
+	.mod$ = "companion-party-overhaul";
+	.greet = callfunc("F_ModSetting", .mod$, "greetings", 1);
+	.world = callfunc("F_ModSetting", .mod$, "world_reactions", 1);
+	.callouts = callfunc("F_ModSetting", .mod$, "combat_callouts", 1);
+	.emotes = callfunc("F_ModSetting", .mod$, "emotes", 1);
+	.banter = callfunc("F_ModSetting", .mod$, "banter_minutes", 4);
+	.life = callfunc("F_ModSetting", .mod$, "daily_life", 1);
+	.mem = callfunc("F_ModSetting", .mod$, "memories", 1);
+	.purse = callfunc("F_ModSetting", .mod$, "purse_per_level", 2);
+	.purse_talk = callfunc("F_ModSetting", .mod$, "purse_talk", 1);
+	.look = callfunc("F_ModSetting", .mod$, "look_around", 1);
+	.sitfav = callfunc("F_ModSetting", .mod$, "sit_with_favourite", 1);
+	.patrol = callfunc("F_ModSetting", .mod$, "scout_patrol", 1);
+	.restless = callfunc("F_ModSetting", .mod$, "restless_sitting", 1);
+	.idlesit = callfunc("F_ModSetting", .mod$, "idle_sit", 1);
+	// The scouts' patrol ring: 8 waypoints round you, in order (east, then
+	// counter-clockwise on the map), one cell past the party spacing.
+	setarray .rx, 1, 1, 0, -1, -1, -1, 0, 1;
+	setarray .ry, 0, 1, 1, 1, 0, -1, -1, -1;
+	// Party spacing (db/when/spacing_*): how far from you they stand, stroll and
+	// sit. With none chosen the game's own follow pulls them back anyway, and
+	// the strolls use the normal distance.
+	.near = 4;
+	if (callfunc("F_ModSetting", .mod$, "spacing_close", 0))
+		.near = 2;
+	else if (callfunc("F_ModSetting", .mod$, "spacing_far", 0))
+		.near = 6;
+	// The Companions status window (client/index.js) asks here; its Bag tab
+	// asks @clbag (bags, taking items back, the party purse).
+	bindatcmd "clstat", strnpcinfo(3) + "::OnCmdStat", 0, 99;
+	bindatcmd "clbag", strnpcinfo(3) + "::OnCmdBag", 0, 99;
+	// Titles: comma list, trimmed; each companion keeps one (char id mod n).
+	deletearray .ttl$;
+	.nt = 0;
+	explode(.@raw$, callfunc("F_ModSetting", .mod$, "titles", "Boss,Captain,Leader"), ",");
+	for (.@i = 0; .@i < getarraysize(.@raw$); .@i++) {
+		.@s$ = .@raw$[.@i];
+		while (getstrlen(.@s$) > 0 && charat(.@s$, 0) == " ")
+			.@s$ = delchar(.@s$, 0);
+		while (getstrlen(.@s$) > 0 && charat(.@s$, getstrlen(.@s$) - 1) == " ")
+			.@s$ = delchar(.@s$, getstrlen(.@s$) - 1);
+		if (.@s$ != "") {
+			.ttl$[.nt] = .@s$;
+			.nt++;
+		}
+	}
+	if (!.nt) {
+		.ttl$[0] = "Boss";
+		.nt = 1;
+	}
+
+	// ---- 0 Rookie: eager, nervous, looks up to you ----
+	setarray .gnew_0$, "W-welcome! I'm with you now, {t}. I won't slow you down!", "So you're the {t} everyone talks about? I'm ready!";
+	setarray .gshort_0$, "Back already, {t}? I kept watch the whole time!", "Oh! {t}! I was just practicing my swings.";
+	setarray .ghours_0$, "{t}! How was your nap? I only fell asleep once!", "You're back! I counted Porings while you rested, {t}.";
+	setarray .gdays_0$, "{t}!! I thought you weren't coming back...", "You're back! I never gave up on you, {t}!";
+	setarray .town_0$, "So many people... is this a big city, {t}?", "Can we buy something? Anything? Please, {t}?";
+	setarray .field_0$, "Fresh air! Let's go hunting, {t}!", "I'll catch the next Poring, I swear!";
+	setarray .dungeon_0$, "It's d-dark in here, {t}... stay close, okay?", "I'm not scared. Not even a little. Okay, a little.";
+	setarray .lvl_0$, "Whoa! You got stronger again, {t}!", "Teach me how you do that, {t}!";
+	setarray .olow_0$, "{t}! You're hurt! What do I do?!", "{t}, please fall back!";
+	setarray .odead_0$, "{t}!! No no no, get up!", "This can't be happening... {t}!";
+	setarray .low_0$, "I-I need help here!", "Ow ow ow! Heal, please!";
+	setarray .sp_0$, "I'm all out of energy...", "No more SP, sorry {t}!";
+	setarray .scared_0$, "Th-that thing is HUGE!", "That hit hurt SO much!";
+	setarray .down_0$, "{a} went down! Someone help!", "{a}! No!";
+	setarray .revive_0$, "I'm alive! Thank you!", "Back on my feet. Sorry, {t}!";
+	setarray .fight_0$, "Here they come! I'm ready!", "Let's do this, {t}!";
+	setarray .win_0$, "We won! Did you see me, {t}?", "That was amazing!";
+	setarray .idle_0$, "Do you think I'll ever be as strong as you, {t}?", "Is it true you came from another world, {t}?", "I'm going to be a hero someday. Just watch.";
+
+	// ---- 1 Guardian: loyal knight, formal, protective ----
+	setarray .gnew_1$, "Sword and shield at your service, {t}.", "I swear to guard you with my life, {t}.";
+	setarray .gshort_1$, "Welcome back, {t}. All quiet on my watch.", "{t}. The perimeter is secure.";
+	setarray .ghours_1$, "Rested, {t}? I kept watch through the night.", "Good to see you up, {t}. I polished your armor.";
+	setarray .gdays_1$, "{t}... you were gone a long time. My oath held.", "Welcome home, {t}. We never broke formation.";
+	setarray .town_1$, "Stay alert, {t}. Cutpurses love crowded streets.", "A chance to sharpen my blade. Thank you, {t}.";
+	setarray .field_1$, "Open ground. I'll take point, {t}.", "Formation, everyone. The {t} stays in the center.";
+	setarray .dungeon_1$, "Close ranks. I go first, {t}.", "It smells like death in here. Keep behind me, {t}.";
+	setarray .lvl_1$, "Splendid, {t}! Your strength grows.", "It is an honor to follow you, {t}.";
+	setarray .olow_1$, "{t}! Fall back, I will cover you!", "Behind me, {t}! Now!";
+	setarray .odead_1$, "{t}! I failed you...", "Get up, {t}! I won't allow this!";
+	setarray .low_1$, "I can still... stand...", "My armor is cracking! Heal!";
+	setarray .sp_1$, "My strength is spent, {t}.", "No more techniques left in me.";
+	setarray .scared_1$, "Hold fast! That one hits hard!", "Steady... this foe is no ordinary beast.";
+	setarray .down_1$, "{a} has fallen! Protect the {t}!", "{a}! I'll avenge you!";
+	setarray .revive_1$, "I live to serve again.", "Forgive me, {t}. It won't happen twice.";
+	setarray .fight_1$, "Enemies ahead! Shields up!", "For the {t}!";
+	setarray .win_1$, "The field is ours.", "Well fought, everyone.";
+	setarray .idle_1$, "A knight without a lord is just a sword. I'm glad I found you, {t}.", "Your eyes look far away sometimes, {t}. Thinking of home?", "I'll sharpen my blade while we rest.";
+
+	// ---- 2 Scholar: analytical, dry, curious about where you came from ----
+	setarray .gnew_2$, "Fascinating. You'll be my {t}, then.", "I accept this contract. Try not to bore me, {t}.";
+	setarray .gshort_2$, "Ah, {t}. That was a short absence.", "Back so soon? I barely finished my chapter.";
+	setarray .ghours_2$, "Did you sleep well, {t}? Studies say it helps.", "Welcome back, {t}. I've been theorizing about where you go.";
+	setarray .gdays_2$, "Days, {t}. Days. I nearly finished my thesis.", "You vanish as if you leave this world entirely, {t}.";
+	setarray .town_2$, "A library, {t}? Please say there's a library.", "Civilization. I can finally restock my catalysts.";
+	setarray .field_2$, "The mana here is calm. Good for casting.", "Mind the grass, {t}. Some of it bites.";
+	setarray .dungeon_2$, "The mana here is foul. Interesting.", "Need light, {t}? I could just set something on fire.";
+	setarray .lvl_2$, "Exponential growth. Remarkable, {t}.", "Your power curve defies my models, {t}.";
+	setarray .olow_2$, "{t}, your vitals are critical! Retreat!", "That's not a sustainable amount of blood, {t}!";
+	setarray .odead_2$, "{t}! This wasn't in my calculations!", "No... {t}!";
+	setarray .low_2$, "My barrier is gone!", "I'm not built for this. Heal!";
+	setarray .sp_2$, "Out of mana. I need a moment.", "My mana pool is empty, {t}.";
+	setarray .scared_2$, "That power level is... concerning.", "Recalculating. Badly.";
+	setarray .down_2$, "{a} is down! Cover me while I cast!", "We lost {a}! Regroup!";
+	setarray .revive_2$, "Ugh. Death is very overrated.", "Thank you. I'll note that in my journal.";
+	setarray .fight_2$, "Targets acquired. Beginning the incantation.", "Stand back. This one's going to be loud.";
+	setarray .win_2$, "Exactly as predicted.", "A satisfying experiment.";
+	setarray .idle_2$, "Your world, {t}... did it have magic?", "I could cast that spell with fewer words. Probably.", "You never answer when I ask where you're from, {t}.";
+
+	// ---- 3 Wanderer: laid-back, jokes, songs and open sky ----
+	setarray .gnew_3$, "A new {t}? Let's make some songs worth singing.", "Hey there, {t}. Point me at something to shoot.";
+	setarray .gshort_3$, "Yo, {t}. Miss me?", "Back already? I was just tuning up.";
+	setarray .ghours_3$, "Morning, {t}! Or evening. I lose track.", "Sleep well, {t}? I wrote you a song while you snored.";
+	setarray .gdays_3$, "Well, look who wandered back! Took your sweet time, {t}.", "{t}! I was about to write a sad ballad about you.";
+	setarray .town_3$, "Taverns, music, food. Now we're talking, {t}.", "I'll play a few songs for coins. Kidding. Mostly.";
+	setarray .field_3$, "Wide open sky. This is my kind of place.", "The wind's good today. Perfect for arrows.";
+	setarray .dungeon_3$, "No sky in here. I hate that.", "The echoes in here are great. The monsters, not so much.";
+	setarray .lvl_3$, "Look at you go, {t}!", "That's going in the song, {t}!";
+	setarray .olow_3$, "{t}! You look awful! Back off!", "Hey hey hey, {t}, retreat!";
+	setarray .odead_3$, "{t}! Come on, this isn't how the song ends!", "Not like this, {t}!";
+	setarray .low_3$, "I'm hit bad! Heal?", "Okay, that one stung!";
+	setarray .sp_3$, "Out of juice, {t}.", "No SP left. Plain arrows it is.";
+	setarray .scared_3$, "Whoa! Big one!", "That thing nearly took my head off!";
+	setarray .down_3$, "{a}'s down! Cover them!", "No! {a}!";
+	setarray .revive_3$, "Back from the dead! Great material for a song.", "Thanks! I owe you a drink.";
+	setarray .fight_3$, "Heads up! Company!", "Let's make some noise!";
+	setarray .win_3$, "Bullseye. Every time.", "Easy. Well, easy-ish.";
+	setarray .idle_3$, "Sing me a song from your homeland sometime, {t}.", "You hum strange tunes, {t}. Where are they from?", "One day I'll see every map in this world.";
+
+	// ---- 4 Healer: caring, scolds you for being reckless, faithful ----
+	setarray .gnew_4$, "May the goddess guide us, {t}. I'll keep you safe.", "I'll be your healer, {t}. Please don't be reckless.";
+	setarray .gshort_4$, "Welcome back, {t}. Did you eat something?", "Back already, {t}? Good. Stay where I can see you.";
+	setarray .ghours_4$, "Did you rest well, {t}? You needed it.", "Good morning, {t}. I prayed for you while you slept.";
+	setarray .gdays_4$, "{t}! You were gone so long... I was worried sick.", "Thank the goddess, you're back, {t}.";
+	setarray .town_4$, "Let's buy potions, {t}. Many potions.", "I'll stop by the church. It won't take long.";
+	setarray .field_4$, "Fresh air is good for the soul.", "Stay in range of my heals, {t}.";
+	setarray .dungeon_4$, "So much darkness... the goddess is with us.", "Undead nearby. Stay close to me, {t}.";
+	setarray .lvl_4$, "Blessings upon you, {t}!", "The goddess smiles on you, {t}.";
+	setarray .olow_4$, "{t}! Hold still, I'm healing you!", "Don't you dare die on me, {t}!";
+	setarray .odead_4$, "{t}! No... I'll bring you back!", "Goddess, please... not the {t}!";
+	setarray .low_4$, "I need to heal myself!", "I'm hurt... cover me!";
+	setarray .sp_4$, "My mana is gone. No more heals!", "I'm empty, {t}. Be careful!";
+	setarray .scared_4$, "Goddess protect us!", "That strength is unholy!";
+	setarray .down_4$, "{a} is down! I'm coming!", "Hold on, {a}!";
+	setarray .revive_4$, "The goddess sent me back. Thank you.", "I'm alright now. Don't worry.";
+	setarray .fight_4$, "Blessings up! Go!", "I'll keep you standing!";
+	setarray .win_4$, "Is everyone alright? Let me check your wounds.", "Thank the goddess.";
+	setarray .idle_4$, "You carry a sadness, {t}. Do you miss your home?", "Please rest when you can, {t}.", "Whatever world you came from, I'm glad you're here.";
+
+	// ---- 5 Brawler: hot-blooded, training, food ----
+	setarray .gnew_5$, "Ha! A new {t}! Let's see what you're made of!", "My fists are yours, {t}.";
+	setarray .gshort_5$, "Back! Let's go punch something, {t}!", "You're back! I did 500 push-ups.";
+	setarray .ghours_5$, "Sleep well, {t}? I trained the whole time!", "Rise and shine, {t}! Let's sweat!";
+	setarray .gdays_5$, "{t}! My fists have been bored for days!", "Finally! I was about to punch a tree out of boredom.";
+	setarray .town_5$, "Food first. Then training. Then food.", "I smell meat skewers, {t}.";
+	setarray .field_5$, "Good ground for footwork!", "Let's warm up on whatever moves.";
+	setarray .dungeon_5$, "Tight corridors. My favorite.", "I can feel my spirit spheres buzzing.";
+	setarray .lvl_5$, "HA! Now that's strength, {t}!", "You're getting tough, {t}! I like it!";
+	setarray .olow_5$, "{t}! Get behind me! I'll take them!", "Back off, {t}! I've got this!";
+	setarray .odead_5$, "{t}!! Who did this?!", "Get up, {t}! The fight's not over!";
+	setarray .low_5$, "Just a scratch... a big scratch.", "Gah! I need healing!";
+	setarray .sp_5$, "My spirit's tapped out!", "No more ki, {t}.";
+	setarray .scared_5$, "Now THAT is a punch!", "Whoa... that one's strong!";
+	setarray .down_5$, "{a}! I'll crush whoever did that!", "{a} is down! Rraaah!";
+	setarray .revive_5$, "Hah! Can't keep me down!", "Round two!";
+	setarray .fight_5$, "Fight! FIGHT!", "Let's go, let's go!";
+	setarray .win_5$, "Is that all of them?", "Good workout!";
+	setarray .idle_5$, "Want to spar, {t}? No? Later, then.", "Fighting is the most honest language, {t}.", "I'm hungry. Are you hungry, {t}?";
+
+	// ---- 6 Rogue: sly, sarcastic, quietly loyal ----
+	setarray .gnew_6$, "Fine. I'll follow you, {t}. For now.", "You pay, I watch your back. Deal, {t}.";
+	setarray .gshort_6$, "Back already, {t}? Didn't even miss you.", "Hm. {t}. Nothing got stolen. By anyone else.";
+	setarray .ghours_6$, "Nice nap, {t}? I checked your pockets. Kidding.", "You sleep like the dead, {t}. Don't make it a habit.";
+	setarray .gdays_6$, "Days, {t}. Thought you'd skipped town on us.", "Look who's back. You still owe me, {t}.";
+	setarray .town_6$, "Crowds. Good for business.", "Watch your purse, {t}. Not from me. Probably.";
+	setarray .field_6$, "Too open. I prefer shadows.", "I'll scout ahead.";
+	setarray .dungeon_6$, "Now this is my kind of place.", "Traps everywhere. Watch your step, {t}.";
+	setarray .lvl_6$, "Not bad, {t}.", "Heh. You're getting dangerous, {t}.";
+	setarray .olow_6$, "{t}, get out of there!", "You're bleeding out, {t}. Move!";
+	setarray .odead_6$, "{t}... tch. Get up.", "Damn it, {t}!";
+	setarray .low_6$, "Tch. Need a heal.", "I'm cut up bad.";
+	setarray .sp_6$, "Out of tricks.", "No SP. Just knives.";
+	setarray .scared_6$, "That's not worth the loot.", "Nope. Nope nope.";
+	setarray .down_6$, "{a} dropped. Stay sharp.", "{a}! Tch.";
+	setarray .revive_6$, "Didn't need help. Thanks anyway.", "I was faking. Obviously.";
+	setarray .fight_6$, "Marks spotted.", "Quick and quiet.";
+	setarray .win_6$, "Check the drops.", "Clean work.";
+	setarray .idle_6$, "You don't belong to this world, do you, {t}? Your secret's safe.", "I've stolen a lot of things. Never trust. You got that, {t}.", "Quiet. Too quiet.";
+
+	// ---- 7 Merchant: money-minded, practical, cheerful ----
+	setarray .gnew_7$, "A new {t}! We'll talk profit sharing later.", "Pleasure doing business with you, {t}.";
+	setarray .gshort_7$, "Welcome back, {t}! Prices went up while you were gone.", "Back already? Time is zeny, {t}!";
+	setarray .ghours_7$, "Rested, {t}? Good. Rested heroes find better loot.", "Morning, {t}! I sorted your inventory. Twice.";
+	setarray .gdays_7$, "{t}! Do you know how many sales we missed?", "Days, {t}! I had to sell my lunch.";
+	setarray .town_7$, "Shops! Let me haggle, {t}.", "I'll sell the junk. You'll thank me later.";
+	setarray .field_7$, "Every monster is a walking loot bag.", "Jellopy for days.";
+	setarray .dungeon_7$, "Rare drops live down here.", "Danger means profit, {t}.";
+	setarray .lvl_7$, "Stronger hero, better loot. Excellent, {t}!", "Your market value just went up, {t}!";
+	setarray .olow_7$, "{t}! A dead {t} is bad for business!", "Drink a potion, {t}! I'll put it on the company!";
+	setarray .odead_7$, "{t}! Who's going to pay me now?! ...Get up!", "No, {t}! Our partnership!";
+	setarray .low_7$, "I need a potion! A cheap one!", "I'm hurt! Bad investment!";
+	setarray .sp_7$, "Out of SP. Can I buy some?", "SP's gone. Bad timing.";
+	setarray .scared_7$, "That one isn't worth the risk!", "Abort! Abort the deal!";
+	setarray .down_7$, "{a} is down! Grab their loot! I mean, help them!", "{a}! Hang on!";
+	setarray .revive_7$, "Back in business!", "Dying was very expensive.";
+	setarray .fight_7$, "Fresh loot incoming!", "Let's get paid!";
+	setarray .win_7$, "Pick up everything. Everything.", "Profitable.";
+	setarray .idle_7$, "Your world must have amazing markets, {t}.", "If we sold that sword, {t}... no? Fine.", "Count with me, {t}. One zeny, two zeny...";
+
+	// ---- Daily life (1.1.0): their own level-ups and job changes, resting,
+	// you going quiet, the time of day, long sessions. In lvcg {a} is the
+	// companion who levelled; in jobme {a} is the new job's name.
+	setarray .lvme_0$, "I leveled up! Did you see, {t}?!", "I'm getting stronger! Just like you, {t}!";
+	setarray .lvcg_0$, "{a} leveled up! So cool!", "Congrats, {a}! Teach me!";
+	setarray .jobme_0$, "I'm a {a} now! Me! A real {a}!", "Look, {t}! I became a {a}!";
+	setarray .rest_0$, "C-can we sit for a second? Just one?", "I need to catch my breath...";
+	setarray .ready_0$, "Okay! All better! Let's go!", "I'm ready again, {t}!";
+	setarray .afk_0$, "{t}? Are you asleep standing up?", "Um... {t}? Hello? Should I poke them?";
+	setarray .back_0$, "You moved! I thought you turned to stone!", "Welcome back, {t}!";
+	setarray .night_0$, "It's so dark out... are there night monsters?", "I'm not sleepy. *yawn* Not at all.";
+	setarray .morning_0$, "Good morning, {t}! The sun's up!", "Morning! I made you a flower crown. It's a bit crushed.";
+	setarray .long_0$, "{t}, my feet hurt... can we rest soon?", "We've been out SO long. You're amazing, {t}.";
+
+	setarray .lvme_1$, "My strength grows. All the better to guard you, {t}.", "Another step on the knight's road.";
+	setarray .lvcg_1$, "Well earned, {a}.", "Your skill grows, {a}. Good.";
+	setarray .jobme_1$, "I have become a {a}. My oath remains the same.", "{t}, I stand before you as a {a}.";
+	setarray .rest_1$, "Allow me a moment's rest, {t}. I'll keep watch seated.", "My arm grows heavy. A short rest.";
+	setarray .ready_1$, "Rested. My blade is ready.", "I am ready, {t}.";
+	setarray .afk_1$, "{t} is lost in thought. I will keep watch.", "Rest your mind, {t}. None shall approach.";
+	setarray .back_1$, "Welcome back, {t}. All was quiet.", "There you are. Shall we march on?";
+	setarray .night_1$, "Night falls. Stay near the fire, {t}.", "The dark hides many things. I'll stay alert.";
+	setarray .morning_1$, "Dawn. A good day to fight well.", "Morning, {t}. I've polished my shield.";
+	setarray .long_1$, "We've marched long, {t}. Even heroes must rest.", "A long day. Your endurance honors us, {t}.";
+
+	setarray .lvme_2$, "My understanding deepens. Excellent.", "Another level. My theories were correct.";
+	setarray .lvcg_2$, "Measurable progress, {a}. Impressive.", "Congratulations, {a}. Statistically overdue.";
+	setarray .jobme_2$, "I am now a {a}. The library will have to update its records.", "A {a}. My research continues at a higher level.";
+	setarray .rest_2$, "My mana is spent. I must meditate.", "A pause, please. Spells don't cast themselves.";
+	setarray .ready_2$, "Mana restored. Shall we?", "Recharged and ready, {t}.";
+	setarray .afk_2$, "{t} has stopped moving. A trance? Fascinating.", "Shall I take notes until {t} returns?";
+	setarray .back_2$, "Ah, {t} resumes. Where did you go? Never mind.", "Welcome back. I theorized seventeen explanations.";
+	setarray .night_2$, "The stars are clear tonight. Perfect for study.", "Late hours are the best hours for thinking.";
+	setarray .morning_2$, "Morning. Someone should invent coffee.", "A fresh morning, a fresh mind.";
+	setarray .long_2$, "We've been out for hours, {t}. Fatigue impairs judgment.", "You should rest, {t}. Science agrees with me.";
+
+	setarray .lvme_3$, "Level up! Someone write this down! Oh wait, that's me.", "I feel lighter! Better aim, too!";
+	setarray .lvcg_3$, "Nice one, {a}! That's going in the song!", "Look at you go, {a}!";
+	setarray .jobme_3$, "A {a}! New verse, new me!", "{t}, meet the newest {a} in Midgard!";
+	setarray .rest_3$, "Mind if I sit? My legs are singing the blues.", "Quick break. Gotta restring anyway.";
+	setarray .ready_3$, "Alright, back on my feet!", "Ready to roll, {t}!";
+	setarray .afk_3$, "{t}'s daydreaming again. I'll play something soft.", "Hey {t}... you still with us?";
+	setarray .back_3$, "And the hero returns! Cue the music!", "Welcome back, {t}!";
+	setarray .night_3$, "Nights like this are made for songs.", "Look at all those stars, {t}.";
+	setarray .morning_3$, "Morning breeze! Best time to travel.", "The birds are singing. Competition!";
+	setarray .long_3$, "Long road today, {t}. Even bards need sleep.", "We've been at it for ages. Tavern soon?";
+
+	setarray .lvme_4$, "The goddess has blessed me with more strength.", "I grew stronger. I'll protect you better, {t}.";
+	setarray .lvcg_4$, "Blessings on you, {a}!", "Well done, {a}. The goddess smiles on you.";
+	setarray .jobme_4$, "I've been ordained as a {a}. Thank you, {t}.", "A {a}... I'll carry this calling with care.";
+	setarray .rest_4$, "Let me sit and pray a moment to recover.", "I need a moment to restore my mana.";
+	setarray .ready_4$, "I'm ready. Stay in range of my heals.", "Recovered. Let's go, {t}.";
+	setarray .afk_4$, "{t}? Are you alright? You've gone quiet.", "Rest if you need to, {t}. I'm right here.";
+	setarray .back_4$, "There you are! I was getting worried.", "Welcome back, {t}. Did you drink some water?";
+	setarray .night_4$, "It's late, {t}. Please don't push yourself.", "The night is peaceful. Let's be careful.";
+	setarray .morning_4$, "Good morning, {t}. Did you sleep enough?", "Morning prayers done. Ready for the day.";
+	setarray .long_4$, "{t}, we've been out for hours. Please take a break soon.", "You've fought a long time. Rest, eat, then continue.";
+
+	setarray .lvme_5$, "LEVEL UP! I can feel the power!", "HA! My fists got stronger!";
+	setarray .lvcg_5$, "Nice, {a}! Spar with me later!", "Ha! Getting tough, {a}!";
+	setarray .jobme_5$, "I'm a {a} now! Let's test it on something BIG!", "{a}! My training paid off!";
+	setarray .rest_5$, "Okay, okay, I'll sit. Just for a second.", "Breathing exercises. Totally not resting.";
+	setarray .ready_5$, "Spirit's back! Let's GO!", "Fully charged!";
+	setarray .afk_5$, "{t}'s not moving. Is that meditation? Respect.", "Push-ups while we wait! One, two...";
+	setarray .back_5$, "There you are! Let's fight something!", "Finally! I was getting bored!";
+	setarray .night_5$, "Night training is the best training!", "Can't sleep. Too pumped.";
+	setarray .morning_5$, "MORNING! Breakfast, then punching!", "Sunrise run, anyone?";
+	setarray .long_5$, "We've been fighting forever! I love it! ...I'm hungry though.", "Long day, {t}. Even I need meat soon.";
+
+	setarray .lvme_6$, "Got stronger. Don't tell anyone.", "Heh. Sharper already.";
+	setarray .lvcg_6$, "Not bad, {a}.", "Hm. Leveled, {a}? Don't get cocky.";
+	setarray .jobme_6$, "{a}. Has a nice ring to it.", "So I'm a {a} now. Doesn't change much. Maybe a little.";
+	setarray .rest_6$, "Taking five. Don't wait up.", "Sitting. Watch my back for once.";
+	setarray .ready_6$, "Alright. I'm good.", "Let's move.";
+	setarray .afk_6$, "{t} froze up. Good thing I'm watching.", "...Is {t} sleeping with their eyes open?";
+	setarray .back_6$, "Took you long enough.", "Back? Good. Got bored.";
+	setarray .night_6$, "Night. Finally, my kind of hours.", "Shadows are long tonight. I like it.";
+	setarray .morning_6$, "Ugh. Morning.", "Too early. Way too early.";
+	setarray .long_6$, "We've been at this for hours, {t}. Even I'm tired.", "Long day. You're stubborn, {t}. I respect that.";
+
+	setarray .lvme_7$, "Level up! My value just went up!", "Stronger! I can carry more loot now!";
+	setarray .lvcg_7$, "Congrats, {a}! Drinks are on... you.", "A level up, {a}? Excellent investment!";
+	setarray .jobme_7$, "{a}! New title, new business cards!", "I'm a {a} now, {t}! Prices are going up!";
+	setarray .rest_7$, "Break time. Let me count the loot.", "Sitting down. My feet aren't insured.";
+	setarray .ready_7$, "Back to business!", "Ready, {t}! Time is zeny!";
+	setarray .afk_7$, "{t}'s not moving. Should I charge for waiting?", "While {t} rests, I'll appraise everything.";
+	setarray .back_7$, "Welcome back! I sorted the inventory.", "There you are! Let's get back to earning.";
+	setarray .night_7$, "Late shift. Overtime pay?", "Night markets are the best markets.";
+	setarray .morning_7$, "Morning! Shops open soon!", "Rise and shine, {t}! Profit awaits!";
+	setarray .long_7$, "We've been out for hours, {t}! Let's sell this haul and rest.", "My bag's full and my legs are empty. Break soon?";
+
+	// ---- Memories (1.2.0): kept per companion in the mod store (char scope,
+	// m.c<char id>.*). {n} a number, {m} a map or a monster.
+	// Recalled in quiet moments:
+	setarray .mdays_0$, "We've been together {n} days now, {t}! Best days of my life!";
+	setarray .mkills_0$, "I've been counting! {n} monsters together, {t}!";
+	setarray .mmvps_0$, "{n} big bosses! Me! I was there for {n}!";
+	setarray .mfell_0$, "I fell {n} times... but you never left me behind, {t}.";
+	setarray .mmaps_0$, "{n} places we've been! I want to see them all!";
+	setarray .mfirst_0$, "Remember {m}? That's where we met! You were level {n}!";
+	setarray .mfmvp_0$, "I still dream about {m}. Our first big boss!";
+	setarray .msaw_0$, "You fell {n} times and got up every time, {t}. I want to be like that.";
+	// Milestones, said when they happen:
+	setarray .anniv_0$, "{t}! It's been {n} days since we met! Can we celebrate?!";
+	setarray .killms_0$, "That's {n} monsters together! {n}! Wow!";
+	setarray .mvpms_0$, "Boss number {n}! We're getting famous, {t}!";
+	setarray .mapms_0$, "That's {n} places together! I'm drawing a map of all of them!";
+
+	setarray .mdays_1$, "{n} days at your side, {t}. My oath has never felt lighter.";
+	setarray .mkills_1$, "{n} foes have fallen before us, {t}. A worthy tally.";
+	setarray .mmvps_1$, "{n} great beasts slain together. I remember every one.";
+	setarray .mfell_1$, "I have fallen {n} times in your service. I would again.";
+	setarray .mmaps_1$, "{n} lands we've crossed together, {t}.";
+	setarray .mfirst_1$, "I remember {m}, where I swore to you. You were level {n}.";
+	setarray .mfmvp_1$, "{m}. Our first great foe. I still bear the scar.";
+	setarray .msaw_1$, "I watched you fall {n} times, {t}. Each time I swore it would be the last.";
+	setarray .anniv_1$, "{n} days since I swore my oath to you, {t}. I renew it gladly.";
+	setarray .killms_1$, "{n} foes vanquished. Well fought, {t}.";
+	setarray .mvpms_1$, "Our {n}th great beast. Songs will be sung, {t}.";
+	setarray .mapms_1$, "{n} lands under our banner now, {t}.";
+
+	setarray .mdays_2$, "{n} days of observation, {t}. You remain my most interesting subject.";
+	setarray .mkills_2$, "My records show {n} monsters defeated together. Statistically impressive.";
+	setarray .mmvps_2$, "{n} boss-class specimens. My notes on them fill a whole book.";
+	setarray .mfell_2$, "I've died {n} times. A poor ratio. I'm working on it.";
+	setarray .mmaps_2$, "{n} locations catalogued with you, {t}.";
+	setarray .mfirst_2$, "We met in {m}. You were level {n}. I wrote it down, naturally.";
+	setarray .mfmvp_2$, "{m}, our first boss. I still have the notes.";
+	setarray .msaw_2$, "You've fallen {n} times, {t}, and always come back. Fascinating.";
+	setarray .anniv_2$, "{n} days since our contract began. I'd sign it again, {t}.";
+	setarray .killms_2$, "{n} monsters. A round number. I approve.";
+	setarray .mvpms_2$, "Boss number {n}. My thesis grows, {t}.";
+	setarray .mapms_2$, "{n} places now. My atlas is getting heavy.";
+
+	setarray .mdays_3$, "{n} days on the road with you, {t}! That's a long song.";
+	setarray .mkills_3$, "{n} monsters together! I ran out of verses at 100.";
+	setarray .mmvps_3$, "{n} bosses! Each one's a chorus now.";
+	setarray .mfell_3$, "I went down {n} times. Every time, you got me back up. Thanks, {t}.";
+	setarray .mmaps_3$, "{n} places we've seen together. Not bad for a wanderer!";
+	setarray .mfirst_3$, "Remember {m}? You were level {n}. Feels like yesterday.";
+	setarray .mfmvp_3$, "{m} was our first boss. Still my favorite song.";
+	setarray .msaw_3$, "You've fallen {n} times, {t}. Every comeback's a better verse.";
+	setarray .anniv_3$, "{n} days together, {t}! Drinks tonight, on me!";
+	setarray .killms_3$, "{n} monsters! That's a whole album!";
+	setarray .mvpms_3$, "Boss {n}! The tavern's going to hear about this one!";
+	setarray .mapms_3$, "{n} places! I'm going to need a bigger songbook.";
+
+	setarray .mdays_4$, "{n} days together, {t}. I thank the goddess for every one.";
+	setarray .mkills_4$, "{n} monsters together, and you're still in one piece. Thank goodness.";
+	setarray .mmvps_4$, "{n} great evils defeated. The goddess must be proud of you.";
+	setarray .mfell_4$, "I've fallen {n} times. Thank you for always bringing me back.";
+	setarray .mmaps_4$, "{n} places together. I've prayed in every one of them for you.";
+	setarray .mfirst_4$, "We met in {m}. You were level {n}, and already so brave.";
+	setarray .mfmvp_4$, "I still pray for the souls from {m}. Our first boss.";
+	setarray .msaw_4$, "You've fallen {n} times, {t}. Please... be more careful.";
+	setarray .anniv_4$, "{n} days since we met, {t}. You've grown so much.";
+	setarray .killms_4$, "{n} monsters, and we're all still standing. Thank the goddess.";
+	setarray .mvpms_4$, "Our {n}th great foe. Let me check your wounds.";
+	setarray .mapms_4$, "{n} places together. I keep a little prayer for each.";
+
+	setarray .mdays_5$, "{n} days of training together, {t}! We're both way stronger!";
+	setarray .mkills_5$, "{n} monsters! My fists remember every one!";
+	setarray .mmvps_5$, "{n} bosses punched! Let's find a bigger one!";
+	setarray .mfell_5$, "I've gone down {n} times. Doesn't count, I got back up!";
+	setarray .mmaps_5$, "{n} places! Trained in every single one!";
+	setarray .mfirst_5$, "We met in {m}! You were level {n}! Look at you now!";
+	setarray .mfmvp_5$, "{m}! Our first boss! Best fight of my life!";
+	setarray .msaw_5$, "You fell {n} times and got back up, {t}. That's real strength!";
+	setarray .anniv_5$, "{n} days, {t}! Let's celebrate with a feast!";
+	setarray .killms_5$, "{n} monsters! HA! Next goal, double it!";
+	setarray .mvpms_5$, "Boss {n}! Who's next?!";
+	setarray .mapms_5$, "{n} places! The world's our dojo!";
+
+	setarray .mdays_6$, "{n} days. Longest I've stuck with anyone, {t}.";
+	setarray .mkills_6$, "{n} marks together. Not that I'm counting. I'm counting.";
+	setarray .mmvps_6$, "{n} bosses. Good loot. Good company. Don't tell anyone I said that.";
+	setarray .mfell_6$, "Went down {n} times. You always came back for me. ...Thanks.";
+	setarray .mmaps_6$, "{n} places. I know all the back alleys now.";
+	setarray .mfirst_6$, "{m}. You were level {n}. Didn't think you'd last. You did.";
+	setarray .mfmvp_6$, "{m}. First big score. I still have the bruises.";
+	setarray .msaw_6$, "You fell {n} times. Stubborn. I like that.";
+	setarray .anniv_6$, "{n} days, {t}. ...Yeah. I'm staying.";
+	setarray .killms_6$, "{n}. Heh. Not bad.";
+	setarray .mvpms_6$, "Boss {n}. We're good at this, {t}.";
+	setarray .mapms_6$, "{n} places. I've picked locks in most of them.";
+
+	setarray .mdays_7$, "{n} days in business together, {t}! Best partnership I ever made.";
+	setarray .mkills_7$, "{n} monsters! Think of the loot, {t}!";
+	setarray .mmvps_7$, "{n} bosses! The drop tables fear us now!";
+	setarray .mfell_7$, "I fell {n} times. Revival costs are adding up, {t}. Kidding! Thank you.";
+	setarray .mmaps_7$, "{n} places, {n} markets. Well, not all had markets.";
+	setarray .mfirst_7$, "We met in {m}! You were level {n}. Best investment I ever made.";
+	setarray .mfmvp_7$, "{m}. Our first boss. I sold the loot for a fortune.";
+	setarray .msaw_7$, "You fell {n} times, {t}. Please don't. You're my best asset.";
+	setarray .anniv_7$, "{n} days together, {t}! Anniversary discount on everything!";
+	setarray .killms_7$, "{n} monsters! Profits are through the roof!";
+	setarray .mvpms_7$, "Boss {n}! Jackpot!";
+	setarray .mapms_7$, "{n} places! New markets everywhere!";
+
+	// ---- Conversations: turns split by ^, first letter A or B = speaker.
+	// {a} = the other speaker's name, {t} = the speaker's title for you.
+	setarray .conv$,
+		"A{a}, do you ever wonder where the {t} goes when we rest?^BSomewhere far away. Another world, maybe.^AThat's ridiculous.^B...Is it, though?",
+		"AI'm starving.^BYou're always starving, {a}.^AFighting burns energy!",
+		"AYour armor's on backwards, {a}.^B...No it isn't.^A...^BIt is, isn't it.",
+		"AWho had the most kills today?^BMe.^AYou wish, {a}.",
+		"AThe {t} gets stronger every day.^BThen we'd better keep up, {a}.^AOr get left behind.",
+		"AI heard there's an MVP nearby.^BDon't even think about it, {a}.^AToo late. I'm thinking about it.",
+		"ADid you hear that noise?^BWhat noise?^A...Never mind.^BGreat. Now I'm nervous, {a}.",
+		"AWhen this is over, I'm opening a tavern.^BYou'd eat all the food, {a}.^AThat's the plan.",
+		"AThanks for the cover back there, {a}.^BAnytime. Well. Most times.",
+		"AThe {t} talks in their sleep.^BWhat do they say?^ASomething about saving the game.^BWhat's a game?",
+		"AI found a shiny rock.^BThat's a Jellopy, {a}.^AIt's still shiny.",
+		"ADo you have family, {a}?^BI had. A long time ago.^A...Sorry.^BWe're family now. That's enough.",
+		"AI bet the {t} comes from a place with no monsters.^BSounds boring.^ASounds nice.",
+		"AStop humming, {a}.^BI'm not humming.^AYou're humming right now.",
+		"AIf I fall, tell the {t} I was brave.^BYou're not falling on my watch, {a}.",
+		"AKafra prices went up again.^BEverything goes up except our pay.^AWe get paid?^B...Good point.",
+		"AI've never seen anyone fight like the {t}.^BLike they know what the monsters will do next.^ALike they've done this a thousand times.",
+		"AYou snore, {a}.^BI do not.^AThe Porings complained.",
+		"AWhat's your dream, {a}?^BA warm bed and a full belly.^AThat's it?^BThat's everything.",
+		"ADid the {t} just talk to an empty space?^BThey do that. Something about menus.^AMenus?",
+		"AWe make a good team.^BDon't get sentimental, {a}.^AToo late.",
+		"ALet's race to the next town.^BYou'll lose, {a}.^AI'll cheat.^BYou'll still lose.",
+		"AI miss the sunlight.^BWe'll be out soon.^AYou said that an hour ago, {a}.",
+		"AThat last fight was close.^BToo close.^AWorth it, though.^BAsk me after I stop bleeding.",
+		"AHave you ever been to Juno?^BThe floating city. Floating prices, too.^AHa!",
+		"AThe {t} gave me a potion back there.^BThey do that. They notice things.^AA good {t}.",
+		"AI'm going to write our story one day.^BMake me taller in it.^ANo promises, {a}.",
+		"ASometimes the {t} stares at the sky like it's going to open.^BMaybe it did, once. That's how they got here.^AYou believe that?^BI believe in the {t}.",
+		"AWhy do Porings bounce?^BWhy do you ask questions like that, {a}?^AWhy not?",
+		"AQuiet day.^BDon't say that. Never say that.^AWhy?^BIt's bad luck, {a}!",
+		"AThe {t} never complains.^BNot out loud, anyway.^AYou noticed too, {a}?",
+		"ARemember when we first met the {t}?^BYou tripped over your own feet, {a}.^AWe agreed never to mention that.";
+
+	// ---- Conversations 1.3.0. Speakers A, B (and C in .trio$). {a} = the other
+	// speaker's name, {A} {B} {C} = each speaker's name, {t} = the speaker's
+	// title for you, {m} {n} = a memory (a place, a monster, a number).
+	setarray .conv$[getarraysize(.conv$)],
+		"ADo you think Porings have feelings?^BThey bounce when they're happy.^AThey always bounce.^BExactly.",
+		"AMy boots are full of sand.^BWe haven't been near a desert in days, {a}.^AI know. It's a mystery.",
+		"AIf you could have any card, which one?^BGhostring.^AWhy?^BSo I could walk through walls and skip the Kafra fees.",
+		"AI'm going to name my weapon.^BYou said that last week, {a}.^AThis time I mean it.^B...Well?^AI'm still thinking.",
+		"AWhat's the {t} writing in that little book?^BQuest notes, I think.^AI hope I'm in it.",
+		"ADid you ever eat a Yggdrasil Berry?^BOnce. I felt like I could fight a god.^AAnd?^BA Poring knocked me over.",
+		"AI saw a Deviling once.^BEveryone says that, {a}.^AI did! It winked at me!",
+		"AThe Kafra lady remembered my name today.^BShe remembers everyone's name.^AStill. It was nice.",
+		"AScariest monster you've ever seen?^BA Baphomet Jr. in a bad mood.^AThey're always in a bad mood.",
+		"ADo you think the {t} gets tired?^BThey never show it.^AThat's what worries me.",
+		"AI'm learning a new skill.^BWhich one?^AJuggling.^B...That's not a skill, {a}.^AIt is in Comodo.",
+		"ACan you keep a secret?^BOf course.^AI'm afraid of Fabres.^BThe caterpillars?!^AThey're very wiggly.",
+		"AWhere would you live, if you could pick?^BAlberta. The sea air.^AI'd pick Payon. Quiet. Good food.^BThen we'd visit each other.",
+		"AI dreamed I was a Poring.^BHow was it?^AVery bouncy. Zero responsibilities.",
+		"AThe {t} is humming again.^BIt's a nice tune.^AI've never heard it anywhere in Midgard, though.",
+		"AThat cloud looks like a Drops.^BThat cloud looks like every cloud, {a}.",
+		"AI polished my gear three times today.^BWhy?^AThe {t} might look at it.",
+		"ADo you ever miss home?^BSometimes. Then I remember the food here is better.^AFair.",
+		"ALet's make a pact.^BWhat kind?^AIf one of us gets a rare drop, we share the celebration.^BJust the celebration?^AJust the celebration.",
+		"AI keep a list of every monster that's hit me.^BThat's a long list, {a}.^AIt's a scroll now.",
+		"AWhy do Kafras teleport us but never themselves?^B...Huh.^AExactly.",
+		"AHave you heard of the Valkyrie?^BOnly in stories.^AI think the {t} might meet her someday.",
+		"AI got you something.^BReally?^AA Jellopy. It's the thought that counts.^B...I'll treasure it.",
+		"AWho's stronger, you or me?^BThe {t}.^AThat's not what I asked.^BIt's the right answer, though.",
+		"AWhat do you want to be remembered for?^BBeing there when it mattered.^A...That's a good one.",
+		"AI tried to pet a Lunatic.^BAnd?^AIt bit me. Still cute.",
+		"AFirst thing you'll do in town?^BEat.^ASame.^BRace you to the food stall.",
+		"AI wrote a poem.^BOh no.^A'Roses are red, Porings are pink.'^B...That's it?^AI'm still working on it.",
+		"AYou fight differently lately.^BBetter?^ACalmer. Like you trust us.^BI do.",
+		"AHow many potions do you carry?^BEnough.^AHow many is enough?^BOne more than you, {a}.",
+		"ASometimes I talk to the stars.^BDo they answer?^ANot yet. But they listen.",
+		"AThe {t} smiled today.^BReally? When?^AWhen you tripped.^BOh.",
+		"AIf you weren't an adventurer, what would you be?^BA baker.^AA baker?!^BWarm bread, no monsters. Think about it.",
+		"ADo monsters have families?^BThe Porings do. I've seen Poring babies.^A...I'm not hunting Porings today.",
+		"AI think I'm getting stronger.^BYou are. I've noticed.^AReally?^BYou only trip on Tuesdays now.";
+
+	// By personality: .pc_<A>_<B>$ with A <= B (0 Rookie, 1 Guardian,
+	// 2 Scholar, 3 Wanderer, 4 Healer, 5 Brawler, 6 Rogue, 7 Merchant).
+	setarray .pc_0_1$, "ACan you teach me to fight like you, {a}?^BFirst, learn to stand your ground.^AI'm standing!^BYou're standing on my foot.",
+		"AWere you ever scared, {a}?^BEvery battle.^AReally?^BCourage isn't having no fear. Remember that.";
+	setarray .pc_0_2$, "AWhat's the strongest spell, {a}?^BThe one you understand.^A...So, Fire Bolt?^BFire Bolt.",
+		"ACan you make things float?^BYes.^ACan you make ME float?^BNot on purpose.";
+	setarray .pc_0_4$, "AI scraped my knee. Am I going to be okay?^BLet me see... you'll live, {a}.^AThank you!^BIt was a very small scrape.",
+		"AWhy are you always so calm, {a}?^BBecause someone has to be. For you.^A...That's fair.";
+	setarray .pc_0_5$, "ACan I punch like you someday?^BDo a hundred push-ups first!^A...Now?^BNow!",
+		"AI did ten push-ups!^BTen! That's a start! Ninety to go!^AI'll do them tomorrow...";
+	setarray .pc_0_6$, "AHow do you move so quietly, {a}?^BPractice. And soft boots.^AWhere do I get soft boots?^BYou don't want to know.",
+		"AAre you a bad guy, {a}?^BDepends who's asking.^AMe.^B...No. Not to you.";
+	setarray .pc_1_4$, "AStay behind me in the next fight, {a}.^BOnly if you stay in range of my heals.^AAgreed.^BYou always say that, then charge ahead.",
+		"AThank you for earlier. I would have fallen.^BThat's what I'm here for.^AThen I'll make sure nothing ever reaches you.";
+	setarray .pc_1_5$, "AYou charge in without a plan, {a}.^BThe plan is punching!^AThat is not a plan.^BIt's worked so far!",
+		"ASpar with me later?^BFinally! Fists against sword!^ANo weapons. Honor rules.^BEven better.";
+	setarray .pc_1_6$, "AYou took that potion from the merchant.^BBorrowed. Permanently.^AA knight cannot allow this.^B...Then don't look.",
+		"AWhy do you fight with us, {a}?^BThe {t} pays well.^AThat's not the real reason.^B...No. It isn't.";
+	setarray .pc_1_7$, "AHow much for a new shield strap?^BFor you? Full price, plus a discount.^AThat's... just full price.^BYou're good with numbers!";
+	setarray .pc_2_3$, "AYour songs lack structure, {a}.^BMy songs have soul.^ASoul is not a meter.^BIt is in my songs.",
+		"AWhat rhymes with 'thaumaturgy'?^B...Nothing, {a}. Nothing rhymes with that.";
+	setarray .pc_2_4$, "AHealing is just applied mana flow.^BHealing is the goddess's grace.^AThe numbers say mana.^BThe numbers can pray with me sometime, {a}.",
+		"AI studied your Heal spell.^BAnd?^AIt shouldn't work as well as it does.^BThat's faith, {a}.";
+	setarray .pc_2_5$, "AYou punch with terrible form.^BIt works!^AIt works inefficiently.^BEfficient enough to drop that Orc!",
+		"AHave you ever read a book, {a}?^BI've punched a book.^A...I'm going to cry.";
+	setarray .pc_2_6$, "AYou've been reading my journal.^BYou left it open.^AIt was closed. And locked.^BLike I said. Open.";
+	setarray .pc_3_6$, "AWrite a song about me, {a}.^BAbout what?^AHow mysterious I am.^B'There once was a thief...'^AStop.";
+	setarray .pc_3_7$, "AI'll sing at your shop for a cut, {a}.^BTen percent.^AThirty.^BTwelve, and you sing the jingle.^AThere's a jingle?",
+		"AWhat's the most valuable thing you own?^BMy ledger.^AMine's my instrument.^BIt's worth about 300 zeny.^A...Priceless, I meant.";
+	setarray .pc_4_5$, "AYou need to rest, {a}.^BI need to eat!^AYou need to rest AND eat.^B...Fine. Eating first.",
+		"AStop punching walls to train.^BThe walls are fine!^AYour knuckles aren't.^B...They are a little purple.";
+	setarray .pc_4_6$, "AYou're hurt. Let me look.^BIt's nothing.^AIt's a knife wound, {a}.^B...Fine. Gently.",
+		"AI pray for you too, {a}.^BDon't waste prayers on me.^AI'll decide that.";
+	setarray .pc_4_7$, "AWhy are your potions so expensive, {a}?^BQuality!^AThey're the same as the Tool Dealer's.^BBut sold with a smile!";
+	setarray .pc_5_7$, "AHow much for that meat?^BFor you, double.^AWhy double?!^BYou eat double, {a}.",
+		"ASell me your strongest knuckles!^BThey're in the back. Behind the expensive ones.";
+	setarray .pc_6_7$, "ACheck your pockets, {a}.^B...My coin purse!^AFound it on the ground. You're welcome.^BIt was IN my pocket.",
+		"AYour prices are robbery.^BSays the thief.^AAt least I'm honest about it.";
+
+	// About the moment: where you are, the hour, a boss just beaten ({m}).
+	setarray .cx_town$, "AFinally, a real bed tonight.^BIf the inn has room.^AThe {t} always finds a room.",
+		"AShopping. Now. Please.^BWe have no zeny, {a}.^AWindow shopping, then.",
+		"AEveryone in town looks so busy.^BThey're all heroes too, in their own story.^A...That's deep, {a}.",
+		"ASmell that? Fresh bread.^BI smell it.^AWe should buy some.^BWe should buy all of it.";
+	setarray .cx_field$, "ANice day for a walk.^BIt's nice until something jumps out of the grass.^A...Now I'm watching the grass.",
+		"AThe wind's nice out here.^BEnjoy it while it's calm, {a}.",
+		"ALook, a Poring family.^BLet them be. They look happy.";
+	setarray .cx_dungeon$, "AI hate the dark.^BStay close to the light, {a}.^AWhat light?^BExactly.",
+		"ADid that wall just move?^BWalls don't move.^AThat one did.^BLet's keep walking. Fast.",
+		"AIt's so quiet down here.^BToo quiet.^ADon't say that!",
+		"AHow deep do you think this goes?^BDeep enough that I don't want to know.";
+	setarray .cx_snow$, "AI can't feel my toes.^BYou still have toes?^AFor now, {a}.",
+		"ASnowball fight?^BRight now?^ALater, then.^B...Definitely later.",
+		"AEverything's so pretty and white.^BAnd cold. Very, very cold.";
+	setarray .cx_desert$, "AWater. I need water.^BWe just drank, {a}.^AI need it again.",
+		"AThe sand gets everywhere.^BEverywhere?^AEverywhere, {a}.",
+		"AIs that an oasis?^BIt's a mirage.^AIt's a very convincing mirage.";
+	setarray .cx_sea$, "AListen to the waves.^BIt's peaceful.^AI could stay here forever.^BThe {t} would miss us.",
+		"ACan you swim, {a}?^B...Let's change the subject.",
+		"AThe sea air makes me hungry.^BEverything makes you hungry.";
+	setarray .cx_forest$, "AThese trees are so old.^BOlder than any of us.^AI wonder what they've seen.",
+		"ASomething's watching us from the trees.^BProbably a Smokie.^AIt's always a Smokie.";
+	setarray .cx_night$, "AThe stars are out.^BMake a wish, {a}.^AI wished we'd all be okay.^BMe too.",
+		"AShouldn't we sleep?^BThe {t} doesn't seem tired.^AThen neither am I. *yawn*",
+		"AIt's late. Tell me a story.^BOnce upon a time, a {t} came from another world...^AI like this one.";
+	setarray .cx_morning$, "AGood morning, {a}.^BMorning. Sleep well?^ALike a Poring.^BThat means badly, right?",
+		"AFirst light. My favorite.^BYou're never awake for first light.^AI am today!",
+		"ABreakfast?^BAlready ate.^AWithout me?!";
+	setarray .cx_boss$, "AWe actually beat {m}.^BI still can't believe it.^AMy hands are still shaking.",
+		"ADid you see {m} fall?^BI saw everything.^AWe're getting good at this, {a}.",
+		"AAfter {m}, I feel like I can do anything.^BDon't get cocky.^AA little cocky?^BA little.";
+
+	// A memory of A's, shared ({m} a place or a monster, {n} a number).
+	setarray .cm_mvp$, "ARemember {m}, {a}?^BHow could I forget.^AOur first real boss.^BAnd not our last.";
+	setarray .cm_met$, "AI met the {t} in {m}, you know.^BReally? I thought it was somewhere grander.^AIt was perfect, {a}.";
+	setarray .cm_kills$, "AI've fought {n} monsters beside the {t}.^B{n}? You count?^AEvery single one, {a}.";
+	setarray .cm_days$, "A{n} days I've been with the {t}.^BThat long?^AFeels shorter. In a good way.";
+
+	// Three of them.
+	setarray .trio$, "AWho's cooking tonight?^BNot me.^CNot me.^A...Fine. Me again.",
+		"ALet's vote where to go next.^BJuno!^CPayon!^AGlast Heim!^BNo.^CAbsolutely not.",
+		"AI heard a ghost story about Glast Heim.^BDon't.^CTell it.^B{C}!^CWhat? I like ghost stories.",
+		"AWho's the {t}'s favorite?^BMe, obviously.^CYou both wish.^AThe {t} is looking at us.^BAct natural.",
+		"AGroup hug?^BNo.^CYes!^B...Fine. Quickly.",
+		"AI found a treasure map!^BIt's a Kafra brochure, {A}.^CThe X is the gift shop.",
+		"AWhat's everyone's favorite food?^BMeat.^CBread.^AAll of it.^BThat's cheating.",
+		"AWe make a strange party.^BA strange, good party.^CThe best party, {A}.",
+		"AWho snores the loudest?^BNot me.^CDefinitely {B}.^BTraitor!",
+		"AI'm bored.^BCount Porings.^COne... two...^AThat's a Drops.^CThree.",
+		"AIf the {t} ever leaves this world...^BDon't say that.^C...We'd follow. Somehow.",
+		"AHigh five, team!^BHigh five.^C...I missed. Again?";
+	// 1.4.0: more group talk, for the bigger parties.
+	setarray .trio$[getarraysize(.trio$)],
+		"AWho packed the Fly Wings?^BI thought you did.^CI thought the {t} did.^A...So nobody.",
+		"ADoes anyone else hear that?^BHear what?^CI hear {B} chewing.^BI'm not chewing!^C...Swallowing, then.",
+		"ALet's make a party name.^BThe {t}'s Own.^CThe Poring Slayers.^AWe've lost to a Poring, {C}.^COnce!",
+		"AI think the {t} is the best leader in Rune-Midgard.^BAgreed.^CWithout question.^A...Do you think the {t} heard that?^BI hope so.",
+		"AWhat would you do with a million zeny?^BArmor.^CFood.^AA house in Payon.^BThat's a lot of food, {C}.^CA LOT of food.",
+		"AI keep watch tonight.^BI'll take second watch.^CI'll sleep.^A{C}...^CAnd then third watch! Fine!",
+		"AThat last fight was close.^BToo close.^CWe were fine. Mostly.^AYour hair is still smoking, {C}.",
+		"AIs it just me, or are monsters getting bigger?^BWe're going to harder places.^COr we're shrinking.^B...Please don't say that.",
+		"AI've been writing a journal of our travels.^BAm I in it?^CAm I in it?^AYou're both in it.^BIs it flattering?^A...Moving on.",
+		"AWhich of us would win in a fight?^BMe.^CMe.^AThe {t}.^B...Fair.^C...Yeah, fair.",
+		"AWho left a Jellopy in my boot?^BNot me.^C...Not me.^AYou paused, {C}.^CI'm a slow talker!",
+		"AI miss Prontera.^BYou miss the food stalls.^CAnd the fountain.^AI miss all of it, okay?",
+		"ALet's play a game. I spy something... green.^BGrass.^CA Green Herb.^AA Rocker.^BHow is that green?^AIt's a little green.",
+		"AWhen this is all over, what then?^BKeep going.^CFollow the {t}.^AThat's not an answer.^BIt's the only one I've got.",
+		"AQuick, everyone look busy.^BWhy?^CThe {t} is watching.^B*sharpens nothing*",
+		"ADid we ever thank the {t} properly?^BFor what?^CEverything.^B...Right. Thank you, {t}.^CThanks, {t}.";
+	// Four of them (a party of five or more: you and four companions).
+	setarray .quad$, "AEveryone, a toast!^BWith what?^CI have water.^DI have a Red Potion.^AA toast with a Red Potion, then. To the {t}!",
+		"AHead count. One.^BTwo.^CThree.^D...Four?^AAnd the {t} makes five. Good. Nobody lost.",
+		"AWho's taking first watch?^BNot it.^CNot it.^DNot... ugh. It's me, isn't it.",
+		"AI vote Glast Heim.^BI vote anywhere but Glast Heim.^CI vote lunch.^DLunch wins.^AFine. Lunch, THEN Glast Heim.",
+		"AThe {t} picked a strange bunch.^BA knight, a thief...^CA nerd.^DHey!^A...We're perfect.",
+		"ALet's line up for a portrait.^BTallest in the back.^CThat's me.^DYou're standing on a rock, {C}.^CStill counts.",
+		"AWhat's everyone's dream?^BTo be the strongest.^CTo see the whole world.^DTo eat at every inn.^A...To keep this party together.",
+		"AI think something's following us.^BWhere?^CBehind that tree.^DIt's a Lunatic.^A...A big Lunatic.",
+		"AStory time! Who's got one?^BI fought an Orc Lord once.^CYou fought his shadow.^DIt was a very scary shadow.^BThank you, {D}.",
+		"AWe should get matching capes.^BNo.^CYes!^DOnly if they're red.^BFine. Red. But no hats.",
+		"AIf we ever split up...^BWe won't.^CWe'd find each other.^DThe {t} would find us all.^A...Yeah. You're right.",
+		"AWho's hungry?^BMe.^CMe.^DMe.^AI'll cook. Nobody complain.^BWe'll complain a little.";
+	// A scout checking the perimeter while you wait (1.5.0).
+	setarray .patrol_3$, "Perimeter's clear, {t}.", "Nothing moving out there. For now.", "I'll keep an eye on the treeline.",
+		"Just checking around. Old habit.", "All quiet on this side, {t}.", "Wind's shifted. Nothing to worry about.",
+		"Saw something move... just a Poring.", "I'll take a look around. Won't go far.";
+	// The party purse (1.4.0): {n} = what went in since the last time.
+	setarray .purse_0$, "I sold our scraps! {n} zeny went into the party purse!", "The purse got {n} zeny heavier, {t}! Did I do good?";
+	setarray .purse_1$, "{n} zeny added to the party purse, {t}. For gear, I hope.", "I sold the spoils. {n} zeny, kept safe in the purse.";
+	setarray .purse_2$, "By my count, {n} zeny went into the purse. Efficient.", "I traded the leftovers for {n} zeny. It's in the purse, {t}.";
+	setarray .purse_3$, "Sold a few trinkets for {n} zeny. Purse is happy, {t}.", "{n} zeny in the purse. Drinks on the party fund?";
+	setarray .purse_4$, "I put {n} zeny in the purse, {t}. Let's buy potions with it.", "{n} zeny saved. The goddess rewards the thrifty.";
+	setarray .purse_5$, "Sold the junk! {n} zeny in the purse! Now, food?", "{n} zeny! That's a lot of meat, {t}.";
+	setarray .purse_6$, "{n} zeny into the purse. Honestly earned, mostly.", "The purse is {n} zeny fatter. Don't ask where I sold it.";
+	setarray .purse_7$, "Business is good, {t}! {n} zeny in the party purse.", "I got a great price on the loot: {n} zeny, all in the purse!";
+
+	// How well a pair knows each other: strangers, friends, close friends
+	// (by how many talks they've had), and the moment it changes.
+	setarray .t0$, "AI don't think we've really talked, {a}.^BI suppose not.^AWell. Nice to properly meet you.",
+		"ASo... how long have you followed the {t}?^BNot long. You?^AAbout the same.^B...Nice weather.",
+		"AYou fight well, {a}.^BThank you. So do you.^A...^B...",
+		"AWhere are you from, {a}?^BFar away. You?^AAlso far away.^BHm. Alright then.",
+		"AI'm still getting used to everyone.^BMe too, {a}. Give it time.";
+	setarray .t1$, "AYou're alright, {a}.^BJust alright?^AFine. Pretty good.",
+		"AI saved you a seat at dinner yesterday.^BI noticed. Thanks, {a}.",
+		"AWant to train together later?^BSure. Don't go easy on me.",
+		"AI'm glad you're in this party, {a}.^BMe too. Don't make it weird.",
+		"AYou've got something on your face.^BWhere?^AMade you look.";
+	setarray .t2$, "AI'd follow you anywhere, you know.^BI know, {a}. Same here.",
+		"AYou're the worst.^BYou love me.^A...Unfortunately.",
+		"ARemember when we didn't even talk?^BFeels like forever ago.^ANow I can't shut you up.^BYou're welcome.",
+		"AIf anything happens to me, look after the {t}.^BNothing's happening to you. I won't let it.",
+		"AI made you something.^BIs it another Jellopy?^AIt's two Jellopies.^BYou spoil me, {a}.",
+		"AYou talk in your sleep, you know.^BWhat do I say?^AMy name, mostly.^B...Liar.",
+		"AWe've been through a lot together, {a}.^BAnd we'll go through more.^ATogether.^BTogether.";
+	setarray .tu1$, "AHey, {a}... I'm glad we're in this together.^BMe too. Friends?^AFriends.",
+		"AYou know, you're not so bad, {a}.^BHigh praise.^AI mean it. Friends?^BFriends.";
+	setarray .tu2$, "A{a}, I've never had a friend like you.^BNeither have I.^AWhatever comes next, we face it together.^BAlways.",
+		"AI trust you with my life, {a}.^BYou already do, every fight.^AThen let me say it out loud. Thank you.^B...Thank you too.";
+	initnpctimer;	// the tick below
+	end;
+
+// The tick: one NPC timer for everyone, every 1500 ms. `addrid 0, 1` runs the
+// tick for each player but skips anyone busy in another script (an NPC
+// dialog). Before, each player had a timer of their own, and during a long
+// dialog those queued up until the queue was full and were dropped ("event
+// queue is full"), which stopped them for good.
+OnTimer1500:
+	initnpctimer;
+	addrid 0, 1;
+	if (getcharid(3) >= 95000000)
+		end;	// an AI player, not a person
+	goto OnTick;
+
+OnPCLoginEvent:
+	@cl_away = -1;
+	if (CL_LAST)
+		@cl_away = gettimetick(2) - CL_LAST;
+	@cl_greet = .greet;
+	@cl_login = gettimetick(2);
+	@cl_map$ = strcharinfo(3);
+	@cl_bnext = gettimetick(2) + 180 + rand(120);
+	@cl_long = gettimetick(2) + 7200;	// a long-session line after 2 hours
+	@cl_afk = 0;
+	@cl_pcd = gettimetick(2) + 600;	// the first purse line after 10 minutes
+	@cl_pgain = 0;
+	@cl_wnext = gettimetick(2) + 30;
+	end;
+
+OnPCLogoutEvent:
+	CL_LAST = gettimetick(2);
+	end;
+
+OnPCBaseLvUpEvent:
+	if (!.world || gettimetick(2) < @cl_lvl_cd)
+		end;
+	@cl_lvl_cd = gettimetick(2) + 20;
+	callsub L_Gather;
+	.@a = callsub(L_Pick, -1, -1);
+	if (.@a >= 0)
+		callsub L_SpeakNow, .@a, "lvl", "", ET_CONGRATULATION;
+	end;
+
+OnPCDieEvent:
+	callsub L_Gather;
+	if (.mem) {
+		for (.@i = 0; .@i < @cl_n; .@i++)
+			modstore_inc("char", "m.c" + @cl_cid[.@i] + ".sawfall", 1);
+	}
+	if (!.callouts)
+		end;
+	.@a = callsub(L_Pick, -1, 4);
+	if (.@a >= 0)
+		callsub L_SpeakNow, .@a, "odead", "", ET_CRY;
+	end;
+
+// Memories: your kills while they're with you, and the MVPs among them.
+// (Only the kills that are yours: the server gives no script event for a
+// companion's own last hit.)
+OnNPCKillEvent:
+	if (!@cl_n)
+		end;
+	.@mvp = (getmonsterinfo(killedrid, MOB_MVPEXP) > 0);
+	if (.@mvp) {
+		// for the companions to talk about afterwards
+		@cl_lastmvp = gettimetick(2);
+		@cl_lastmvp$ = getmonsterinfo(killedrid, MOB_NAME);
+	}
+	// The party purse: a share of each of your kills for every living
+	// companion with you (the monster's drops go to you as always).
+	if (.purse > 0) {
+		.@alive = 0;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] > 0)
+				.@alive++;
+		}
+		.@add = .purse * getmonsterinfo(killedrid, MOB_LV) * .@alive;
+		if (.@add > 0 && modstore_get("char", "purse", 0) < 1000000000) {
+			modstore_inc("char", "purse", .@add);
+			@cl_pgain += .@add;
+		}
+	}
+	if (!.mem)
+		end;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		.@p$ = "m.c" + @cl_cid[.@i];
+		.@k = modstore_inc("char", .@p$ + ".kills", 1);
+		if (.@k == 100 || .@k == 1000 || .@k == 5000 || .@k == 10000 || .@k == 25000 || .@k == 50000)
+			callsub L_QueueFmt, .@i, "killms", "", ET_CONGRATULATION, .@k, "";
+		if (!.@mvp)
+			continue;
+		.@v = modstore_inc("char", .@p$ + ".mvps", 1);
+		if (.@v == 1)
+			modstore_set "char", .@p$ + ".firstmvp", getmonsterinfo(killedrid, MOB_NAME);
+		if (.@v == 1 || .@v == 5 || .@v == 10 || .@v == 25 || .@v == 50 || .@v == 100)
+			callsub L_QueueFmt, .@i, "mvpms", "", ET_CONGRATULATION, .@v, "";
+	}
+	end;
+
+OnTick:
+	.@sec = gettimetick(2);
+	.@now = gettimetick(0);
+
+	// A conversation in progress: one line per turn, 3.5 s apart.
+	if (getarraysize(@cl_qa) && .@now >= @cl_qnext) {
+		callsub L_SayAid, @cl_qa[0], @cl_qn$[0], @cl_qt$[0];
+		@cl_said = @cl_qa[0];	// a sitter may turn to whoever spoke last
+		@cl_saidt = .@now;
+		if (@cl_qe[0])
+			callsub L_EmoteAid, @cl_qa[0], @cl_qe[0];
+		deletearray @cl_qa[0], 1;
+		deletearray @cl_qn$[0], 1;
+		deletearray @cl_qt$[0], 1;
+		deletearray @cl_qe[0], 1;
+		@cl_qnext = .@now + 3500;
+	}
+
+	callsub L_Gather;
+	.@map$ = strcharinfo(3);
+	if (.@map$ != @cl_map$) {
+		@cl_map$ = .@map$;
+		@cl_mapat = .@sec + 4;	// give companions time to arrive
+	}
+	if (@cl_greet && .@sec > @cl_login + 90)
+		@cl_greet = 0;	// nobody came back with you: no greeting later
+	if (!@cl_n)
+		end;
+
+	// The colours you dyed them (every 3 s: the engine respawns them with the
+	// colours it saved at recruit).
+	if (.@sec >= @cl_dyenext) {
+		@cl_dyenext = .@sec + 3;
+		callsub L_Dyes;
+	}
+
+	// A companion we haven't seen this session: newly hired or drafted.
+	// The ones that come back with you at login are marked quietly during
+	// the first 20 s.
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (getd("@cl_k_" + @cl_aid[.@i]))
+			continue;
+		setd "@cl_k_" + @cl_aid[.@i], 1;
+		if (@cl_ready && .greet && @cl_hp[.@i] > 0)
+			callsub L_QueueIdx, .@i, "gnew", "", ET_DELIGHT;
+		if (.mem)
+			callsub L_MemSeen, .@i;
+	}
+	if (.@sec > @cl_login + 20)
+		@cl_ready = 1;
+
+	// Login greeting, by how long you were away.
+	if (@cl_greet) {
+		@cl_greet = 0;
+		if (@cl_away < 0 || @cl_away >= 43200)
+			.@cat$ = "gdays";
+		else if (@cl_away < 1800)
+			.@cat$ = "gshort";
+		else
+			.@cat$ = "ghours";
+		if (@cl_away < 0)
+			.@cat$ = "ghours";	// first login with the mod: no idea, assume a rest
+		.@a = callsub(L_Pick, -1, -1);
+		if (.@a >= 0) {
+			callsub L_QueueIdx, .@a, .@cat$, "", ET_DELIGHT;
+			if (@cl_n > 1 && rand(100) < 60) {
+				.@b = callsub(L_Pick, .@a, -1);
+				if (.@b >= 0)
+					callsub L_QueueIdx, .@b, .@cat$, "", 0;
+			}
+		}
+	}
+
+	// You in danger.
+	.@ohp = Hp;
+	.@hurt = 0;
+	if (@cl_ohp > 0 && .@ohp < @cl_ohp) {
+		.@hurt = 1;
+		@cl_hurt_aid = getcharid(3);	// the last one hurt: a Healer sits by them
+		@cl_hurt_t = gettimetick(2);
+	}
+	@cl_ohp = .@ohp;
+	if (.callouts && .@hurt && .@ohp > 0 && .@ohp * 100 / MaxHp < 30 && .@sec >= @cl_olow_cd) {
+		@cl_olow_cd = .@sec + 45;
+		.@a = callsub(L_Pick, -1, 4);
+		if (.@a >= 0)
+			callsub L_SpeakNow, .@a, "olow", "", ET_SURPRISE;
+	}
+
+	// Each companion: falls, revivals, big hits, low HP and SP.
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@aid = @cl_aid[.@i];
+		.@hp = @cl_hp[.@i];
+		.@mhp = @cl_mhp[.@i];
+		.@prev = getd("@cl_ph_" + .@aid) - 1;	// stored +1, so -1 = not seen yet
+		setd "@cl_ph_" + .@aid, .@hp + 1;
+		if (.@prev < 0 || .@mhp <= 0)
+			continue;
+		if (.@hp < .@prev) {
+			.@hurt = 1;
+			@cl_hurt_aid = .@aid;
+			@cl_hurt_t = .@sec;
+		}
+		if (.@hp <= 0) {
+			if (.@prev > 0 && .mem)
+				modstore_inc("char", "m.c" + @cl_cid[.@i] + ".fell", 1);
+			if (.@prev > 0 && .callouts) {
+				.@b = callsub(L_Pick, .@i, -1);
+				if (.@b >= 0)
+					callsub L_SpeakNow, .@b, "down", @cl_nm$[.@i], ET_CRY;
+			}
+			continue;
+		}
+		if (.@prev == 0) {
+			if (.callouts)
+				callsub L_SpeakNow, .@i, "revive", "", ET_THANKS;
+			continue;
+		}
+		if (!.callouts || .@hp >= .@prev)
+			continue;	// the rest only while taking damage
+		.@pct = .@hp * 100 / .@mhp;
+		if ((.@prev - .@hp) * 100 / .@mhp >= 35 && .@sec >= getd("@cl_sc_" + .@aid)) {
+			setd "@cl_sc_" + .@aid, .@sec + 60;
+			callsub L_SpeakNow, .@i, "scared", "", ET_PROFUSELY_SWEAT;
+		} else if (.@pct < 15) {
+			callsub L_EmoteIdx, .@i, ET_HELP;
+		} else if (.@pct < 35 && .@sec >= getd("@cl_lo_" + .@aid)) {
+			setd "@cl_lo_" + .@aid, .@sec + 45;
+			if (rand(100) < 50 && .@sec >= @cl_talk)
+				callsub L_SpeakNow, .@i, "low", "", ET_HPTIME;
+			else
+				callsub L_EmoteIdx, .@i, ET_HPTIME;
+		}
+	}
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@msp = @cl_msp[.@i];
+		if (!.callouts || !@cl_incombat || .@msp <= 0 || @cl_hp[.@i] <= 0)
+			continue;
+		if (@cl_sp[.@i] * 100 / .@msp >= 10 || .@sec < getd("@cl_spc_" + @cl_aid[.@i]))
+			continue;
+		setd "@cl_spc_" + @cl_aid[.@i], .@sec + 120;
+		if (rand(100) < 50 && .@sec >= @cl_talk)
+			callsub L_SpeakNow, .@i, "sp", "", ET_SPTIME;
+		else
+			callsub L_EmoteIdx, .@i, ET_SPTIME;
+	}
+
+	// Their own milestones: a new job (which comes before a level line, a
+	// rebirth lowers the level), or a level-up, with a word from another.
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@aid = @cl_aid[.@i];
+		.@pl = getd("@cl_lv_" + .@aid);
+		.@pc = getd("@cl_cl_" + .@aid) - 1;	// stored +1: Novice is class 0
+		setd "@cl_lv_" + .@aid, @cl_lv[.@i];
+		setd "@cl_cl_" + .@aid, @cl_cls[.@i] + 1;
+		if (!.world || .@pl <= 0 || @cl_hp[.@i] <= 0)
+			continue;
+		if (.@pc >= 0 && .@pc != @cl_cls[.@i]) {
+			callsub L_QueueIdx, .@i, "jobme", jobname(@cl_cls[.@i]), ET_CONGRATULATION;
+			.@b = callsub(L_Pick, .@i, -1);
+			if (.@b >= 0)
+				callsub L_QueueIdx, .@b, "lvcg", @cl_nm$[.@i], ET_CLAP;
+		} else if (@cl_lv[.@i] > .@pl && .@sec >= getd("@cl_lvcd_" + .@aid)) {
+			setd "@cl_lvcd_" + .@aid, .@sec + 30;
+			callsub L_QueueIdx, .@i, "lvme", "", ET_CONGRATULATION;
+			.@b = callsub(L_Pick, .@i, -1);
+			if (.@b >= 0 && rand(100) < 60)
+				callsub L_QueueIdx, .@b, "lvcg", @cl_nm$[.@i], 0;
+		}
+	}
+
+	if (.life) {
+		// Resting: out of a fight the engine sits a companion down below 30%
+		// SP or HP and stands it up at 95% (the Battle tab's defaults).
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			.@aid = @cl_aid[.@i];
+			if (@cl_hp[.@i] <= 0 || @cl_mhp[.@i] <= 0)
+				continue;
+			.@hpp = @cl_hp[.@i] * 100 / @cl_mhp[.@i];
+			.@spp = 100;
+			if (@cl_msp[.@i] > 0)
+				.@spp = @cl_sp[.@i] * 100 / @cl_msp[.@i];
+			if (!getd("@cl_rst_" + .@aid)) {
+				if (!@cl_incombat && (.@spp < 30 || .@hpp < 30)) {
+					setd "@cl_rst_" + .@aid, 1;
+					if (.@sec >= getd("@cl_rcd_" + .@aid) && .@sec >= @cl_talk && rand(100) < 60) {
+						setd "@cl_rcd_" + .@aid, .@sec + 300;
+						callsub L_SpeakNow, .@i, "rest", "", 0;
+					}
+				}
+			} else if (.@spp >= 95 && .@hpp >= 95) {
+				setd "@cl_rst_" + .@aid, 0;
+				if (!@cl_incombat && .@sec >= @cl_talk && rand(100) < 50)
+					callsub L_SpeakNow, .@i, "ready", "", ET_OK;
+			}
+		}
+
+		// You going quiet for 5 minutes, and coming back.
+		.@idle = checkidle();
+		if (!@cl_afk && .@idle >= 300) {
+			@cl_afk = 1;
+			.@a = callsub(L_Pick, -1, -1);
+			if (.@a >= 0)
+				callsub L_SpeakNow, .@a, "afk", "", ET_QUESTION;
+		} else if (@cl_afk && .@idle < 5) {
+			@cl_afk = 0;
+			.@a = callsub(L_Pick, -1, -1);
+			if (.@a >= 0)
+				callsub L_SpeakNow, .@a, "back", "", ET_DELIGHT;
+		}
+
+		// Two hours out: someone (a healer first) suggests a break.
+		if (@cl_long && .@sec >= @cl_long && !@cl_incombat) {
+			@cl_long = .@sec + 7200;
+			.@a = callsub(L_Pick, -1, 4);
+			if (.@a >= 0)
+				callsub L_SpeakNow, .@a, "long", "", ET_SWEAT;
+		}
+	}
+
+	// Into a fight, and out of it.
+	if (.@hurt) {
+		if (!@cl_incombat) {
+			@cl_incombat = 1;
+			if (.callouts && .@sec >= @cl_fight_cd && rand(100) < 35) {
+				@cl_fight_cd = .@sec + 90;
+				.@a = callsub(L_Pick, -1, -1);
+				if (.@a >= 0)
+					callsub L_SpeakNow, .@a, "fight", "", ET_GO;
+			}
+		}
+		@cl_combat_until = .@sec + 10;
+	} else if (@cl_incombat && .@sec > @cl_combat_until) {
+		@cl_incombat = 0;
+		@cl_peace = .@sec;
+		if (.callouts && .@sec >= @cl_win_cd && rand(100) < 30) {
+			@cl_win_cd = .@sec + 120;
+			.@a = callsub(L_Pick, -1, -1);
+			if (.@a >= 0)
+				callsub L_SpeakNow, .@a, "win", "", ET_OK;
+		}
+	}
+
+	// Arriving somewhere.
+	if (@cl_mapat && .@sec >= @cl_mapat && !@cl_incombat) {
+		@cl_mapat = 0;
+		if (.mem)
+			callsub L_MemMap, .@map$;
+		if (.world && .@sec >= @cl_map_cd && rand(100) < 70) {
+			.@cat$ = callsub(L_MapKind, .@map$);
+			if (.@cat$ != "") {
+				.@a = callsub(L_Pick, -1, -1);
+				if (.@a >= 0) {
+					@cl_map_cd = .@sec + 90;
+					callsub L_SpeakNow, .@a, .@cat$, "", 0;
+				}
+			}
+		}
+	}
+
+	// Calm: a conversation, or a thought out loud when there's only one.
+	// A party of four or more (you and three companions) talks more often, and
+	// more as a group (L_Conversation).
+	if (.banter > 0 && !@cl_incombat && !getarraysize(@cl_qa) && .@sec >= @cl_bnext && .@sec - @cl_peace >= 20) {
+		@cl_bnext = .@sec + .banter * 60 * (70 + rand(61)) / 100;
+		if (@cl_n >= 3)
+			@cl_bnext = .@sec + .banter * 60 * (70 + rand(61)) * 60 / 10000;
+		// Late at night or early in the morning (your clock), sometimes a
+		// word about the hour instead, at most once an hour.
+		.@lh = gettime(DT_HOUR);	// the server keeps your time zone (app 1.5.5)
+		.@tod$ = "";
+		if (.@lh >= 22 || .@lh < 5)
+			.@tod$ = "night";
+		else if (.@lh >= 6 && .@lh < 10)
+			.@tod$ = "morning";
+		if (.life && .@tod$ != "" && .@sec >= @cl_tod_cd && rand(100) < 40) {
+			@cl_tod_cd = .@sec + 3600;
+			.@a = callsub(L_Pick, -1, -1);
+			if (.@a >= 0)
+				callsub L_QueueIdx, .@a, .@tod$, "", 0;
+		} else if (.mem && rand(100) < 30 - 15 * (@cl_n >= 3) && callsub(L_MemRecall)) {
+			// a memory, said out loud
+		} else if (@cl_n >= 2) {
+			// Merchants are the chatty ones: one with you starts the talk more often.
+			.@a = callsub(L_Pick, -1, -1);
+			if (rand(100) < 40)
+				.@a = callsub(L_Pick, -1, 7);
+			.@b = callsub(L_Pick, .@a, -1);
+			if (.@a >= 0 && .@b >= 0)
+				callsub L_Conversation, .@a, .@b, .@map$, .@tod$;
+		} else if (rand(100) < 70) {
+			.@a = callsub(L_Pick, -1, -1);
+			if (.@a >= 0)
+				callsub L_QueueIdx, .@a, "idle", "", 0;
+		}
+	}
+
+	// The party purse: now and then someone (a merchant first) says how much
+	// went in since the last time.
+	if (.purse > 0 && .purse_talk && @cl_pgain >= 1000 && .@sec >= @cl_pcd && !@cl_incombat && !getarraysize(@cl_qa)) {
+		.@a = callsub(L_Pick, -1, 7);
+		if (.@a >= 0) {
+			@cl_pcd = .@sec + 900;
+			callsub L_QueueFmt, .@a, "purse", "", ET_MONEY, @cl_pgain, "";
+			@cl_pgain = 0;
+		}
+	}
+
+	// Looking around: while you stand still and nothing is fighting, every
+	// 12-30 s one companion strolls a few steps to another spot near you.
+	getmapxy(.@om$, .@ox, .@oy, BL_PC);
+	if (.@ox != @cl_ox || .@oy != @cl_oy) {
+		@cl_ox = .@ox;
+		@cl_oy = .@oy;
+		@cl_still = .@sec;
+	}
+	// Not one that already went to sit by its favourite; the scouts (Wanderers:
+	// archers, gunslingers) twice as often, they keep checking the perimeter,
+	// unless they walk their patrol laps (scout_patrol) instead.
+	if (.look && !@cl_incombat && .@sec - @cl_still >= 4 && .@sec >= @cl_wnext && .@sec - @cl_peace >= 10) {
+		@cl_wnext = .@sec + 12 + rand(19);
+		.@w = 0;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still)
+				continue;
+			if (.patrol && @cl_ar[.@i] == 3)
+				continue;
+			.@wc[.@w] = .@i;
+			.@w++;
+			if (@cl_ar[.@i] == 3) {
+				.@wc[.@w] = .@i;
+				.@w++;
+			}
+		}
+		if (.@w > 0) {
+			.@a = .@wc[0];
+			if (.@w > 1)
+				.@a = .@wc[rand(.@w)];
+			callsub L_Wander, .@a, .@map$, .@ox, .@oy;
+		}
+	}
+
+	// Scout patrol (setting scout_patrol): while you stand still and all is
+	// quiet, each scout walks waypoint to waypoint round the party, a leg every
+	// 3 s, then rests 15-30 s and goes round again (sometimes the other way).
+	// It stops before they gather to sit (165 s) and the moment you walk on.
+	if (.patrol && !@cl_incombat && .@sec - @cl_still >= 4 && .@sec - @cl_still < 165 && .@sec - @cl_peace >= 10) {
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_ar[.@i] != 3 || @cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still)
+				continue;
+			callsub L_Patrol, .@i, .@map$, .@ox, .@oy;
+		}
+	}
+
+	// Restless sitting (setting restless_sitting): once they've sat a while,
+	// every 1.5-4 minutes one gets up: it turns to look at you, at whoever
+	// spoke, or about, or it moves to a new spot, then the idle_sit rule sits
+	// it down again (it waits out the same marker as the strolls).
+	if (.restless && .idlesit && !@cl_incombat && .@sec - @cl_peace >= 10) {
+		if (@cl_rstill != @cl_still) {
+			@cl_rstill = @cl_still;
+			@cl_rnext = @cl_still + 120 + rand(91);	// the first a minute or so after they sit
+		}
+		if (.@sec >= @cl_rnext) {
+			@cl_rnext = .@sec + 90 + rand(151);
+			callsub L_Restless, .@map$, .@ox, .@oy;
+		}
+	}
+
+	// The last step of a walk that should end facing someone (L_FaceWalk).
+	// Dropped if a fight started or you moved off meanwhile.
+	while (getarraysize(@cl_fa) && .@now >= @cl_ft[0]) {
+		if (!@cl_incombat && @cl_fs[0] == @cl_still && unitexists(@cl_fa[0])) {
+			unitstopwalk @cl_fa[0], USW_FORCE_STOP;
+			unitwalk @cl_fa[0], @cl_fx[0], @cl_fy[0];
+		}
+		deletearray @cl_fa[0], 1;
+		deletearray @cl_fx[0], 1;
+		deletearray @cl_fy[0], 1;
+		deletearray @cl_ft[0], 1;
+		deletearray @cl_fs[0], 1;
+	}
+
+	// Sitting with their favourite (setting sit_with_favourite): a little before
+	// the idle_sit rules sit them (after a minute of you standing still, three
+	// for the scouts), each walks over to the one it is most comfortable with,
+	// one every 1.5 s. Bonds: L_Fav.
+	if (.sitfav && !@cl_incombat && .@sec - @cl_peace >= 10) {
+		.@still = .@sec - @cl_still;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still)
+				continue;
+			.@thr = 45;
+			if (@cl_ar[.@i] == 3)
+				.@thr = 165;
+			if (.@still < .@thr)
+				continue;
+			setd "@cl_gd_" + @cl_aid[.@i], @cl_still;
+			callsub L_SitBy, .@i, .@map$, .@ox, .@oy;
+			break;
+		}
+	}
+	// The emote once one has got there: one a tick.
+	if (getarraysize(@cl_pea) && .@sec >= @cl_pet[0]) {
+		if (.emotes && unitexists(@cl_pea[0]))
+			emotion @cl_pee[0], @cl_pea[0];
+		deletearray @cl_pea[0], 1;
+		deletearray @cl_pee[0], 1;
+		deletearray @cl_pet[0], 1;
+	}
+	end;
+
+// The Companions status window: "@clstat <request> list". One record per
+// companion in the party (on this map or not), fields split by |, records by ~:
+// name|job|base lv|job lv|hp|max hp|sp|max sp|state|map|days|kills|mvps|fell|
+// places|met map|your level then|first mvp|your falls they saw|closest to
+// ("you", a companion's name, or "" when it isn't here)
+// state: ok, rest, dead, away (another map), off (not here at all).
+OnCmdStat:
+	.@req$ = .@atcmd_parameters$[0];
+	.@out$ = "";
+	.@pid = getcharid(1);
+	if (.@pid) {
+		.@me = getcharid(3);
+		.@mymap$ = strcharinfo(3);
+		getpartymember .@pid, 1;
+		.@cnt = $@partymembercount;
+		copyarray .@cid[0], $@partymembercid[0], .@cnt;
+		getpartymember .@pid, 2;
+		copyarray .@aid[0], $@partymemberaid[0], .@cnt;
+		getpartymember .@pid, 0;
+		copyarray .@nm$[0], $@partymembername$[0], .@cnt;
+		for (.@i = 0; .@i < .@cnt; .@i++) {
+			if (.@cid[.@i] < 95000000 || .@aid[.@i] == .@me)
+				continue;
+			.@c = .@cid[.@i];
+			.@hp = readparam(Hp, .@c);
+			.@r$ = callsub(L_Clean, .@nm$[.@i]);
+			if (.@hp < 0) {
+				.@r$ += "||0|0|0|0|0|0|off|";
+			} else {
+				.@map$ = strcharinfo(3, .@c);
+				.@st$ = "ok";
+				if (.@hp == 0)
+					.@st$ = "dead";
+				else if (.@map$ != .@mymap$)
+					.@st$ = "away";
+				else if (getd("@cl_rst_" + .@aid[.@i]))
+					.@st$ = "rest";
+				.@r$ += "|" + jobname(readparam(Class, .@c)) + "|" + readparam(BaseLevel, .@c) + "|" + readparam(JobLevel, .@c)
+					+ "|" + .@hp + "|" + readparam(MaxHp, .@c) + "|" + readparam(Sp, .@c) + "|" + readparam(MaxSp, .@c)
+					+ "|" + .@st$ + "|" + .@map$;
+			}
+			.@p$ = "m.c" + .@c;
+			.@met = modstore_get("char", .@p$ + ".met", 0);
+			.@days = 0;
+			if (.@met > 0)
+				.@days = (gettimetick(2) - .@met) / 86400;
+			.@metmap$ = modstore_get("char", .@p$ + ".metmap", "");
+			.@fmvp$ = modstore_get("char", .@p$ + ".firstmvp", "");
+			.@r$ += "|" + .@days + "|" + modstore_get("char", .@p$ + ".kills", 0) + "|" + modstore_get("char", .@p$ + ".mvps", 0)
+				+ "|" + modstore_get("char", .@p$ + ".fell", 0) + "|" + modstore_count("char", .@p$ + ".maps")
+				+ "|" + callsub(L_Clean, .@metmap$) + "|" + modstore_get("char", .@p$ + ".metlv", 0)
+				+ "|" + callsub(L_Clean, .@fmvp$) + "|" + modstore_get("char", .@p$ + ".sawfall", 0);
+			// Who it's closest to (L_Fav), when it's here with you.
+			.@ix = inarray(@cl_cid, .@c);
+			.@fav$ = "";
+			if (.@ix >= 0 && @cl_hp[.@ix] > 0) {
+				.@fx = callsub(L_Fav, .@ix);
+				.@fav$ = "you";
+				if (.@fx >= 0)
+					.@fav$ = callsub(L_Clean, @cl_nm$[.@fx]);
+			}
+			.@r$ += "|" + .@fav$;
+			if (.@out$ != "")
+				.@out$ += "~";
+			.@out$ += .@r$;
+		}
+	}
+	.@len = getstrlen(.@out$);
+	.@n = max(1, (.@len + 179) / 180);
+	for (.@k = 0; .@k < .@n; .@k++) {
+		.@part$ = "";
+		if (.@len > 0)
+			.@part$ = substr(.@out$, .@k * 180, min(.@len, (.@k + 1) * 180) - 1);
+		dispbottom "@@reply " + .@req$ + " " + (.@k + 1) + "/" + .@n + " " + .@part$;
+	}
+	end;
+
+// The Companions window's Bag tab: "@clbag <request> <action>".
+//   list                      P|purse|inventory on|zeny per level, then per
+//                             companion C|char id|name|job|outfit colour|min|
+//                             max|hair colour|min|max, and per stack in
+//                             its bag I|char id|index|item id|amount|worn|
+//                             refine|cards|options|bound|rental|name (cards
+//                             "id,id", options "id:value,id:value")
+//                             (records split by ~); worn is
+//                             the equip slots (0 = in the bag), and only gear
+//                             you gave is listed, never its own
+//   take <char id> <index> <amount>   that stack (or part of it) to you
+//   gearback <char id> <equip slots>  worn gear you gave, back to you
+//   dye <char id> cloth|hair <colour> outfit or hair colour, kept for good
+//   withdraw <zeny> / deposit <zeny>  the party purse
+// Actions answer OK|text or ERR|text. A companion's bag is its own (the
+// engine's companion inventory); the purse is the party's (mod store, char
+// scope, "purse"). The bag is read with getinventorylist <char id>, which
+// leaves its @inventorylist_* on the companion; getvar reads them from there.
+OnCmdBag:
+	.@req$ = .@atcmd_parameters$[0];
+	.@act$ = .@atcmd_parameters$[1];
+	.@inv = getbattleflag("population_engine_companion_inventory");
+	if (.@act$ == "list") {
+		.@out$ = "P|" + modstore_get("char", "purse", 0) + "|" + .@inv + "|" + .purse;
+		callsub L_BagParty;
+		for (.@i = 0; .@i < @clb_n; .@i++) {
+			.@c = @clb_cid[.@i];
+			.@cls = readparam(Class, .@c);
+			.@out$ += "~C|" + .@c + "|" + callsub(L_Clean, @clb_nm$[.@i]) + "|" + jobname(.@cls)
+				+ "|" + getlook(LOOK_CLOTHES_COLOR, .@c) + "|" + getbattleflag("min_cloth_color") + "|" + callsub(L_ClothMax, .@cls)
+				+ "|" + getlook(LOOK_HAIR_COLOR, .@c) + "|" + getbattleflag("min_hair_color") + "|" + getbattleflag("max_hair_color");
+			// The slots worn with gear you gave (the engine's given_mask); its own
+			// starting gear isn't listed, it can't be taken anyway.
+			.@gm = 0;
+			if (query_sql("SELECT given_mask FROM cp_companion_persistence WHERE owner_char_id = " + getcharid(0)
+					+ " AND name = '" + escape_sql(@clb_nm$[.@i]) + "' LIMIT 1", .@gmv) > 0)
+				.@gm = .@gmv;
+			// Gear you dropped on it in the Bag tab (our own record), and the pieces
+			// of its own that came off for it (in its bag, not yours to take).
+			.@gm = .@gm | callsub(L_DgMask, .@c);
+			.@own$ = callsub(L_DgOwn, .@c);
+			getinventorylist .@c;
+			.@cnt = getvar(@inventorylist_count, .@c);
+			for (.@j = 0; .@j < .@cnt; .@j++) {
+				.@eq = getvar(@inventorylist_equip[.@j], .@c);
+				if (.@eq && .@eq != EQP_AMMO && !(.@eq & .@gm))
+					continue;	// its own gear
+				.@id = getvar(@inventorylist_id[.@j], .@c);
+				if (!.@eq && compare(.@own$, "," + .@id + ","))
+					continue;	// its own piece, waiting to go back on
+				// Cards in its slots (card ids, not a forged or brewed item's maker),
+				// as "id,id"; the window shows their names.
+				.@cards$ = "";
+				.@c1 = getvar(@inventorylist_card1[.@j], .@c);
+				if (.@c1 != 255 && .@c1 != 254) {
+					setarray .@cv, .@c1, getvar(@inventorylist_card2[.@j], .@c),
+						getvar(@inventorylist_card3[.@j], .@c), getvar(@inventorylist_card4[.@j], .@c);
+					for (.@s = 0; .@s < 4; .@s++) {
+						if (.@cv[.@s] > 1000 && .@cv[.@s] < 100000000)
+							.@cards$ += (.@cards$ == "" ? "" : ",") + .@cv[.@s];
+					}
+				}
+				// Random options (Affix Forge and the like) as "id:value,id:value";
+				// the window turns them into "STR +3".
+				setarray .@ov, getvar(@inventorylist_option_id1[.@j], .@c), getvar(@inventorylist_option_value1[.@j], .@c),
+					getvar(@inventorylist_option_id2[.@j], .@c), getvar(@inventorylist_option_value2[.@j], .@c),
+					getvar(@inventorylist_option_id3[.@j], .@c), getvar(@inventorylist_option_value3[.@j], .@c),
+					getvar(@inventorylist_option_id4[.@j], .@c), getvar(@inventorylist_option_value4[.@j], .@c),
+					getvar(@inventorylist_option_id5[.@j], .@c), getvar(@inventorylist_option_value5[.@j], .@c);
+				.@opts$ = "";
+				for (.@s = 0; .@s < 10; .@s += 2) {
+					if (.@ov[.@s] > 0)
+						.@opts$ += (.@opts$ == "" ? "" : ",") + .@ov[.@s] + ":" + .@ov[.@s + 1];
+				}
+				.@out$ += "~I|" + .@c + "|" + getvar(@inventorylist_idx[.@j], .@c) + "|" + .@id
+					+ "|" + getvar(@inventorylist_amount[.@j], .@c) + "|" + .@eq
+					+ "|" + getvar(@inventorylist_refine[.@j], .@c) + "|" + .@cards$ + "|" + .@opts$
+					+ "|" + (getvar(@inventorylist_bound[.@j], .@c) > 0) + "|" + (getvar(@inventorylist_expire[.@j], .@c) > 0)
+					+ "|" + callsub(L_Clean, getitemname(.@id));
+			}
+		}
+		callsub L_BagReply, .@req$, .@out$;
+		end;
+	}
+	if (.@act$ == "take") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@idx = atoi(.@atcmd_parameters$[3]);
+		.@amt = atoi(.@atcmd_parameters$[4]);
+		if (!.@inv) {
+			callsub L_BagReply, .@req$, "ERR|Turn on Settings > Population > Companion inventory first. Without it a companion's potions and arrows are free and refill by themselves, so there's nothing of yours in its bag.";
+			end;
+		}
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		if (.@c < 95000000 || .@k < 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't in your party.";
+			end;
+		}
+		getinventorylist .@c;
+		.@cnt = getvar(@inventorylist_count, .@c);
+		for (.@j = 0; .@j < .@cnt; .@j++) {
+			if (getvar(@inventorylist_idx[.@j], .@c) == .@idx)
+				break;
+		}
+		if (.@j >= .@cnt) {
+			callsub L_BagReply, .@req$, "ERR|That item isn't in the bag any more.";
+			end;
+		}
+		.@id = getvar(@inventorylist_id[.@j], .@c);
+		.@have = getvar(@inventorylist_amount[.@j], .@c);
+		if (getvar(@inventorylist_equip[.@j], .@c) != 0) {
+			callsub L_BagReply, .@req$, "ERR|" + @clb_nm$[.@k] + " is wearing that. Worn gear comes back through the app's Companions window (Gear).";
+			end;
+		}
+		// Rentals stay: a copy would come back without its time limit.
+		if (getvar(@inventorylist_expire[.@j], .@c)) {
+			callsub L_BagReply, .@req$, "ERR|That one is a rental, it can't be handed over.";
+			end;
+		}
+		if (compare(callsub(L_DgOwn, .@c), "," + .@id + ",")) {
+			callsub L_BagReply, .@req$, "ERR|That's " + @clb_nm$[.@k] + "'s own, it goes back on when you take back what you gave.";
+			end;
+		}
+		.@amt = min(max(.@amt, 1), .@have);
+		if (!checkweight(.@id, .@amt)) {
+			callsub L_BagReply, .@req$, "ERR|You can't carry that much.";
+			end;
+		}
+		callsub L_ToYou, .@c, .@j, .@amt;
+		callsub L_BagReply, .@req$, "OK|Took " + .@amt + " x " + getitemname(.@id) + " from " + @clb_nm$[.@k] + ".";
+		end;
+	}
+	// Test build (2.3.0): "give <char id> <index> <item id> <amount>", an item
+	// dragged from your inventory onto a companion in the Bag tab. It goes into
+	// its bag, with refine, cards, random options and bound type. Gear it can
+	// wear it puts on at once; the engine's given_mask is only set by a real
+	// trade, so that slot is "from you" in our own record (mod store, char
+	// scope, dg.c<char id>: "<slots>,<item id>,<its own item id>" entries split
+	// by ";"), which gearback below reads.
+	if (.@act$ == "give") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@idx = atoi(.@atcmd_parameters$[3]);
+		.@want = atoi(.@atcmd_parameters$[4]);
+		.@amt = atoi(.@atcmd_parameters$[5]);
+		if (!.@inv) {
+			callsub L_BagReply, .@req$, "ERR|Turn on Settings > Population > Companion inventory first; without it a companion has no bag of its own.";
+			end;
+		}
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		.@aid = 0;
+		if (.@k >= 0)
+			.@aid = getcharid(3, @clb_nm$[.@k]);
+		if (.@c < 95000000 || .@k < 0 || .@aid <= 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't here.";
+			end;
+		}
+		.@nm$ = @clb_nm$[.@k];
+		// Your stack: the index the window saw, or else the first loose stack of it.
+		getinventorylist;
+		.@j = -1;
+		for (.@i = 0; .@i < @inventorylist_count; .@i++) {
+			if (@inventorylist_id[.@i] != .@want || @inventorylist_equip[.@i])
+				continue;
+			if (@inventorylist_idx[.@i] == .@idx) {
+				.@j = .@i;
+				break;
+			}
+			if (.@j < 0)
+				.@j = .@i;
+		}
+		if (.@j < 0) {
+			callsub L_BagReply, .@req$, "ERR|That isn't in your inventory (take it off first if you wear it).";
+			end;
+		}
+		if (@inventorylist_expire[.@j]) {
+			callsub L_BagReply, .@req$, "ERR|Rentals can't be handed over.";
+			end;
+		}
+		.@id = .@want;
+		.@idx = @inventorylist_idx[.@j];
+		.@amt = min(max(.@amt, 1), @inventorylist_amount[.@j]);
+		if (readparam(Weight, .@c) + getiteminfo(.@id, ITEMINFO_WEIGHT) * .@amt > readparam(MaxWeight, .@c)) {
+			callsub L_BagReply, .@req$, "ERR|" + .@nm$ + " can't carry that much.";
+			end;
+		}
+		.@ident = @inventorylist_identify[.@j];
+		.@ref = @inventorylist_refine[.@j];
+		.@attr = @inventorylist_attribute[.@j];
+		.@c1 = @inventorylist_card1[.@j];
+		.@c2 = @inventorylist_card2[.@j];
+		.@c3 = @inventorylist_card3[.@j];
+		.@c4 = @inventorylist_card4[.@j];
+		.@bound = @inventorylist_bound[.@j];
+		setarray .@oid, @inventorylist_option_id1[.@j], @inventorylist_option_id2[.@j], @inventorylist_option_id3[.@j],
+			@inventorylist_option_id4[.@j], @inventorylist_option_id5[.@j];
+		setarray .@oval, @inventorylist_option_value1[.@j], @inventorylist_option_value2[.@j], @inventorylist_option_value3[.@j],
+			@inventorylist_option_value4[.@j], @inventorylist_option_value5[.@j];
+		setarray .@opar, @inventorylist_option_parameter1[.@j], @inventorylist_option_parameter2[.@j], @inventorylist_option_parameter3[.@j],
+			@inventorylist_option_parameter4[.@j], @inventorylist_option_parameter5[.@j];
+		// Into its bag first, then out of yours.
+		if (.@bound)
+			getitembound3 .@id, .@amt, .@ident, .@ref, .@attr, .@c1, .@c2, .@c3, .@c4, .@bound, .@oid, .@oval, .@opar, .@aid;
+		else
+			getitem3 .@id, .@amt, .@ident, .@ref, .@attr, .@c1, .@c2, .@c3, .@c4, .@oid, .@oval, .@opar, .@aid;
+		delitemidx .@idx, .@amt;
+		.@msg$ = "Gave " + .@amt + " x " + getitemname(.@id) + " to " + .@nm$ + ".";
+		// Gear: it puts it on, as a trade does. Whatever you gave for that slot
+		// before comes back to you first (a trade swaps it the same way).
+		.@loc = getiteminfo(.@id, ITEMINFO_LOCATIONS);
+		.@type = getiteminfo(.@id, ITEMINFO_TYPE);
+		if ((.@type == IT_WEAPON || .@type == IT_ARMOR) && .@loc > 0 && .@amt == 1 && .@ident) {
+			.@gm = 0;
+			if (query_sql("SELECT given_mask FROM cp_companion_persistence WHERE owner_char_id = " + getcharid(0)
+					+ " AND name = '" + escape_sql(.@nm$) + "' LIMIT 1", .@gmv) > 0)
+				.@gm = .@gmv;
+			.@dm = callsub(L_DgMask, .@c);
+			// The slot: an accessory takes a side that holds its own piece, if any.
+			.@t = .@loc;
+			if (.@loc == EQP_ACC) {
+				.@t = EQP_ACC_L;
+				if (((.@gm | .@dm) & EQP_ACC_L) && !((.@gm | .@dm) & EQP_ACC_R))
+					.@t = EQP_ACC_R;
+			}
+			.@ok = 1;
+			.@extra$ = "";
+			if (.@t & .@dm) {
+				.@back$ = callsub(L_DgBack, .@c, .@nm$, .@t & .@dm);
+				if (substr(.@back$, 0, 2) == "ER") {
+					.@ok = 0;
+					.@msg$ += " It's in the bag: " + substr(.@back$, 4, getstrlen(.@back$) - 1);
+				} else if (.@back$ != "") {
+					.@extra$ += " " + substr(.@back$, 3, getstrlen(.@back$) - 1);
+				}
+			}
+			if (.@ok && (.@t & .@gm)) {
+				// Traded gear: the engine's own way back (as the Take back button).
+				setarray .@bit, EQP_HEAD_LOW, EQP_HAND_R, EQP_GARMENT, EQP_ACC_L, EQP_ARMOR, EQP_HAND_L, EQP_SHOES, EQP_ACC_R, EQP_HEAD_TOP, EQP_HEAD_MID;
+				setarray .@word$, "headlow", "weapon", "garment", "accl", "armor", "shield", "shoes", "accr", "headtop", "headmid";
+				.@slots$ = "";
+				for (.@s = 0; .@s < getarraysize(.@bit); .@s++) {
+					if (.@t & .@gm & .@bit[.@s])
+						.@slots$ += " " + .@word$[.@s];
+				}
+				if (.@t & .@gm & (EQP_COSTUME_HEAD_TOP | EQP_COSTUME_HEAD_MID | EQP_COSTUME_HEAD_LOW | EQP_COSTUME_GARMENT))
+					.@slots$ += " costume";
+				if (.@slots$ != "") {
+					atcommand "@companion gear " + .@nm$ + .@slots$;
+					.@extra$ += " What you gave for that slot went back to you.";
+				}
+			}
+			if (.@ok) {
+				setarray .@eb, EQP_HEAD_TOP, EQP_HEAD_MID, EQP_HEAD_LOW, EQP_ARMOR, EQP_HAND_R, EQP_HAND_L, EQP_GARMENT, EQP_SHOES,
+					EQP_ACC_L, EQP_ACC_R, EQP_COSTUME_HEAD_TOP, EQP_COSTUME_HEAD_MID, EQP_COSTUME_HEAD_LOW, EQP_COSTUME_GARMENT;
+				setarray .@ei, EQI_HEAD_TOP, EQI_HEAD_MID, EQI_HEAD_LOW, EQI_ARMOR, EQI_HAND_R, EQI_HAND_L, EQI_GARMENT, EQI_SHOES,
+					EQI_ACC_L, EQI_ACC_R, EQI_COSTUME_HEAD_TOP, EQI_COSTUME_HEAD_MID, EQI_COSTUME_HEAD_LOW, EQI_COSTUME_GARMENT;
+				for (.@s = 0; .@s < getarraysize(.@eb); .@s++)
+					.@old[.@s] = (.@t & .@eb[.@s]) ? getequipid(.@ei[.@s], .@c) : 0;
+				// An accessory goes on the right only when the right is empty (the
+				// engine's rule), else on the left.
+				if (.@t == EQP_ACC_R)
+					unequip EQI_ACC_R, .@c;
+				// (This server has no equip2: by item id, so the first of it in its bag.)
+				equip .@id, .@c;
+				// Where it went (an accessory picks a side, a two-hander takes both hands).
+				.@m = 0;
+				getinventorylist .@c;
+				.@cnt = getvar(@inventorylist_count, .@c);
+				for (.@i = 0; .@i < .@cnt; .@i++) {
+					if (getvar(@inventorylist_id[.@i], .@c) == .@id && (getvar(@inventorylist_equip[.@i], .@c) & .@loc)) {
+						.@m = getvar(@inventorylist_equip[.@i], .@c);
+						break;
+					}
+				}
+				if (.@m) {
+					.@own = 0;
+					for (.@s = 0; .@s < getarraysize(.@eb); .@s++) {
+						if ((.@m & .@eb[.@s]) && .@old[.@s] > 0) {
+							.@own = .@old[.@s];
+							break;
+						}
+					}
+					.@rec$ = modstore_get("char", "dg.c" + .@c, "");
+					modstore_set "char", "dg.c" + .@c, .@rec$ + (.@rec$ == "" ? "" : ";") + .@m + "," + .@id + "," + .@own;
+					.@msg$ = .@nm$ + " put on the " + getitemname(.@id) + "." + .@extra$;
+				} else {
+					.@msg$ += " " + .@nm$ + " can't wear it, so it's in the bag." + .@extra$;
+				}
+			}
+		}
+		callsub L_BagReply, .@req$, "OK|" + .@msg$;
+		end;
+	}
+	// Dye: "dye <char id> cloth|hair <colour>". Shown at once (setlook), and kept
+	// in the mod store (char scope, dye.c<char id>.cl / .hc), because the engine
+	// saves a companion's colours only when it is recruited; L_Dyes puts them
+	// back on whenever the engine respawns it with its old ones.
+	if (.@act$ == "dye") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@kind$ = .@atcmd_parameters$[3];
+		.@v = atoi(.@atcmd_parameters$[4]);
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		if (.@c < 95000000 || .@k < 0 || readparam(Hp, .@c) < 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't here.";
+			end;
+		}
+		if (.@kind$ == "cloth") {
+			.@v = cap_value(.@v, getbattleflag("min_cloth_color"), callsub(L_ClothMax, readparam(Class, .@c)));
+			setlook LOOK_CLOTHES_COLOR, .@v, .@c;
+			modstore_set "char", "dye.c" + .@c + ".cl", .@v;
+		} else if (.@kind$ == "hair") {
+			.@v = cap_value(.@v, getbattleflag("min_hair_color"), getbattleflag("max_hair_color"));
+			setlook LOOK_HAIR_COLOR, .@v, .@c;
+			modstore_set "char", "dye.c" + .@c + ".hc", .@v;
+		} else {
+			callsub L_BagReply, .@req$, "ERR|Unknown dye.";
+			end;
+		}
+		callsub L_BagReply, .@req$, "OK|";
+		end;
+	}
+	// Worn gear you gave: the engine's own "@companion gear <name> <slots>" (the
+	// app's Gear tab sends the same), so it goes back to you its usual way and
+	// the companion puts its own piece back on. Costume slots go back together.
+	if (.@act$ == "gearback") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@eq = atoi(.@atcmd_parameters$[3]);
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		if (.@c < 95000000 || .@k < 0 || .@eq <= 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't in your party.";
+			end;
+		}
+		// Gear you dropped on it in the Bag tab (test build 2.3.0): our own record,
+		// not the engine's. Off, back to you, and its own piece back on.
+		.@back$ = callsub(L_DgBack, .@c, @clb_nm$[.@k], .@eq);
+		if (.@back$ != "") {
+			callsub L_BagReply, .@req$, .@back$;
+			end;
+		}
+		setarray .@bit, EQP_HEAD_LOW, EQP_HAND_R, EQP_GARMENT, EQP_ACC_L, EQP_ARMOR, EQP_HAND_L, EQP_SHOES, EQP_ACC_R, EQP_HEAD_TOP, EQP_HEAD_MID;
+		setarray .@word$, "headlow", "weapon", "garment", "accl", "armor", "shield", "shoes", "accr", "headtop", "headmid";
+		.@slots$ = "";
+		for (.@s = 0; .@s < getarraysize(.@bit); .@s++) {
+			if (.@eq & .@bit[.@s])
+				.@slots$ += " " + .@word$[.@s];
+		}
+		if (.@eq & (EQP_COSTUME_HEAD_TOP | EQP_COSTUME_HEAD_MID | EQP_COSTUME_HEAD_LOW | EQP_COSTUME_GARMENT))
+			.@slots$ += " costume";
+		if (.@eq & (EQP_SHADOW_ARMOR | EQP_SHADOW_WEAPON | EQP_SHADOW_SHIELD | EQP_SHADOW_SHOES | EQP_SHADOW_ACC_R | EQP_SHADOW_ACC_L))
+			.@slots$ += " shadow";
+		if (.@slots$ == "") {
+			callsub L_BagReply, .@req$, "ERR|Not a slot that can be handed back.";
+			end;
+		}
+		atcommand "@companion gear " + @clb_nm$[.@k] + .@slots$;
+		callsub L_BagReply, .@req$, "OK|Asked " + @clb_nm$[.@k] + " to hand it back (see your chat).";
+		end;
+	}
+	if (.@act$ == "withdraw" || .@act$ == "deposit") {
+		.@z = atoi(.@atcmd_parameters$[2]);
+		.@p = modstore_get("char", "purse", 0);
+		if (.@act$ == "withdraw") {
+			.@z = min(.@z, .@p, 1000000000 - Zeny);
+			if (.@z <= 0) {
+				callsub L_BagReply, .@req$, "ERR|Nothing to take out.";
+				end;
+			}
+			modstore_inc("char", "purse", -.@z);
+			Zeny += .@z;
+			callsub L_BagReply, .@req$, "OK|Took " + .@z + " zeny out of the purse.";
+		} else {
+			.@z = min(.@z, Zeny, 1000000000 - .@p);
+			if (.@z <= 0) {
+				callsub L_BagReply, .@req$, "ERR|Nothing to put in.";
+				end;
+			}
+			Zeny -= .@z;
+			modstore_inc("char", "purse", .@z);
+			callsub L_BagReply, .@req$, "OK|Put " + .@z + " zeny in the purse.";
+		}
+		end;
+	}
+	callsub L_BagReply, .@req$, "ERR|Unknown request.";
+	end;
+
+// The companions in your party that are loaded (on any map): @clb_n of them,
+// char ids in @clb_cid, names in @clb_nm$ (character variables: a callsub
+// has .@ variables of its own).
+L_BagParty:
+	@clb_n = 0;
+	deletearray @clb_cid;
+	deletearray @clb_nm$;
+	.@pid = getcharid(1);
+	if (!.@pid)
+		return;
+	getpartymember .@pid, 1;
+	.@pc = $@partymembercount;
+	copyarray .@pcid[0], $@partymembercid[0], .@pc;
+	getpartymember .@pid, 0;
+	copyarray .@pnm$[0], $@partymembername$[0], .@pc;
+	for (.@q = 0; .@q < .@pc; .@q++) {
+		if (.@pcid[.@q] < 95000000 || readparam(Hp, .@pcid[.@q]) < 0)
+			continue;
+		@clb_cid[@clb_n] = .@pcid[.@q];
+		@clb_nm$[@clb_n] = .@pnm$[.@q];
+		@clb_n++;
+	}
+	return;
+
+// The highest outfit colour offered for a class. Built on the engine's own
+// table (population_engine.cpp get_job_max_cloth_color, counted from kRO and
+// iRO data, which re-rolls any colour above it at every summon), one lower:
+// in play (2026-10-12) the top colour of every 0-4 class came out black and
+// green. Knights and Crusaders always ride (the engine mounts them), and a
+// dye tints the Peco too, which looked wrong: they keep the default.
+L_ClothMax:
+	.@j = getarg(0);
+	setarray .@ride, Job_Knight, Job_Knight2, Job_Crusader, Job_Crusader2, Job_Lord_Knight, Job_Lord_Knight2,
+		Job_Paladin, Job_Paladin2, Job_Baby_Knight, Job_Baby_Knight2, Job_Baby_Crusader, Job_Baby_Crusader2;
+	if (inarray(.@ride, .@j) >= 0)
+		return getbattleflag("min_cloth_color");
+	setarray .@p3, Job_Assassin, Job_Crusader, Job_Crusader2, Job_Monk, Job_Sage, Job_Rogue, Job_Dancer,
+		Job_Lord_Knight, Job_Lord_Knight2, Job_High_Priest, Job_High_Wizard, Job_Whitesmith, Job_Sniper,
+		Job_Assassin_Cross, Job_Paladin, Job_Paladin2, Job_Champion, Job_Professor, Job_Stalker, Job_Creator,
+		Job_Clown, Job_Gypsy, Job_Baby_Assassin, Job_Baby_Crusader, Job_Baby_Crusader2, Job_Baby_Monk,
+		Job_Baby_Sage, Job_Baby_Rogue;
+	setarray .@p4, Job_Swordman, Job_Mage, Job_Archer, Job_Acolyte, Job_Merchant, Job_Thief,
+		Job_Knight, Job_Knight2, Job_Priest, Job_Wizard, Job_Blacksmith, Job_Hunter, Job_Alchemist, Job_Bard,
+		Job_Swordman_High, Job_Mage_High, Job_Archer_High, Job_Acolyte_High, Job_Merchant_High, Job_Thief_High,
+		Job_Baby_Swordman, Job_Baby_Mage, Job_Baby_Archer, Job_Baby_Acolyte, Job_Baby_Merchant, Job_Baby_Thief,
+		Job_Baby_Knight, Job_Baby_Knight2, Job_Baby_Priest, Job_Baby_Wizard, Job_Baby_Blacksmith,
+		Job_Baby_Hunter, Job_Baby_Alchemist, Job_Baby_Bard, Job_Baby_Dancer;
+	.@max = getbattleflag("max_cloth_color");
+	if (inarray(.@p3, .@j) >= 0)
+		return min(3, .@max);
+	if (inarray(.@p4, .@j) >= 0)
+		return min(3, .@max);
+	return .@max;
+
+// Colours you picked (Bag tab), put back on a companion the engine summoned
+// with its old ones (at login, after a map change, after a revive).
+L_Dyes:
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@c = @cl_cid[.@i];
+		.@p$ = "dye.c" + .@c;
+		if (modstore_exists("char", .@p$ + ".cl")) {
+			.@v = modstore_get("char", .@p$ + ".cl", 0);
+			// A colour no longer offered (1.4.4), or a job change: the top one left.
+			.@mx = callsub(L_ClothMax, readparam(Class, .@c));
+			if (.@v > .@mx) {
+				.@v = .@mx;
+				modstore_set "char", .@p$ + ".cl", .@v;
+			}
+			if (getlook(LOOK_CLOTHES_COLOR, .@c) != .@v)
+				setlook LOOK_CLOTHES_COLOR, .@v, .@c;
+		} else if (getlook(LOOK_CLOTHES_COLOR, .@c) > callsub(L_ClothMax, readparam(Class, .@c))) {
+			// Never dyed, but the engine rolled one of the colours that look broken
+			// (or tint a Peco): the default instead, kept like a dye.
+			.@v = getbattleflag("min_cloth_color");
+			setlook LOOK_CLOTHES_COLOR, .@v, .@c;
+			modstore_set "char", .@p$ + ".cl", .@v;
+		}
+		if (modstore_exists("char", .@p$ + ".hc")) {
+			.@v = modstore_get("char", .@p$ + ".hc", 0);
+			if (getlook(LOOK_HAIR_COLOR, .@c) != .@v)
+				setlook LOOK_HAIR_COLOR, .@v, .@c;
+		}
+	}
+	return;
+
+// A stack in companion getarg(0)'s bag, at getarg(1) in its @inventorylist_*
+// (read just before), getarg(2) of it to you: refine, cards, random options
+// and bound type come along.
+L_ToYou:
+	.@c = getarg(0);
+	.@j = getarg(1);
+	.@amt = getarg(2);
+	.@id = getvar(@inventorylist_id[.@j], .@c);
+	.@ident = getvar(@inventorylist_identify[.@j], .@c);
+	.@ref = getvar(@inventorylist_refine[.@j], .@c);
+	.@attr = getvar(@inventorylist_attribute[.@j], .@c);
+	.@c1 = getvar(@inventorylist_card1[.@j], .@c);
+	.@c2 = getvar(@inventorylist_card2[.@j], .@c);
+	.@c3 = getvar(@inventorylist_card3[.@j], .@c);
+	.@c4 = getvar(@inventorylist_card4[.@j], .@c);
+	.@bound = getvar(@inventorylist_bound[.@j], .@c);
+	setarray .@oid, getvar(@inventorylist_option_id1[.@j], .@c), getvar(@inventorylist_option_id2[.@j], .@c),
+		getvar(@inventorylist_option_id3[.@j], .@c), getvar(@inventorylist_option_id4[.@j], .@c), getvar(@inventorylist_option_id5[.@j], .@c);
+	setarray .@oval, getvar(@inventorylist_option_value1[.@j], .@c), getvar(@inventorylist_option_value2[.@j], .@c),
+		getvar(@inventorylist_option_value3[.@j], .@c), getvar(@inventorylist_option_value4[.@j], .@c), getvar(@inventorylist_option_value5[.@j], .@c);
+	setarray .@opar, getvar(@inventorylist_option_parameter1[.@j], .@c), getvar(@inventorylist_option_parameter2[.@j], .@c),
+		getvar(@inventorylist_option_parameter3[.@j], .@c), getvar(@inventorylist_option_parameter4[.@j], .@c), getvar(@inventorylist_option_parameter5[.@j], .@c);
+	delitemidx getvar(@inventorylist_idx[.@j], .@c), .@amt, .@c;
+	if (.@bound)
+		getitembound3 .@id, .@amt, .@ident, .@ref, .@attr, .@c1, .@c2, .@c3, .@c4, .@bound, .@oid, .@oval, .@opar;
+	else
+		getitem3 .@id, .@amt, .@ident, .@ref, .@attr, .@c1, .@c2, .@c3, .@c4, .@oid, .@oval, .@opar;
+	return;
+
+// Our record of gear dropped on companion getarg(0) (test build 2.3.0, mod
+// store dg.c<char id>: "<slots>,<item id>,<its own item id>" split by ";").
+// Entries for gear it no longer wears are dropped here (the engine changed
+// it, or it was taken back some other way).
+// L_DgMask: the slots in it. L_DgOwn: ",id,id," of its own pieces in its bag.
+L_DgMask:
+	.@c = getarg(0);
+	.@rec$ = modstore_get("char", "dg.c" + .@c, "");
+	if (.@rec$ == "")
+		return 0;
+	setarray .@eb, EQP_HEAD_TOP, EQP_HEAD_MID, EQP_HEAD_LOW, EQP_ARMOR, EQP_HAND_R, EQP_HAND_L, EQP_GARMENT, EQP_SHOES,
+		EQP_ACC_L, EQP_ACC_R, EQP_COSTUME_HEAD_TOP, EQP_COSTUME_HEAD_MID, EQP_COSTUME_HEAD_LOW, EQP_COSTUME_GARMENT;
+	setarray .@ei, EQI_HEAD_TOP, EQI_HEAD_MID, EQI_HEAD_LOW, EQI_ARMOR, EQI_HAND_R, EQI_HAND_L, EQI_GARMENT, EQI_SHOES,
+		EQI_ACC_L, EQI_ACC_R, EQI_COSTUME_HEAD_TOP, EQI_COSTUME_HEAD_MID, EQI_COSTUME_HEAD_LOW, EQI_COSTUME_GARMENT;
+	explode(.@e$, .@rec$, ";");
+	.@mask = 0;
+	.@keep$ = "";
+	for (.@r = 0; .@r < getarraysize(.@e$); .@r++) {
+		if (.@e$[.@r] == "")
+			continue;
+		explode(.@f$, .@e$[.@r], ",");
+		.@m = atoi(.@f$[0]);
+		.@ok = 0;
+		for (.@s = 0; .@s < getarraysize(.@eb); .@s++) {
+			if (.@m & .@eb[.@s]) {
+				.@ok = getequipid(.@ei[.@s], .@c) == atoi(.@f$[1]);
+				break;
+			}
+		}
+		if (!.@ok)
+			continue;
+		.@mask = .@mask | .@m;
+		.@keep$ += (.@keep$ == "" ? "" : ";") + .@e$[.@r];
+	}
+	if (.@keep$ != .@rec$)
+		callsub L_DgSave, .@c, .@keep$;
+	return .@mask;
+
+// Gear you dropped on companion getarg(0) (name getarg(1)) in slots getarg(2),
+// from our record: off, back to you, and its own piece back on. Returns
+// "OK|text", "ERR|text", or "" when no such gear is in the record.
+L_DgBack:
+	.@c = getarg(0);
+	.@nm$ = getarg(1);
+	.@eq = getarg(2);
+	.@rec$ = modstore_get("char", "dg.c" + .@c, "");
+	if (.@rec$ == "")
+		return "";
+	explode(.@e$, .@rec$, ";");
+	.@n = getarraysize(.@e$);
+	for (.@r = 0; .@r < .@n; .@r++) {
+		explode(.@f$, .@e$[.@r], ",");
+		if (atoi(.@f$[0]) & .@eq)
+			break;
+	}
+	if (.@r >= .@n)
+		return "";
+	.@m = atoi(.@f$[0]);
+	.@id = atoi(.@f$[1]);
+	.@own = atoi(.@f$[2]);
+	// The record without this entry, kept whatever happens next.
+	.@keep$ = "";
+	for (.@q = 0; .@q < .@n; .@q++) {
+		if (.@q != .@r && .@e$[.@q] != "")
+			.@keep$ += (.@keep$ == "" ? "" : ";") + .@e$[.@q];
+	}
+	getinventorylist .@c;
+	.@cnt = getvar(@inventorylist_count, .@c);
+	for (.@j = 0; .@j < .@cnt; .@j++) {
+		if (getvar(@inventorylist_id[.@j], .@c) == .@id && (getvar(@inventorylist_equip[.@j], .@c) & .@m))
+			break;
+	}
+	if (.@j >= .@cnt) {
+		callsub L_DgSave, .@c, .@keep$;
+		return "ERR|" + .@nm$ + " isn't wearing that any more.";
+	}
+	if (!checkweight(.@id, 1))
+		return "ERR|You can't carry the " + getitemname(.@id) + " it wears there.";
+	setarray .@eb, EQP_HEAD_TOP, EQP_HEAD_MID, EQP_HEAD_LOW, EQP_ARMOR, EQP_HAND_R, EQP_HAND_L, EQP_GARMENT, EQP_SHOES,
+		EQP_ACC_L, EQP_ACC_R, EQP_COSTUME_HEAD_TOP, EQP_COSTUME_HEAD_MID, EQP_COSTUME_HEAD_LOW, EQP_COSTUME_GARMENT;
+	setarray .@ei, EQI_HEAD_TOP, EQI_HEAD_MID, EQI_HEAD_LOW, EQI_ARMOR, EQI_HAND_R, EQI_HAND_L, EQI_GARMENT, EQI_SHOES,
+		EQI_ACC_L, EQI_ACC_R, EQI_COSTUME_HEAD_TOP, EQI_COSTUME_HEAD_MID, EQI_COSTUME_HEAD_LOW, EQI_COSTUME_GARMENT;
+	for (.@s = 0; .@s < getarraysize(.@eb); .@s++) {
+		if (.@m & .@eb[.@s]) {
+			unequip .@ei[.@s], .@c;
+			break;
+		}
+	}
+	// Off now, still at the same index in its bag.
+	callsub L_ToYou, .@c, .@j, 1;
+	callsub L_DgSave, .@c, .@keep$;
+	.@msg$ = "Took back the " + getitemname(.@id) + " from " + .@nm$ + ".";
+	if (.@own > 0 && countitem(.@own, getcharid(3, .@nm$))) {
+		equip .@own, .@c;
+		.@msg$ += " It put its " + getitemname(.@own) + " back on.";
+	}
+	return "OK|" + .@msg$;
+
+// Save the record getarg(1) for companion getarg(0); an empty one is removed.
+L_DgSave:
+	if (getarg(1) == "")
+		modstore_delete "char", "dg.c" + getarg(0);
+	else
+		modstore_set "char", "dg.c" + getarg(0), getarg(1);
+	return;
+
+L_DgOwn:
+	.@rec$ = modstore_get("char", "dg.c" + getarg(0), "");
+	.@out$ = ",";
+	if (.@rec$ == "")
+		return .@out$;
+	explode(.@e$, .@rec$, ";");
+	for (.@r = 0; .@r < getarraysize(.@e$); .@r++) {
+		explode(.@f$, .@e$[.@r], ",");
+		if (atoi(.@f$[2]) > 0)
+			.@out$ += .@f$[2] + ",";
+	}
+	return .@out$;
+
+// "@@reply <request> <part>/<parts> <text>", 180 characters a line.
+L_BagReply:
+	.@rt$ = getarg(1);
+	.@rl = getstrlen(.@rt$);
+	.@rn = max(1, (.@rl + 179) / 180);
+	for (.@rk = 0; .@rk < .@rn; .@rk++) {
+		.@part$ = "";
+		if (.@rl > 0)
+			.@part$ = substr(.@rt$, .@rk * 180, min(.@rl, (.@rk + 1) * 180) - 1);
+		dispbottom "@@reply " + getarg(0) + " " + (.@rk + 1) + "/" + .@rn + " " + .@part$;
+	}
+	return;
+
+// The window's separators out of a text.
+L_Clean:
+	return replacestr(replacestr(getarg(0), "|", "/"), "~", "-");
+
+// Memories: a companion seen for the first time is "met" here and now; one
+// already known may have an anniversary today.
+L_MemSeen:
+	.@i = getarg(0);
+	.@p$ = "m.c" + @cl_cid[.@i];
+	if (!modstore_exists("char", .@p$ + ".met")) {
+		modstore_set "char", .@p$ + ".met", gettimetick(2);
+		modstore_set "char", .@p$ + ".metmap", strcharinfo(3);
+		modstore_set "char", .@p$ + ".metlv", BaseLevel;
+		return;
+	}
+	.@days = (gettimetick(2) - modstore_get("char", .@p$ + ".met", gettimetick(2))) / 86400;
+	.@ann = modstore_get("char", .@p$ + ".ann", 0);
+	setarray .@ms[0], 730, 365, 182, 100, 30, 7;
+	for (.@k = 0; .@k < 6; .@k++) {
+		if (.@days >= .@ms[.@k]) {
+			if (.@ms[.@k] > .@ann && @cl_hp[.@i] > 0) {
+				modstore_set "char", .@p$ + ".ann", .@ms[.@k];
+				callsub L_QueueFmt, .@i, "anniv", "", ET_CONGRATULATION, .@days, "";
+			}
+			break;
+		}
+	}
+	return;
+
+// Memories: a place visited together for the first time. Instance maps
+// (1@tower and the like) don't fit a store key and aren't counted.
+L_MemMap:
+	.@m$ = getarg(0);
+	if (compare(.@m$, "@") || compare(.@m$, "-") || compare(.@m$, "."))
+		return;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		.@p$ = "m.c" + @cl_cid[.@i] + ".maps";
+		if (modstore_exists("char", .@p$ + "." + .@m$))
+			continue;
+		modstore_set "char", .@p$ + "." + .@m$, 1;
+		.@c = modstore_count("char", .@p$);
+		if (.@c == 10 || .@c == 25 || .@c == 50 || .@c == 100 || .@c == 150)
+			callsub L_QueueFmt, .@i, "mapms", "", 0, .@c, "";
+	}
+	return;
+
+// Memories: one companion recalls something you did together. 1 if it did.
+L_MemRecall:
+	.@a = callsub(L_Pick, -1, -1);
+	if (.@a < 0)
+		return 0;
+	.@p$ = "m.c" + @cl_cid[.@a];
+	if (!modstore_exists("char", .@p$ + ".met"))
+		return 0;
+	.@days = (gettimetick(2) - modstore_get("char", .@p$ + ".met", gettimetick(2))) / 86400;
+	.@kills = modstore_get("char", .@p$ + ".kills", 0);
+	.@mvps = modstore_get("char", .@p$ + ".mvps", 0);
+	.@fell = modstore_get("char", .@p$ + ".fell", 0);
+	.@saw = modstore_get("char", .@p$ + ".sawfall", 0);
+	.@maps = modstore_count("char", .@p$ + ".maps");
+	.@fmvp$ = modstore_get("char", .@p$ + ".firstmvp", "");
+	.@k = 0;
+	setarray .@kind$[.@k], "mfirst"; .@k++;
+	if (.@days >= 1) { .@kind$[.@k] = "mdays"; .@k++; }
+	if (.@kills >= 50) { .@kind$[.@k] = "mkills"; .@k++; }
+	if (.@mvps >= 1) { .@kind$[.@k] = "mmvps"; .@k++; }
+	if (.@fmvp$ != "") { .@kind$[.@k] = "mfmvp"; .@k++; }
+	if (.@fell >= 1) { .@kind$[.@k] = "mfell"; .@k++; }
+	if (.@saw >= 1) { .@kind$[.@k] = "msaw"; .@k++; }
+	if (.@maps >= 3) { .@kind$[.@k] = "mmaps"; .@k++; }
+	.@w$ = .@kind$[0];
+	if (.@k > 1)
+		.@w$ = .@kind$[rand(.@k)];
+	.@n = 0;
+	.@m$ = "";
+	if (.@w$ == "mfirst") {
+		.@n = modstore_get("char", .@p$ + ".metlv", 1);
+		.@m$ = modstore_get("char", .@p$ + ".metmap", "Prontera");
+	} else if (.@w$ == "mdays") .@n = .@days;
+	else if (.@w$ == "mkills") .@n = .@kills;
+	else if (.@w$ == "mmvps") .@n = .@mvps;
+	else if (.@w$ == "mfmvp") .@m$ = .@fmvp$;
+	else if (.@w$ == "mfell") .@n = .@fell;
+	else if (.@w$ == "msaw") .@n = .@saw;
+	else if (.@w$ == "mmaps") .@n = .@maps;
+	callsub L_QueueFmt, .@a, .@w$, "", 0, .@n, .@m$;
+	return 1;
+
+// Like L_QueueIdx, with {n} = getarg(4) and {m} = getarg(5) filled in first.
+L_QueueFmt:
+	.@i = getarg(0);
+	.@t$ = callsub(L_Line, getarg(1), @cl_ar[.@i]);
+	if (.@t$ == "")
+		return;
+	.@t$ = replacestr(replacestr(.@t$, "{n}", "" + getarg(4)), "{m}", getarg(5));
+	.@t$ = callsub(L_Text, .@t$, .@i, getarg(2));
+	.@q = getarraysize(@cl_qa);
+	@cl_qa[.@q] = @cl_aid[.@i];
+	@cl_qn$[.@q] = @cl_nm$[.@i];
+	@cl_qt$[.@q] = .@t$;
+	@cl_qe[.@q] = getarg(3);
+	return;
+
+// Companions on your map, into @cl_* arrays (index 0..@cl_n-1).
+L_Gather:
+	@cl_n = 0;
+	deletearray @cl_aid;
+	deletearray @cl_cid;
+	deletearray @cl_nm$;
+	deletearray @cl_hp;
+	deletearray @cl_mhp;
+	deletearray @cl_sp;
+	deletearray @cl_msp;
+	deletearray @cl_ar;
+	deletearray @cl_lv;
+	deletearray @cl_cls;
+	.@pid = getcharid(1);
+	if (!.@pid)
+		return;
+	getpartymember .@pid, 1;
+	.@cnt = $@partymembercount;
+	if (.@cnt <= 0)
+		return;
+	copyarray .@cid[0], $@partymembercid[0], .@cnt;
+	getpartymember .@pid, 2;
+	copyarray .@aid[0], $@partymemberaid[0], .@cnt;
+	getpartymember .@pid, 0;
+	copyarray .@nm$[0], $@partymembername$[0], .@cnt;
+	.@map$ = strcharinfo(3);
+	for (.@i = 0; .@i < .@cnt; .@i++) {
+		if (.@cid[.@i] < 95000000)
+			continue;	// a real player, not a companion
+		.@hp = readparam(Hp, .@cid[.@i]);
+		if (.@hp < 0)
+			continue;	// not loaded
+		if (strcharinfo(3, .@cid[.@i]) != .@map$)
+			continue;	// left behind on another map
+		@cl_aid[@cl_n] = .@aid[.@i];
+		@cl_cid[@cl_n] = .@cid[.@i];
+		@cl_nm$[@cl_n] = .@nm$[.@i];
+		@cl_hp[@cl_n] = .@hp;
+		@cl_mhp[@cl_n] = readparam(MaxHp, .@cid[.@i]);
+		@cl_sp[@cl_n] = readparam(Sp, .@cid[.@i]);
+		@cl_msp[@cl_n] = readparam(MaxSp, .@cid[.@i]);
+		@cl_cls[@cl_n] = readparam(Class, .@cid[.@i]);
+		@cl_lv[@cl_n] = readparam(BaseLevel, .@cid[.@i]);
+		@cl_ar[@cl_n] = callsub(L_Arch, @cl_cls[@cl_n]);
+		@cl_n++;
+	}
+	return;
+
+// Personality from the class family.
+L_Arch:
+	.@ea = eaclass(getarg(0));
+	.@b = .@ea & EAJ_BASEMASK;
+	if (.@b == EAJ_SWORDMAN)
+		return 1;
+	if (.@b == EAJ_MAGE)
+		return 2;
+	if (.@b == EAJ_ARCHER || .@b == EAJ_GUNSLINGER)
+		return 3;
+	if (.@b == EAJ_ACOLYTE) {
+		if (.@ea & EAJL_2_2)
+			return 5;	// Monk line
+		return 4;
+	}
+	if (.@b == EAJ_TAEKWON) {
+		if (.@ea & EAJL_2_2)
+			return 2;	// Soul Linker
+		return 5;
+	}
+	if (.@b == EAJ_MERCHANT)
+		return 7;
+	if (.@b == EAJ_THIEF || .@b == EAJ_NINJA)
+		return 6;
+	return 0;
+
+// A living companion: getarg(0) index to skip (-1 none), getarg(1)
+// personality to prefer (-1 none). Returns an index or -1.
+L_Pick:
+	.@ex = getarg(0);
+	.@pref = getarg(1);
+	.@k = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (.@i == .@ex || @cl_hp[.@i] <= 0)
+			continue;
+		if (.@pref >= 0 && @cl_ar[.@i] == .@pref)
+			return .@i;
+		.@c[.@k] = .@i;
+		.@k++;
+	}
+	if (!.@k)
+		return -1;
+	if (.@k == 1)
+		return .@c[0];	// rand(1) logs an error on this server
+	return .@c[rand(.@k)];
+
+// A random line for category getarg(0), personality getarg(1).
+L_Line:
+	.@v$ = "." + getarg(0) + "_" + getarg(1) + "$";
+	.@n = getarraysize(getd(.@v$));
+	if (!.@n) {
+		.@v$ = "." + getarg(0) + "_0$";
+		.@n = getarraysize(getd(.@v$));
+		if (!.@n)
+			return "";
+	}
+	if (.@n == 1)
+		return getd(.@v$ + "[0]");
+	return getd(.@v$ + "[" + rand(.@n) + "]");
+
+// Fill {t} (companion getarg(1)'s title for you) and {a} (getarg(2)).
+L_Text:
+	.@t$ = replacestr(getarg(0), "{t}", .ttl$[@cl_cid[getarg(1)] % .nt]);
+	return replacestr(.@t$, "{a}", getarg(2));
+
+// Companion getarg(0) says a line of category getarg(1) now.
+L_SpeakNow:
+	.@i = getarg(0);
+	.@t$ = callsub(L_Text, callsub(L_Line, getarg(1), @cl_ar[.@i]), .@i, getarg(2));
+	if (.@t$ == "")
+		return;
+	callsub L_SayAid, @cl_aid[.@i], @cl_nm$[.@i], .@t$;
+	if (getarg(3))
+		callsub L_EmoteIdx, .@i, getarg(3);
+	@cl_talk = gettimetick(2) + 6;
+	return;
+
+// Companion getarg(0) says a line of category getarg(1) at its turn.
+L_QueueIdx:
+	.@i = getarg(0);
+	.@t$ = callsub(L_Text, callsub(L_Line, getarg(1), @cl_ar[.@i]), .@i, getarg(2));
+	if (.@t$ == "")
+		return;
+	.@q = getarraysize(@cl_qa);
+	@cl_qa[.@q] = @cl_aid[.@i];
+	@cl_qn$[.@q] = @cl_nm$[.@i];
+	@cl_qt$[.@q] = .@t$;
+	@cl_qe[.@q] = getarg(3);
+	return;
+
+// Two companions (getarg(0), getarg(1)) talk; a third joins sometimes.
+// getarg(2) the map, getarg(3) "night" / "morning" / "". What about:
+//   the first time they become friends or close friends: that moment;
+//   else, by chance: all three; their two personalities; the place, the
+//   hour or a boss just beaten; a memory; how well they know each other;
+//   anything (.conv$). The last 12 conversations aren't repeated.
+// How well they know each other is the number of talks they've had,
+// kept in the store (r.c<low char id>_<high char id>).
+L_Conversation:
+	.@a = getarg(0);
+	.@b = getarg(1);
+	.@c = -1;
+	.@d = -1;
+	if (@cl_n >= 3) {
+		for (.@k = 0; .@k < 5 && .@c < 0; .@k++) {
+			.@x = callsub(L_Pick, .@a, -1);
+			if (.@x >= 0 && .@x != .@b)
+				.@c = .@x;
+		}
+	}
+	if (@cl_n >= 4 && .@c >= 0) {
+		for (.@k = 0; .@k < 8 && .@d < 0; .@k++) {
+			.@x = callsub(L_Pick, .@a, -1);
+			if (.@x >= 0 && .@x != .@b && .@x != .@c)
+				.@d = .@x;
+		}
+	}
+	// How the topic is chosen (by a roll under 100): a small party mostly
+	// talks in pairs; with three or more companions the whole group joins in.
+	setarray .@th, 0, 15, 40, 65, 75, 88;	// four, three, pair, place, memory, friends
+	if (@cl_n >= 3)
+		setarray .@th, 20, 45, 60, 75, 82, 92;
+	if (.@d < 0)
+		.@th[0] = 0;
+	.@lo = min(@cl_cid[.@a], @cl_cid[.@b]);
+	.@hi = max(@cl_cid[.@a], @cl_cid[.@b]);
+	.@rk$ = "r.c" + .@lo + "_" + .@hi;
+	.@fam = modstore_inc("char", .@rk$, 1);
+	if (.@fam <= 0)
+		.@fam = 10;	// the store refused: treat them as friends
+	.@n$ = "";
+	.@m$ = "";
+	.@cat$ = "";
+	if (.@fam == 6)
+		.@cat$ = "tu1";
+	else if (.@fam == 20)
+		.@cat$ = "tu2";
+	else {
+		.@r = rand(100);
+		if (.@d >= 0 && .@r < .@th[0])
+			.@cat$ = "quad";
+		if (.@cat$ == "" && .@c >= 0 && .@r < .@th[1])
+			.@cat$ = "trio";
+		if (.@cat$ == "" && .@r < .@th[2]) {
+			// their pair, lower personality speaks first
+			.@pa = @cl_ar[.@a];
+			.@pb = @cl_ar[.@b];
+			if (.@pa > .@pb) {
+				.@x = .@a; .@a = .@b; .@b = .@x;
+				.@x = .@pa; .@pa = .@pb; .@pb = .@x;
+			}
+			if (getarraysize(getd(".pc_" + .@pa + "_" + .@pb + "$")))
+				.@cat$ = "pc_" + .@pa + "_" + .@pb;
+		}
+		if (.@cat$ == "" && .@r < .@th[3]) {
+			.@nc = 0;
+			if (@cl_lastmvp && gettimetick(2) - @cl_lastmvp < 900) {
+				.@cx$[.@nc] = "cx_boss"; .@nc++;
+				.@m$ = @cl_lastmvp$;
+			}
+			if (getarg(3) != "") { .@cx$[.@nc] = "cx_" + getarg(3); .@nc++; }
+			.@rg$ = callsub(L_Region, getarg(2));
+			if (.@rg$ != "") { .@cx$[.@nc] = "cx_" + .@rg$; .@nc++; }
+			.@mk$ = callsub(L_MapKind, getarg(2));
+			if (.@mk$ != "") { .@cx$[.@nc] = "cx_" + .@mk$; .@nc++; }
+			if (.@nc) {
+				.@cat$ = .@cx$[0];
+				if (.@nc > 1)
+					.@cat$ = .@cx$[rand(.@nc)];
+			}
+		}
+		if (.@cat$ == "" && .@r < .@th[4] && .mem) {
+			.@p$ = "m.c" + @cl_cid[.@a];
+			.@nc = 0;
+			if (modstore_get("char", .@p$ + ".firstmvp", "") != "") { .@cx$[.@nc] = "cm_mvp"; .@nc++; }
+			if (modstore_get("char", .@p$ + ".metmap", "") != "") { .@cx$[.@nc] = "cm_met"; .@nc++; }
+			if (modstore_get("char", .@p$ + ".kills", 0) >= 100) { .@cx$[.@nc] = "cm_kills"; .@nc++; }
+			if (modstore_exists("char", .@p$ + ".met")
+					&& (gettimetick(2) - modstore_get("char", .@p$ + ".met", 0)) / 86400 >= 2) { .@cx$[.@nc] = "cm_days"; .@nc++; }
+			if (.@nc) {
+				.@cat$ = .@cx$[0];
+				if (.@nc > 1)
+					.@cat$ = .@cx$[rand(.@nc)];
+				if (.@cat$ == "cm_mvp") .@m$ = modstore_get("char", .@p$ + ".firstmvp", "");
+				else if (.@cat$ == "cm_met") .@m$ = modstore_get("char", .@p$ + ".metmap", "");
+				else if (.@cat$ == "cm_kills") .@n$ = "" + modstore_get("char", .@p$ + ".kills", 0);
+				else .@n$ = "" + (gettimetick(2) - modstore_get("char", .@p$ + ".met", 0)) / 86400;
+			}
+		}
+		if (.@cat$ == "" && .@r < .@th[5]) {
+			.@cat$ = "t0";
+			if (.@fam >= 20) .@cat$ = "t2";
+			else if (.@fam >= 6) .@cat$ = "t1";
+		}
+		if (.@cat$ == "")
+			.@cat$ = "conv";
+	}
+	.@line$ = callsub(L_PickConv, .@cat$);
+	if (.@line$ == "")
+		.@line$ = callsub(L_PickConv, "conv");
+	if (.@cat$ != "quad")
+		.@d = -1;
+	if (.@cat$ != "trio" && .@cat$ != "quad")
+		.@c = -1;
+	// A group talk brings everyone in it closer, not only the first two.
+	if (.@c >= 0) {
+		callsub L_Bump, .@a, .@c;
+		callsub L_Bump, .@b, .@c;
+	}
+	if (.@d >= 0) {
+		callsub L_Bump, .@a, .@d;
+		callsub L_Bump, .@b, .@d;
+		callsub L_Bump, .@c, .@d;
+	}
+	callsub L_QueueConv, .@a, .@b, .@c, .@line$, .@n$, .@m$, .@d;
+	return;
+
+// One more talk between companions getarg(0) and getarg(1) (the store key
+// L_Conversation keeps for each pair).
+L_Bump:
+	.@x = @cl_cid[getarg(0)];
+	.@y = @cl_cid[getarg(1)];
+	modstore_inc("char", "r.c" + min(.@x, .@y) + "_" + max(.@x, .@y), 1);
+	return;
+
+// A conversation of category getarg(0) (an array .<cat>$) that isn't one
+// of the last 12 used, or "" when the category has none.
+L_PickConv:
+	.@v$ = "." + getarg(0) + "$";
+	.@n = getarraysize(getd(.@v$));
+	if (!.@n)
+		return "";
+	for (.@k = 0; .@k < 6; .@k++) {
+		.@i = 0;
+		if (.@n > 1)
+			.@i = rand(.@n);
+		if (inarray(@cl_rec$, getarg(0) + "#" + .@i) < 0)
+			break;
+	}
+	if (getarraysize(@cl_rec$) >= 12)
+		deletearray @cl_rec$[0], 1;
+	@cl_rec$[getarraysize(@cl_rec$)] = getarg(0) + "#" + .@i;
+	return getd(.@v$ + "[" + .@i + "]");
+
+// snow / desert / sea / forest, or "".
+L_Region:
+	.@m$ = getarg(0);
+	if (compare(.@m$, "xmas") || compare(.@m$, "ice_dun"))
+		return "snow";
+	if (compare(.@m$, "moc_") || compare(.@m$, "morocc") || compare(.@m$, "sphinx"))
+		return "desert";
+	if (compare(.@m$, "alberta") || compare(.@m$, "alb_") || compare(.@m$, "izlude") || compare(.@m$, "iz_") || compare(.@m$, "beach") || compare(.@m$, "comodo") || compare(.@m$, "cmd_"))
+		return "sea";
+	if (compare(.@m$, "pay_") || compare(.@m$, "payon") || compare(.@m$, "um_") || compare(.@m$, "umbala"))
+		return "forest";
+	return "";
+
+// Queue conversation getarg(3) between companions getarg(0) (A), getarg(1)
+// (B), getarg(2) (C, -1 for none) and getarg(6) (D, -1 or left out for none),
+// with {n} = getarg(4), {m} = getarg(5).
+L_QueueConv:
+	.@a = getarg(0);
+	.@b = getarg(1);
+	.@c = getarg(2);
+	.@d = getarg(6, -1);
+	.@line$ = replacestr(replacestr(getarg(3), "{n}", getarg(4)), "{m}", getarg(5));
+	.@line$ = replacestr(replacestr(.@line$, "{A}", @cl_nm$[.@a]), "{B}", @cl_nm$[.@b]);
+	if (.@c >= 0)
+		.@line$ = replacestr(.@line$, "{C}", @cl_nm$[.@c]);
+	if (.@d >= 0)
+		.@line$ = replacestr(.@line$, "{D}", @cl_nm$[.@d]);
+	explode(.@turn$, .@line$, "^");
+	.@q = getarraysize(@cl_qa);
+	for (.@i = 0; .@i < getarraysize(.@turn$); .@i++) {
+		.@s$ = charat(.@turn$[.@i], 0);
+		.@who = .@a;
+		.@other$ = @cl_nm$[.@b];
+		if (.@s$ == "B") {
+			.@who = .@b;
+			.@other$ = @cl_nm$[.@a];
+		} else if (.@s$ == "C" && .@c >= 0) {
+			.@who = .@c;
+			.@other$ = @cl_nm$[.@a];
+		} else if (.@s$ == "D" && .@d >= 0) {
+			.@who = .@d;
+			.@other$ = @cl_nm$[.@a];
+		}
+		@cl_qa[.@q] = @cl_aid[.@who];
+		@cl_qn$[.@q] = @cl_nm$[.@who];
+		@cl_qt$[.@q] = callsub(L_Text, delchar(.@turn$[.@i], 0), .@who, .@other$);
+		@cl_qe[.@q] = 0;
+		.@q++;
+	}
+	return;
+
+// Companion getarg(0) strolls 1-3 cells to a free spot 2-4 cells from you
+// (you at getarg(2), getarg(3) on map getarg(1)). The engine's follow and
+// the spacing_* rules' Hold would stop the walk, so the
+// companion gets Entry_Queue_Apply_Delay for 2.5 s: a battleground queue
+// timer that does nothing by itself, which the spacing Hold waits out.
+L_Wander:
+	.@aid = @cl_aid[getarg(0)];
+	if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != getarg(1))
+		return;
+	.@ox = getarg(2);
+	.@oy = getarg(3);
+	// As far as the party spacing lets them stand (.near); a scout (Wanderer)
+	// checks one cell further out.
+	.@far = .near;
+	if (@cl_ar[getarg(0)] == 3)
+		.@far = .near + 1;
+	.@dmin = 2;
+	if (.near <= 2)
+		.@dmin = 1;
+	// Where the others stand, so nobody walks onto someone.
+	.@nb = 0;
+	for (.@k = 0; .@k < @cl_n; .@k++) {
+		if (@cl_aid[.@k] != .@aid && getmapxy(.@pm$, .@px, .@py, BL_PC, @cl_aid[.@k]) == 0) {
+			.@bx[.@nb] = .@px;
+			.@by[.@nb] = .@py;
+			.@nb++;
+		}
+	}
+	for (.@k = 0; .@k < 10; .@k++) {
+		.@x = .@ox + rand(-.@far, .@far);
+		.@y = .@oy + rand(-.@far, .@far);
+		.@do = max(.@x - .@ox, .@ox - .@x, .@y - .@oy, .@oy - .@y);
+		.@dc = max(.@x - .@cx, .@cx - .@x, .@y - .@cy, .@cy - .@y);
+		if (.@do < .@dmin || .@dc < 1 || .@dc > max(1, .@far - 1))
+			continue;
+		if (!checkcell(getarg(1), .@x, .@y, cell_chkpass))
+			continue;
+		for (.@q = 0; .@q < .@nb; .@q++) {
+			if (.@bx[.@q] == .@x && .@by[.@q] == .@y)
+				break;
+		}
+		if (.@q < .@nb)
+			continue;	// taken
+		sc_start SC_ENTRY_QUEUE_APPLY_DELAY, 2500, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
+		// A stroll the engine cut short (a fight, catching up with you) leaves
+		// rAthena's forced-walk flag set until the unit next arrives somewhere,
+		// and unitwalk refuses it till then: clear it first (quietly).
+		unitstopwalk .@aid, USW_FORCE_STOP;
+		unitwalk .@aid, .@x, .@y;
+		if (@cl_ar[getarg(0)] == 3) {
+			// A scout looks about, and now and then reports.
+			if (rand(100) < 15 && gettimetick(2) >= @cl_talk)
+				callsub L_SpeakNow, getarg(0), "patrol", "", ET_STARE_ABOUT;
+			else if (rand(100) < 25)
+				callsub L_EmoteAid, .@aid, ET_STARE_ABOUT;
+		} else if (rand(100) < 20)
+			callsub L_EmoteAid, .@aid, ET_QUESTION;
+		return;
+	}
+	return;
+
+// Scout getarg(0) on its patrol round you (getarg(2), getarg(3) on map
+// getarg(1)); the tick says when. Per scout: @cl_pw_<aid> the waypoint it
+// went to (+1), @cl_pd_ the way round (1/-1), @cl_pl_ legs this lap, @cl_pn_
+// the next leg (s), @cl_ps_ the stop (@cl_still) this patrol belongs to.
+L_Patrol:
+	.@aid = @cl_aid[getarg(0)];
+	if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != getarg(1))
+		return;
+	.@ox = getarg(2);
+	.@oy = getarg(3);
+	.@r = .near + 1;
+	.@sec = gettimetick(2);
+	if (getd("@cl_ps_" + .@aid) != @cl_still) {
+		// A new stop: the first leg goes to the waypoint nearest to it, then on
+		// round either way.
+		setd "@cl_ps_" + .@aid, @cl_still;
+		.@bd = 999;
+		.@bk = 0;
+		for (.@k = 0; .@k < 8; .@k++) {
+			.@wx = .@ox + .rx[.@k] * .@r;
+			.@wy = .@oy + .ry[.@k] * .@r;
+			.@d = max(.@wx - .@cx, .@cx - .@wx, .@wy - .@cy, .@cy - .@wy);
+			if (.@d < .@bd) {
+				.@bd = .@d;
+				.@bk = .@k;
+			}
+		}
+		.@dir = 1;
+		if (rand(2))
+			.@dir = -1;
+		setd "@cl_pd_" + .@aid, .@dir;
+		setd "@cl_pw_" + .@aid, (.@bk - .@dir + 8) % 8 + 1;
+		setd "@cl_pl_" + .@aid, 0;
+		setd "@cl_pn_" + .@aid, .@sec + 1 + rand(3);
+		return;
+	}
+	if (.@sec < getd("@cl_pn_" + .@aid))
+		return;
+	.@dir = getd("@cl_pd_" + .@aid);
+	if (getd("@cl_pl_" + .@aid) >= 8) {
+		// A lap done: a look about, maybe a word, a rest, then round again
+		// (sometimes the other way).
+		setd "@cl_pl_" + .@aid, 0;
+		setd "@cl_pn_" + .@aid, .@sec + 15 + rand(16);
+		if (rand(100) < 40)
+			setd "@cl_pd_" + .@aid, -.@dir;
+		if (rand(100) < 20 && .@sec >= @cl_talk)
+			callsub L_SpeakNow, getarg(0), "patrol", "", ET_STARE_ABOUT;
+		else if (rand(100) < 35)
+			callsub L_EmoteAid, .@aid, ET_STARE_ABOUT;
+		return;
+	}
+	// Where you and the others stand: a waypoint on someone is skipped.
+	.@nb = 1;
+	.@bx[0] = .@ox;
+	.@by[0] = .@oy;
+	for (.@k = 0; .@k < @cl_n; .@k++) {
+		if (@cl_aid[.@k] != .@aid && getmapxy(.@pm$, .@px, .@py, BL_PC, @cl_aid[.@k]) == 0) {
+			.@bx[.@nb] = .@px;
+			.@by[.@nb] = .@py;
+			.@nb++;
+		}
+	}
+	.@w = getd("@cl_pw_" + .@aid) - 1;
+	for (.@t = 0; .@t < 3; .@t++) {
+		.@w = (.@w + .@dir + 8) % 8;
+		setd "@cl_pl_" + .@aid, getd("@cl_pl_" + .@aid) + 1;
+		setd "@cl_pw_" + .@aid, .@w + 1;
+		.@x = .@ox + .rx[.@w] * .@r;
+		.@y = .@oy + .ry[.@w] * .@r;
+		if (!checkcell(getarg(1), .@x, .@y, cell_chkpass))
+			continue;	// a wall, water: on to the next one
+		for (.@q = 0; .@q < .@nb; .@q++) {
+			if (.@bx[.@q] == .@x && .@by[.@q] == .@y)
+				break;
+		}
+		if (.@q < .@nb)
+			continue;
+		sc_start SC_ENTRY_QUEUE_APPLY_DELAY, 3500, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
+		unitstopwalk .@aid, USW_FORCE_STOP;
+		if (!unitwalk(.@aid, .@x, .@y))
+			continue;	// no way there from here
+		setd "@cl_pn_" + .@aid, .@sec + 3;
+		if (rand(100) < 10)
+			callsub L_EmoteAid, .@aid, ET_STARE_ABOUT;
+		return;
+	}
+	setd "@cl_pn_" + .@aid, .@sec + 3;
+	return;
+
+// One companion that has sat a while gets up for a moment (the tick says
+// when): it moves to a new spot by its favourite (L_Fav), or turns to look at
+// you, at whoever spoke last, at a friend or about. You at getarg(1),
+// getarg(2) on map getarg(0). The idle_sit rule sits it down again once the
+// marker from L_FaceWalk runs out.
+L_Restless:
+	.@sec = gettimetick(2);
+	.@still = .@sec - @cl_still;
+	.@ox = getarg(1);
+	.@oy = getarg(2);
+	.@w = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0 || getd("@cl_rst_" + @cl_aid[.@i]))
+			continue;	// down, or resting to get HP/SP back: leave it be
+		.@thr = 60;
+		if (@cl_ar[.@i] == 3)
+			.@thr = 180;
+		if (.@still < .@thr + 10)
+			continue;	// not sitting yet
+		if (@cl_ar[.@i] == 4 && .@sec - @cl_hurt_t < 60)
+			continue;	// a Healer stays ready while someone's hurt
+		.@wc[.@w] = .@i;
+		.@w++;
+	}
+	if (!.@w)
+		return;
+	.@i = .@wc[rand(.@w)];
+	.@aid = @cl_aid[.@i];
+	if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != getarg(0))
+		return;
+	// Who it's fond of, and where they are.
+	.@f = callsub(L_Fav, .@i);
+	.@fx = .@ox;
+	.@fy = .@oy;
+	if (.@f >= 0 && getmapxy(.@fm$, .@px, .@py, BL_PC, @cl_aid[.@f]) == 0) {
+		.@fx = .@px;
+		.@fy = .@py;
+	}
+	stand @cl_nm$[.@i];
+
+	// A new spot (not the Rogue, it stays where it sat): a free cell next to
+	// its favourite, or anywhere near you, and it sits facing them.
+	if (@cl_ar[.@i] != 6 && rand(100) < 40) {
+		.@nb = 1;
+		.@bx[0] = .@ox;
+		.@by[0] = .@oy;
+		for (.@k = 0; .@k < @cl_n; .@k++) {
+			if (.@k == .@i)
+				continue;
+			if (getmapxy(.@pm$, .@px, .@py, BL_PC, @cl_aid[.@k]) == 0) {
+				.@bx[.@nb] = .@px;
+				.@by[.@nb] = .@py;
+				.@nb++;
+			}
+			if (getd("@cl_gd_" + @cl_aid[.@k]) == @cl_still) {
+				.@bx[.@nb] = getd("@cl_gx_" + @cl_aid[.@k]);
+				.@by[.@nb] = getd("@cl_gy_" + @cl_aid[.@k]);
+				.@nb++;
+			}
+		}
+		.@nc = 0;
+		for (.@t = 0; .@t < 20 && !.@nc; .@t++) {
+			if (.@t < 8) {
+				// next to its favourite: the 8 cells round them, from a varying start
+				.@x = .@fx + .rx[(.@t + .@i) % 8];
+				.@y = .@fy + .ry[(.@t + .@i) % 8];
+			} else {
+				.@x = .@ox + rand(-.near, .near);
+				.@y = .@oy + rand(-.near, .near);
+			}
+			if ((.@x == .@cx && .@y == .@cy) || max(.@x - .@ox, .@ox - .@x, .@y - .@oy, .@oy - .@y) > .near)
+				continue;
+			if (!checkcell(getarg(0), .@x, .@y, cell_chkpass))
+				continue;
+			for (.@q = 0; .@q < .@nb; .@q++) {
+				if (.@bx[.@q] == .@x && .@by[.@q] == .@y)
+					break;
+			}
+			if (.@q < .@nb)
+				continue;
+			.@nc = 1;
+		}
+		if (.@nc) {
+			setd "@cl_gd_" + .@aid, @cl_still;
+			setd "@cl_gx_" + .@aid, .@x;
+			setd "@cl_gy_" + .@aid, .@y;
+			if (rand(100) < 30)
+				callsub L_EmoteAid, .@aid, ET_SLEEPY;	// a stretch
+			callsub L_FaceWalk, .@aid, getarg(0), .@cx, .@cy, .@x, .@y, .@fx, .@fy, 6000;
+			return;
+		}
+	}
+
+	// A glance: a step back and onto its spot again, which turns it to face
+	// whoever spoke just now, else you, a friend, or somewhere out there.
+	.@tx = .@ox;
+	.@ty = .@oy;
+	.@em = 0;
+	.@r = rand(100);
+	if (@cl_said && @cl_said != .@aid && gettimetick(0) - @cl_saidt < 10000
+			&& getmapxy(.@pm$, .@px, .@py, BL_PC, @cl_said) == 0 && .@pm$ == getarg(0)) {
+		.@tx = .@px;
+		.@ty = .@py;
+	} else if (.@r < 50) {
+		if (rand(100) < 30)
+			.@em = ET_STARE;
+	} else if (.@r < 80 && @cl_n > 1) {
+		.@j = .@f;
+		if (.@j < 0 || .@j == .@i) {
+			.@j = rand(@cl_n - 1);
+			if (.@j >= .@i)
+				.@j++;
+		}
+		if (getmapxy(.@pm$, .@px, .@py, BL_PC, @cl_aid[.@j]) == 0) {
+			.@tx = .@px;
+			.@ty = .@py;
+			if (rand(100) < 25)
+				.@em = ET_SMILE;
+		}
+	} else {
+		.@k = rand(8);
+		.@tx = .@cx + .rx[.@k] * 5;
+		.@ty = .@cy + .ry[.@k] * 5;
+		.@em = ET_STARE_ABOUT;
+	}
+	if (.@em)
+		callsub L_EmoteAid, .@aid, .@em;
+	callsub L_FaceWalk, .@aid, getarg(0), .@cx, .@cy, .@cx, .@cy, .@tx, .@ty, 3000;
+	return;
+
+// Companion getarg(0) goes to sit by the one it is most comfortable with
+// (L_Fav): a free cell next to them, within 4 cells of you (getarg(2),
+// getarg(3) on map getarg(1)). Where it ends up is kept in @cl_gx_/gy_<aid>
+// for the ones after it; the emote for the bond comes once it's there.
+L_SitBy:
+	.@i = getarg(0);
+	.@aid = @cl_aid[.@i];
+	.@ox = getarg(2);
+	.@oy = getarg(3);
+	if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != getarg(1))
+		return;
+	setd "@cl_gx_" + .@aid, .@cx;
+	setd "@cl_gy_" + .@aid, .@cy;
+	// The Rogue, a lone wolf: about a third of the time it sits apart, where it is.
+	if (@cl_ar[.@i] == 6 && rand(100) < 35) {
+		callsub L_EmoteLater, .@aid, ET_COOL;
+		return;
+	}
+	.@f = callsub(L_Fav, .@i);
+	.@em = callsub(L_BondEmote, .@i, .@f);
+	if (.@f < 0) {
+		.@tx = .@ox;
+		.@ty = .@oy;
+	} else {
+		.@faid = @cl_aid[.@f];
+		if (getd("@cl_gd_" + .@faid) == @cl_still) {
+			// It already went to sit. If by me, I stay: it came to me.
+			if (callsub(L_Fav, .@f) == .@i) {
+				callsub L_EmoteLater, .@aid, .@em;
+				return;
+			}
+			.@tx = getd("@cl_gx_" + .@faid);
+			.@ty = getd("@cl_gy_" + .@faid);
+		} else if (getmapxy(.@fm$, .@tx, .@ty, BL_PC, .@faid) != 0)
+			return;
+	}
+	// Already beside them.
+	if (max(.@cx - .@tx, .@tx - .@cx, .@cy - .@ty, .@ty - .@cy) == 1) {
+		callsub L_EmoteLater, .@aid, .@em;
+		return;
+	}
+	// Taken: where the others stand, and where the ones that went to sit went.
+	.@nb = 0;
+	for (.@k = 0; .@k < @cl_n; .@k++) {
+		if (.@k == .@i)
+			continue;
+		if (getmapxy(.@pm$, .@px, .@py, BL_PC, @cl_aid[.@k]) == 0) {
+			.@bx[.@nb] = .@px;
+			.@by[.@nb] = .@py;
+			.@nb++;
+		}
+		if (getd("@cl_gd_" + @cl_aid[.@k]) == @cl_still) {
+			.@bx[.@nb] = getd("@cl_gx_" + @cl_aid[.@k]);
+			.@by[.@nb] = getd("@cl_gy_" + @cl_aid[.@k]);
+			.@nb++;
+		}
+	}
+	// The free cell next to them that is nearest to it.
+	.@bd = 99;
+	for (.@dx = -1; .@dx <= 1; .@dx++) {
+		for (.@dy = -1; .@dy <= 1; .@dy++) {
+			.@x = .@tx + .@dx;
+			.@y = .@ty + .@dy;
+			if ((.@dx == 0 && .@dy == 0) || (.@x == .@ox && .@y == .@oy))
+				continue;
+			if (max(.@x - .@ox, .@ox - .@x, .@y - .@oy, .@oy - .@y) > .near)
+				continue;
+			if (!checkcell(getarg(1), .@x, .@y, cell_chkpass))
+				continue;
+			for (.@q = 0; .@q < .@nb; .@q++) {
+				if (.@bx[.@q] == .@x && .@by[.@q] == .@y)
+					break;
+			}
+			if (.@q < .@nb)
+				continue;
+			.@d = max(.@x - .@cx, .@cx - .@x, .@y - .@cy, .@cy - .@y);
+			if (.@d < .@bd) {
+				.@bd = .@d;
+				.@gx = .@x;
+				.@gy = .@y;
+			}
+		}
+	}
+	if (.@bd == 99)
+		return;	// no room next to them: it sits where it is
+	setd "@cl_gx_" + .@aid, .@gx;
+	setd "@cl_gy_" + .@aid, .@gy;
+	// It sits down facing the one it came to sit with.
+	callsub L_FaceWalk, .@aid, getarg(1), .@cx, .@cy, .@gx, .@gy, .@tx, .@ty, 5000;
+	callsub L_EmoteLater, .@aid, .@em;
+	return;
+
+// Companion getarg(0) at getarg(2),getarg(3) on map getarg(1) walks to
+// getarg(4),getarg(5) and ends up facing getarg(6),getarg(7). No script command
+// turns a player-type unit, but one faces the way its last step went: so it
+// walks to the cell just behind the spot first (seen from the target), and
+// steps onto the spot on the next tick. Marker for getarg(8) ms, which holds
+// off the spacing Hold and the idle_sit rule meanwhile.
+L_FaceWalk:
+	.@aid = getarg(0);
+	.@gx = getarg(4);
+	.@gy = getarg(5);
+	.@sx = (getarg(6) > .@gx) - (getarg(6) < .@gx);
+	.@sy = (getarg(7) > .@gy) - (getarg(7) < .@gy);
+	.@px = .@gx - .@sx;
+	.@py = .@gy - .@sy;
+	sc_start SC_ENTRY_QUEUE_APPLY_DELAY, getarg(8), 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
+	unitstopwalk .@aid, USW_FORCE_STOP;
+	.@here = (.@gx == getarg(2) && .@gy == getarg(3));
+	// Already right behind it, no facing wanted, or no room behind: straight
+	// there (a glance on its own spot then just doesn't happen).
+	if ((.@sx == 0 && .@sy == 0) || (.@px == getarg(2) && .@py == getarg(3))
+			|| !checkcell(getarg(1), .@px, .@py, cell_chkpass)) {
+		if (!.@here)
+			unitwalk .@aid, .@gx, .@gy;
+		return;
+	}
+	if (!unitwalk(.@aid, .@px, .@py)) {
+		if (!.@here)
+			unitwalk .@aid, .@gx, .@gy;
+		return;
+	}
+	.@d = max(.@px - getarg(2), getarg(2) - .@px, .@py - getarg(3), getarg(3) - .@py);
+	.@q = getarraysize(@cl_fa);
+	@cl_fa[.@q] = .@aid;
+	@cl_fx[.@q] = .@gx;
+	@cl_fy[.@q] = .@gy;
+	@cl_ft[.@q] = gettimetick(0) + 400 + .@d * 200;
+	@cl_fs[.@q] = @cl_still;
+	return;
+
+// An emote (getarg(1), 0 = none) from getarg(0) in about 4 s, once it got there.
+L_EmoteLater:
+	if (!getarg(1))
+		return;
+	.@q = getarraysize(@cl_pea);
+	@cl_pea[.@q] = getarg(0);
+	@cl_pee[.@q] = getarg(1);
+	@cl_pet[.@q] = gettimetick(2) + 4;
+	return;
+
+// Bonds. Who companion getarg(0) is most comfortable with: -1 you, or the
+// index of another companion here. Ties go to you, the leader.
+//   with you:  5 (you hired it) + 1 a day together + 1 per 100 monsters
+//              + 2 per MVP + 1 per 10 places seen (memories, m.c<id>.*);
+//              Guardian x1.5 (its oath), Rookie x1.25 (looks up to you)
+//   with another companion: 1 per talk they've shared (r.c<lo>_<hi>, as
+//              their friendship); x1.5 when either is a Merchant (sociable)
+//   a Healer: +5 to whoever was hurt last, in the last 5 minutes
+L_Fav:
+	.@i = getarg(0);
+	.@best = -1;
+	.@bv = callsub(L_PlayerBond, .@i);
+	for (.@j = 0; .@j < @cl_n; .@j++) {
+		if (.@j == .@i || @cl_hp[.@j] <= 0)
+			continue;
+		.@v = callsub(L_PairBond, .@i, .@j);
+		if (.@v > .@bv) {
+			.@bv = .@v;
+			.@best = .@j;
+		}
+	}
+	return .@best;
+
+L_PlayerBond:
+	.@i = getarg(0);
+	.@p$ = "m.c" + @cl_cid[.@i];
+	.@b = 5;
+	if (modstore_exists("char", .@p$ + ".met"))
+		.@b += (gettimetick(2) - modstore_get("char", .@p$ + ".met", gettimetick(2))) / 86400;
+	.@b += modstore_get("char", .@p$ + ".kills", 0) / 100 + modstore_get("char", .@p$ + ".mvps", 0) * 2
+		+ modstore_count("char", .@p$ + ".maps") / 10;
+	if (@cl_ar[.@i] == 1)
+		.@b = .@b * 3 / 2;
+	else if (@cl_ar[.@i] == 0)
+		.@b = .@b * 5 / 4;
+	if (@cl_ar[.@i] == 4 && @cl_hurt_aid == getcharid(3) && gettimetick(2) - @cl_hurt_t < 300)
+		.@b += 5;
+	return .@b;
+
+L_PairBond:
+	.@i = getarg(0);
+	.@j = getarg(1);
+	.@t = modstore_get("char", "r.c" + min(@cl_cid[.@i], @cl_cid[.@j]) + "_" + max(@cl_cid[.@i], @cl_cid[.@j]), 0);
+	if (@cl_ar[.@i] == 7 || @cl_ar[.@j] == 7)
+		.@t = .@t * 3 / 2;
+	if (@cl_ar[.@i] == 4 && @cl_hurt_aid == @cl_aid[.@j] && gettimetick(2) - @cl_hurt_t < 300)
+		.@t += 5;
+	return .@t;
+
+// The emote for companion getarg(0) sitting by getarg(1) (-1 you): a smile for
+// friends (6 talks, or a bond of 12 with you), a heart for close friends (20
+// talks), a big heart for a bond of 30 with you.
+L_BondEmote:
+	.@i = getarg(0);
+	.@f = getarg(1);
+	if (.@f < 0) {
+		.@b = callsub(L_PlayerBond, .@i);
+		if (.@b >= 30)
+			return ET_BIGTHROB;
+		if (.@b >= 12)
+			return ET_SMILE;
+		return 0;
+	}
+	.@t = modstore_get("char", "r.c" + min(@cl_cid[.@i], @cl_cid[.@f]) + "_" + max(@cl_cid[.@i], @cl_cid[.@f]), 0);
+	if (.@t >= 20)
+		return ET_THROB;
+	if (.@t >= 6)
+		return ET_SMILE;
+	return 0;
+
+// Speak over a unit's head, as players do. Skips one that left or fell.
+L_SayAid:
+	if (!unitexists(getarg(0)) || getd("@cl_ph_" + getarg(0)) == 1)
+		return;
+	unittalk getarg(0), getarg(1) + " : " + getarg(2);
+	return;
+
+L_EmoteIdx:
+	callsub L_EmoteAid, @cl_aid[getarg(0)], getarg(1);
+	return;
+
+// An emote, at most one per companion every 12 s and one on screen every 2.5 s.
+L_EmoteAid:
+	if (!.emotes || !unitexists(getarg(0)))
+		return;
+	.@now = gettimetick(0);
+	if (.@now < @cl_eall || .@now < getd("@cl_ecd_" + getarg(0)))
+		return;
+	setd "@cl_ecd_" + getarg(0), .@now + 12000;
+	@cl_eall = .@now + 2500;
+	emotion getarg(1), getarg(0);
+	return;
+
+// town / field / dungeon / "" (indoors, castles, arenas: say nothing).
+L_MapKind:
+	.@m$ = getarg(0);
+	// Towns by name first: Morroc lacks the town flag in pre-renewal.
+	setarray .@towns$, "prontera", "izlude", "geffen", "payon", "morocc", "alberta", "aldebaran", "yuno", "comodo", "umbala", "amatsu", "gonryun", "louyang", "ayothaya", "jawaii", "xmas", "niflheim", "einbroch", "einbech", "lighthalzen", "hugel", "rachel", "veins", "moscovia", "brasilis", "manuk", "splendide", "dewata", "malangdo", "malaya", "eclage", "mora", "dicastes01";
+	if (inarray(.@towns$, .@m$) >= 0 || getmapflag(.@m$, MF_TOWN))
+		return "town";
+	if (compare(.@m$, "fild"))
+		return "field";
+	if (compare(.@m$, "sphinx"))
+		return "dungeon";
+	if (compare(.@m$, "_in") || compare(.@m$, "in_") || compare(.@m$, "cas0") || compare(.@m$, "pvp") || compare(.@m$, "job") || compare(.@m$, "que_") || compare(.@m$, "_vs"))
+		return "";
+	return "dungeon";
+}

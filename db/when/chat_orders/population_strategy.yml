@@ -1,0 +1,158 @@
+# companion-party-overhaul: orders in party chat (setting "chat_orders").
+# Only the owner's own lines count (From: owner). Words are found anywhere in the line,
+# in any case, so "ok assist me" works too.
+#
+#   assist me / focus      everyone fights what you fight, until "free fight"
+#   free fight / at will   back to choosing their own targets
+#   regroup / fall back    everyone comes back to you
+#   heal me                healers heal you
+#   buff me                healers Blessing and Increase AGI you
+#   kyrie me               healers put Kyrie Eleison on you
+#   wall me                a Priest walls you (in the base table)
+#   land protector         a Sage lays Land Protector and calls everyone onto it
+#   aoe                    a Wizard drops its best area spell on what you fight
+#   trap                   a Hunter snares what you fight
+#   take a break / sit down   everyone sits and recovers, until
+#   on your feet / let's go   ...this, or ten minutes
+#
+# The engine's own party-chat words (a companion's name + support / attacker / tank /
+# passive / defensive, "<name> trace") still work as before.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      - Job: All
+        Build: orders
+        Start: free
+        # The switches sit outside the strategies so they always listen (a rule in a
+        # strategy that is not active never sees the line go past).
+        Rules:
+          - Name: ct_order_assist
+            Priority: 130
+            On: { Event: party_chat, Match: "assist me", From: owner, Within: 4000 }
+            Switch: assist
+          - Name: ct_order_focus
+            Priority: 130
+            On: { Event: party_chat, Match: "focus", From: owner, Within: 4000 }
+            Switch: assist
+          - Name: ct_order_free
+            Priority: 130
+            On: { Event: party_chat, Match: "free fight", From: owner, Within: 4000 }
+            Switch: free
+          - Name: ct_order_at_will
+            Priority: 130
+            On: { Event: party_chat, Match: "at will", From: owner, Within: 4000 }
+            Switch: free
+          - Name: ct_order_regroup
+            Priority: 129
+            On: { Event: party_chat, Match: "regroup", From: owner, Within: 4000 }
+            Retreat: owner
+          - Name: ct_order_fall_back
+            Priority: 129
+            On: { Event: party_chat, Match: "fall back", From: owner, Within: 4000 }
+            Retreat: owner
+        Strategies:
+          - Name: free
+          - Name: assist
+            Rules:
+              - Name: ct_assist_owner
+                Priority: 85
+                Target: { Enemy: target_of, Who: owner }
+                SetTarget: true
+
+      - Job: [Acolyte, Priest]
+        Exact: true
+        Rules:
+          - Name: ct_order_heal_me
+            Priority: 128
+            On: { Event: party_chat, Match: "heal me", From: owner, Within: 4000 }
+            Cast: AL_HEAL
+            Target: owner
+          - Name: ct_order_bless_me
+            Priority: 127
+            On: { Event: party_chat, Match: "buff me", From: owner, Within: 6000 }
+            Cast: AL_BLESSING
+            Target: owner
+          - Name: ct_order_agi_me
+            Priority: 126
+            On: { Event: party_chat, Match: "buff me", From: owner, Within: 6000 }
+            Cast: AL_INCAGI
+            Target: owner
+          - Name: ct_order_kyrie_me
+            Priority: 125
+            On: { Event: party_chat, Match: "kyrie me", From: owner, Within: 4000 }
+            Cast: PR_KYRIE
+            Target: owner
+
+      - Job: Sage
+        Rules:
+          - Name: ct_order_land_protector
+            Priority: 124
+            On: { Event: party_chat, Match: "land protector", From: owner, Within: 4000 }
+            Cast: SA_LANDPROTECTOR
+            Target: self
+            Signal: on_me
+            Say: "On me, everyone!"
+
+      - Job: Wizard
+        Rules:
+          - Name: ct_order_aoe
+            Priority: 124
+            On: { Event: party_chat, Match: "aoe", From: owner, Within: 4000 }
+            Cast: [WZ_STORMGUST, WZ_METEOR, WZ_VERMILION, WZ_HEAVENDRIVE]
+            Target: { Enemy: target_of, Who: owner }
+
+      - Job: Hunter
+        Rules:
+          - Name: ct_order_trap
+            Priority: 124
+            On: { Event: party_chat, Match: "trap", From: owner, Within: 4000 }
+            Cast: HT_ANKLESNARE
+            Target: { Enemy: target_of, Who: owner }
+            Consume: true
+            Claim: { Name: ct.snare, For: 8000 }
+
+      # Take a break: everyone sits down (faster HP/SP recovery) until you say
+      # "on your feet" or "let's go", or ten minutes pass. They stand when a
+      # monster comes at the party, and stay up while you walk (the engine's own
+      # rule), sitting again when you stop.
+      - Job: All
+        Build: ct_rest
+        Start: up
+        Rules:
+          - Name: ct_order_take_a_break
+            Priority: 131
+            On: { Event: party_chat, Match: "take a break", From: owner, Within: 4000 }
+            Switch: resting
+          - Name: ct_order_sit_down
+            Priority: 131
+            On: { Event: party_chat, Match: "sit down", From: owner, Within: 4000 }
+            Switch: resting
+          - Name: ct_order_on_your_feet
+            Priority: 131
+            On: { Event: party_chat, Match: "on your feet", From: owner, Within: 4000 }
+            Switch: up
+          - Name: ct_order_lets_go
+            Priority: 131
+            On: { Event: party_chat, Match: "let's go", From: owner, Within: 4000 }
+            Switch: up
+          - Name: ct_order_lets_go_2
+            Priority: 131
+            On: { Event: party_chat, Match: "lets go", From: owner, Within: 4000 }
+            Switch: up
+        Strategies:
+          - Name: up
+          - Name: resting
+            Rules:
+              - Name: ct_rest_over
+                Priority: 131
+                InStrategy: { AtLeast: 600000 }
+                Switch: up
+              - Name: ct_rest_sit
+                Priority: 20
+                Absent: { Enemy: attacking, Who: party }
+                Sit: true

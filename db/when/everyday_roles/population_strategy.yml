@@ -1,0 +1,288 @@
+# companion-party-overhaul: everyday roles (setting "everyday_roles").
+# The base table (db/population_strategy.yml) is about bosses. This is the party in
+# every fight, the way a party in a story fights:
+#   front line  Swordsman line: takes what is hitting you off you; a Crusader shields
+#               the healer (Devotion), provokes what is on the back line, guards itself
+#   back line   healers stand off the fight, Kyrie whoever holds the front;
+#               archers and casters step back from what reaches them, while a
+#               front-liner is there to take it
+#   casters     no Meteor Storm at a single Poring: area spells only on three or more
+#   support     a Sage puts the element a monster is weak to on the melee's weapons;
+#               at a boss a Blacksmith rushes, a Rogue strips, a Bard and a Dancer play
+#
+# Rules named ct_* so they never replace the base table's. Priority bands as there:
+#   100+ survival, 80-99 boss mechanics, 40-79 the role's core, below 40 filler.
+# Moving rules carry a Cooldown, so a companion that is being chased steps away now
+# and then and fights in between, instead of running the whole fight.
+#
+# 1.1.0 (app 1.5.5): claims (ct.*) spread the party over the fight: two Swordsmen
+# take two different monsters off you, two Priests never Kyrie the same ally, two
+# Hunters never snare the same monster. Healers renew Blessing and Increase AGI a
+# few seconds before they run out (Expiring), Sages an endow before it fades.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      # --- Front line: the Swordsman line protects its owner ----------------------
+      - Job: Swordman
+        Build: vanguard
+        Requires: { Role: [tank, attacker, none] }
+        Rules:
+          # Whatever is hitting you, one of them takes it; a second Swordsman takes
+          # the next one.
+          - Name: ct_guard_the_owner
+            Priority: 56
+            Target: { Enemy: attacking, Who: owner }
+            SetTarget: true
+            Claim: { Name: ct.guard, For: 4000 }
+
+      # Knights: Bowling Bash when three or more are bunched up.
+      - Job: Knight
+        Build: vanguard
+        Requires: { Role: [tank, attacker, none] }
+        Rules:
+          - Name: ct_bowling_the_pack
+            Priority: 46
+            Cast: KN_BOWLINGBASH
+            Target: { Enemy: attacking }
+            Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 3 }
+            When: self_sp_pct_ge30
+            Cooldown: 2000
+
+      # Crusaders (Paladins): the shield of the party, unless told to attack.
+      - Job: Crusader
+        Build: shield
+        Requires: { Role: [tank, none] }
+        Rules:
+          # Provoke what is on someone else, the healer first.
+          - Name: ct_shield_peel
+            Priority: 80
+            Cast: SM_PROVOKE
+            Target: { Enemy: attacking, Who: party, NotSelf: true, Prefer: support }
+            When: not_enemy_provoke
+            SetTarget: true
+            Claim: { Name: ct.provoke, For: 6000 }
+            Cooldown: 3000
+          # Take the healer's hits on itself.
+          - Name: ct_devotion_the_healer
+            Priority: 66
+            Cast: CR_DEVOTION
+            Target: { Ally: missing, Status: SC_DEVOTION, Job: [Priest, Acolyte], NotSelf: true }
+            When: self_hp_pct_ge60
+            Cooldown: 10000
+          - Name: ct_auto_guard
+            Priority: 65
+            Cast: CR_AUTOGUARD
+            Target: self
+            When: [self_targeted, not_self_autoguard]
+          - Name: ct_reflect_shield
+            Priority: 64
+            Cast: CR_REFLECTSHIELD
+            Target: self
+            When: [self_targeted, not_self_reflectshield, self_sp_pct_ge30]
+
+      # --- Back line: healers --------------------------------------------------------
+      - Job: [Acolyte, Priest]
+        Exact: true
+        Build: back_row
+        Requires: { Role: [support, none] }
+        Rules:
+          # Kyrie on whoever holds the front.
+          - Name: ct_kyrie_the_front
+            Priority: 44
+            Cast: PR_KYRIE
+            Target: { Ally: attacked, Job: Swordman }
+            When: [not_ally_kyrie, self_sp_ge120]
+            Claim: { Name: ct.kyrie, For: 4000 }
+            Cooldown: 4000
+          # Blessing and Increase AGI renewed a few seconds before they run out,
+          # one healer per member.
+          - Name: ct_renew_blessing
+            Priority: 43
+            Cast: AL_BLESSING
+            Target: { Ally: missing, Status: SC_BLESSING, Expiring: 8000 }
+            When: self_sp_pct_ge25
+            Claim: { Name: ct.bless, For: 4000 }
+            Cooldown: 1500
+          - Name: ct_renew_agi
+            Priority: 42
+            Cast: AL_INCAGI
+            Target: { Ally: missing, Status: SC_INCREASEAGI, Expiring: 8000 }
+            When: self_sp_pct_ge25
+            Claim: { Name: ct.agi, For: 4000 }
+            Cooldown: 1500
+          # Nothing on it: keep three cells off the fight, in the back row.
+          - Name: ct_healer_back_row
+            Priority: 35
+            When: not_self_targeted
+            Target: { Enemy: attacking, Range: 14 }
+            KeepDistance: 3
+            Cooldown: 2500
+
+      # --- Back line: archers --------------------------------------------------------
+      - Job: Archer
+        Build: skirmisher
+        Requires: { Role: [attacker, none] }
+        Rules:
+          # Something reached it and a front-liner is there: step back and shoot.
+          - Name: ct_archer_step_back
+            Priority: 38
+            Present: { Ally: nearest, Job: Swordman, NotSelf: true }
+            Target: { Enemy: attacking, Who: self, Range: 2 }
+            KeepDistance: 4
+            Cooldown: 3000
+          # Hunters snare what is on the healer.
+          - Name: ct_snare_the_healers_attacker
+            Priority: 46
+            Cast: HT_ANKLESNARE
+            Target: { Enemy: attacking, Job: [Priest, Acolyte] }
+            When: not_enemy_ankle
+            Consume: true                    # a Trap, with Companion inventory on
+            Claim: { Name: ct.snare, For: 8000 }
+            Cooldown: 6000
+
+      # --- Back line: casters ----------------------------------------------------------
+      # One monster: no area spells. Three or more together, or a boss near: anything.
+      - Job: Mage
+        Build: crowd
+        Requires: { Role: [attacker, none] }
+        Start: single
+        Rules:
+          - Name: ct_caster_wall
+            Priority: 70
+            Cast: MG_SAFETYWALL
+            Target: self
+            When: [melee_attacked, not_self_safetywall, self_sp_ge60]
+            Cooldown: 4000
+          - Name: ct_caster_step_back
+            Priority: 38
+            Present: { Ally: nearest, Job: Swordman, NotSelf: true }
+            Target: { Enemy: attacking, Who: self, Range: 2 }
+            KeepDistance: 4
+            Cooldown: 3000
+        Strategies:
+          - Name: single
+            Ban: [WZ_METEOR, WZ_STORMGUST, WZ_VERMILION, WZ_HEAVENDRIVE, MG_THUNDERSTORM]
+            Rules:
+              - Name: ct_to_pack
+                Target: { Enemy: attacking }
+                Count: { Enemy: attacking, Around: target, Range: 3, AtLeast: 3 }
+                Switch: pack
+              - Name: ct_boss_near
+                Present: { Enemy: boss }
+                Switch: pack
+          - Name: pack
+            Rules:
+              - Name: ct_to_single
+                Target: { Enemy: attacking }
+                Count: { Enemy: attacking, Around: target, Range: 3, Below: 3 }
+                Absent: { Enemy: boss }
+                Switch: single
+              # 1.1.1: the rule above needs a monster on the party to aim at, so a
+              # fight that ended with the pack dead left the Wizard in "pack", and it
+              # opened the next fight with Meteor Storm on one monster. No target here:
+              # under three on the party nearby, none at all included, is single again.
+              - Name: ct_pack_over
+                Count: { Enemy: attacking, Range: 14, Below: 3 }
+                Absent: { Enemy: boss }
+                Switch: single
+
+  # --- Sages: the element the monster is weak to, on the melee's weapons -------------
+  - Mob: { Element: Earth }
+    Jobs:
+      - Job: Sage
+        Rules:
+          - Name: ct_endow_fire
+            Priority: 55
+            Cast: SA_FLAMELAUNCHER
+            Target: { Ally: missing, Status: SC_FIREWEAPON, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], Expiring: 20000 }
+            When: self_sp_ge80
+            Consume: true
+            Claim: { Name: ct.endow, For: 6000 }
+            Cooldown: 3000
+  - Mob: { Element: Fire }
+    Jobs:
+      - Job: Sage
+        Rules:
+          - Name: ct_endow_water
+            Priority: 55
+            Cast: SA_FROSTWEAPON
+            Target: { Ally: missing, Status: SC_WATERWEAPON, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], Expiring: 20000 }
+            When: self_sp_ge80
+            Consume: true
+            Claim: { Name: ct.endow, For: 6000 }
+            Cooldown: 3000
+  - Mob: { Element: Water }
+    Jobs:
+      - Job: Sage
+        Rules:
+          - Name: ct_endow_wind
+            Priority: 55
+            Cast: SA_LIGHTNINGLOADER
+            Target: { Ally: missing, Status: SC_WINDWEAPON, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], Expiring: 20000 }
+            When: self_sp_ge80
+            Consume: true
+            Claim: { Name: ct.endow, For: 6000 }
+            Cooldown: 3000
+  - Mob: { Element: Wind }
+    Jobs:
+      - Job: Sage
+        Rules:
+          - Name: ct_endow_earth
+            Priority: 55
+            Cast: SA_SEISMICWEAPON
+            Target: { Ally: missing, Status: SC_EARTHWEAPON, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], Expiring: 20000 }
+            When: self_sp_ge80
+            Consume: true
+            Claim: { Name: ct.endow, For: 6000 }
+            Cooldown: 3000
+
+  # --- At a boss: everyone gives what their class has --------------------------------
+  - Mob: Boss
+    Jobs:
+      - Job: Blacksmith
+        Rules:
+          - Name: ct_smith_adrenaline
+            Priority: 52
+            Cast: BS_ADRENALINE
+            Target: self
+            When: not_self_adrenaline
+          - Name: ct_smith_weapon_perfection
+            Priority: 51
+            Cast: BS_WEAPONPERFECT
+            Target: self
+            When: [not_self_weaponperfection, self_sp_pct_ge40]
+          - Name: ct_smith_overthrust
+            Priority: 50
+            Cast: BS_OVERTHRUST
+            Target: self
+            When: [not_self_overthrust, self_sp_pct_ge40]
+      - Job: Rogue
+        Rules:
+          - Name: ct_rogue_divest
+            Priority: 51
+            Cast: RG_STRIPWEAPON
+            Target: { Enemy: boss }
+            When: [not_enemy_stripweapon, self_sp_pct_ge30]
+            Claim: { Name: ct.divest, For: 15000 }
+            Cooldown: 8000
+      - Job: Bard
+        Rules:
+          - Name: ct_bard_bragi
+            Priority: 50
+            Cast: BA_POEMBRAGI
+            Target: self
+            When: self_sp_pct_ge40
+            Cooldown: 120000
+      - Job: Dancer
+        Rules:
+          - Name: ct_dancer_humming
+            Priority: 50
+            Cast: DC_HUMMING
+            Target: self
+            When: self_sp_pct_ge40
+            Cooldown: 120000

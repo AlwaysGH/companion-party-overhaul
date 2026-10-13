@@ -1,0 +1,69 @@
+# companion-party-overhaul: party spacing "Close" (setting spacing_close).
+# The settings window keeps at most one of spacing_close / spacing_normal /
+# spacing_far on; with none, companions keep the game's own tight follow.
+#
+# The engine walks an idle companion to a fixed spot 1-2 cells from you, again and
+# again, so a party stands around you like pets. Here, with no monster within 14
+# cells and the companion within 2 cells of you, it stays wherever it stopped
+# (Hold). Once you are more than 3 cells away, or a monster is in sight, it
+# follows and fights as usual again.
+#
+# The look-around walks and sitting with a favourite (npc/companion_life.txt,
+# L_Wander and L_SitBy) give a companion the harmless Entry_Queue_Apply_Delay status
+# (a battleground queue timer that does nothing by itself) for its walk, so this
+# Hold lets it go, then keeps it where it ended up.
+#
+# Healers hold only while nobody is hurt: Hold ends a turn before the engine's
+# heals and buffs, and a Priest should never stand around while you bleed.
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      - Job: All
+        Build: ct_idle
+        Start: about
+        Strategies:
+          - Name: about
+            Rules:
+              - Name: ct_idle_settle
+                Priority: 134
+                Count: { Enemy: any, Range: 14, Below: 1 }
+                When: master_distance_le2
+                Switch: settled
+          - Name: settled
+            Rules:
+              - Name: ct_idle_stir
+                Priority: 134
+                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Switch: about
+              - Name: ct_idle_catch_up
+                Priority: 134
+                When: master_distance_gt3
+                Switch: about
+              # Following walks everyone toward the same cells near you, and the Hold
+              # below would leave them standing on top of each other: one standing on
+              # another party member (or you) steps out to a free cell next to it.
+              - Name: ct_idle_unstack
+                Priority: 13
+                Target: { Ally: nearest, NotSelf: true }
+                KeepDistance: 1
+              - Name: ct_idle_hold
+                Priority: 12
+                When: not_self_entry_queue_apply_delay
+                Hold: true
+      # Healers: the same Hold, but only while nobody (you included) is hurt and no
+      # monster is in sight, so a Priest can sit with a friend (sit with favourite) and
+      # still gets up to heal the moment someone needs it.
+      - Job: [Acolyte, Priest]
+        Exact: true
+        Disable: [ct_idle_hold]
+        Rules:
+          - Name: ct_idle_hold_healer
+            Priority: 12
+            Count: { Enemy: any, Range: 14, Below: 1 }
+            Absent: { Ally: lowest_hp }
+            When: [not_self_entry_queue_apply_delay, master_distance_le2]
+            Hold: true
