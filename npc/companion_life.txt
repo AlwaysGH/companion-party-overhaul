@@ -1283,6 +1283,11 @@ OnCmdStat:
 // scope, "purse"). The bag is read with getinventorylist <char id>, which
 // leaves its @inventorylist_* on the companion; getvar reads them from there.
 OnCmdBag:
+	// A full party's bags (arrows, potions, gear: 30+ stacks, each read field by
+	// field) is more than the loop guard allows; it stopped the list half way
+	// ("infinity loop"), so the window kept showing an old list. It ends with
+	// this run.
+	freeloop(1);
 	.@req$ = .@atcmd_parameters$[0];
 	.@act$ = .@atcmd_parameters$[1];
 	.@inv = getbattleflag("population_engine_companion_inventory");
@@ -1445,7 +1450,10 @@ OnCmdBag:
 		}
 		.@id = .@want;
 		.@idx = @inventorylist_idx[.@j];
-		.@amt = min(max(.@amt, 1), @inventorylist_amount[.@j]);
+		// (Copied out first: min() given an array element reads the whole rest of
+		// the array, so it came out as the smallest stack after this one.)
+		.@have = @inventorylist_amount[.@j];
+		.@amt = min(max(.@amt, 1), .@have);
 		if (readparam(Weight, .@c) + getiteminfo(.@id, ITEMINFO_WEIGHT) * .@amt > readparam(MaxWeight, .@c)) {
 			callsub L_BagReply, .@req$, "ERR|" + .@nm$ + " can't carry that much.";
 			end;
@@ -2174,9 +2182,7 @@ L_Conversation:
 		setarray .@th, 20, 45, 60, 75, 82, 92;
 	if (.@d < 0)
 		.@th[0] = 0;
-	.@lo = min(@cl_cid[.@a], @cl_cid[.@b]);
-	.@hi = max(@cl_cid[.@a], @cl_cid[.@b]);
-	.@rk$ = "r.c" + .@lo + "_" + .@hi;
+	.@rk$ = callsub(L_PairKey, @cl_cid[.@a], @cl_cid[.@b]);
 	.@fam = modstore_inc("char", .@rk$, 1);
 	if (.@fam <= 0)
 		.@fam = 10;	// the store refused: treat them as friends
@@ -2809,12 +2815,20 @@ L_PlayerBond:
 L_PairBond:
 	.@i = getarg(0);
 	.@j = getarg(1);
-	.@t = modstore_get("char", "r.c" + min(@cl_cid[.@i], @cl_cid[.@j]) + "_" + max(@cl_cid[.@i], @cl_cid[.@j]), 0);
+	.@t = modstore_get("char", callsub(L_PairKey, @cl_cid[.@i], @cl_cid[.@j]), 0);
 	if (@cl_ar[.@i] == 7 || @cl_ar[.@j] == 7)
 		.@t = .@t * 3 / 2;
 	if (@cl_ar[.@i] == 4 && @cl_hurt_aid == @cl_aid[.@j] && gettimetick(2) - @cl_hurt_t < 300)
 		.@t += 5;
 	return .@t;
+
+// The store key for two companions' talks: "r.c<lower char id>_<higher>".
+// (Plain numbers in: min()/max() given an array element read the whole rest
+// of the array, which before 2.3.2 put pairs under the wrong key.)
+L_PairKey:
+	.@x = getarg(0);
+	.@y = getarg(1);
+	return "r.c" + min(.@x, .@y) + "_" + max(.@x, .@y);
 
 // The emote for companion getarg(0) sitting by getarg(1) (-1 you): a smile for
 // friends (6 talks, or a bond of 12 with you), a heart for close friends (20
@@ -2830,7 +2844,7 @@ L_BondEmote:
 			return ET_SMILE;
 		return 0;
 	}
-	.@t = modstore_get("char", "r.c" + min(@cl_cid[.@i], @cl_cid[.@f]) + "_" + max(@cl_cid[.@i], @cl_cid[.@f]), 0);
+	.@t = modstore_get("char", callsub(L_PairKey, @cl_cid[.@i], @cl_cid[.@f]), 0);
 	if (.@t >= 20)
 		return ET_THROB;
 	if (.@t >= 6)

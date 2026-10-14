@@ -18,9 +18,14 @@ const BTN_STYLE = `
 .cb:hover { border-color: #3c6fc0; color: #0d2b5a; }
 .cb.hurt { border-color: #d0453a; color: #9b1f17; animation: hurt 1.4s ease-in-out infinite; }
 @keyframes hurt { 50% { box-shadow: 0 0 8px 2px #ff6b5c99; } }
+* { cursor: inherit !important; }
 `;
 
+// The game hides the system cursor (".custom-cursor * { cursor: none }") and
+// draws its own; that rule can't reach into a mod window, so a hand or text
+// cursor of ours showed beside the game's. Everything here takes the game's.
 const WIN_STYLE = `
+* { cursor: inherit !important; }
 .cw { height: 100%; display: flex; flex-direction: column; font: 11px Tahoma, "Segoe UI", sans-serif;
   color: #2b2b2b; background: #f7f8fb; }
 .tabs { display: flex; gap: 3px; padding: 5px 6px 0; border-bottom: 1px solid #b9c7de; background: #e9eef7; }
@@ -89,6 +94,11 @@ const WIN_STYLE = `
 .bag.over { border-color: #3c6fc0; box-shadow: 0 0 0 2px #9fbbe8; background: #f3f7ff; }
 .det.give { border-color: #9fbbe8; background: #eef4ff; }
 .det input { width: 38px; font: 10px Tahoma, sans-serif; padding: 0 2px; border: 1px solid #b9c7de; border-radius: 2px; }
+.cnt { display: flex; align-items: center; gap: 3px; margin-top: 4px; }
+.cnt input { width: 44px; font: bold 12px Tahoma, sans-serif; text-align: center; padding: 1px 2px; -moz-appearance: textfield; }
+.cnt input::-webkit-inner-spin-button, .cnt input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.cnt .st { min-width: 20px; }
+.cnt .go { margin-left: auto; font-weight: bold; }
 .dyes { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 3px 0 1px; }
 .dy { display: inline-flex; align-items: center; gap: 3px; }
 .dy b { min-width: 34px; text-align: center; font-size: 10px; color: #1f3f73; }
@@ -279,7 +289,8 @@ export default function init(parameters, api) {
     let win = null, body = null, tab = 'status', list = [], timer = null, busy = false;
     let bag = null, bagAt = 0, bagMsg = null;   // the Bag tab: last answer, when, last action's result
     let sel = null;                             // the picked square: "<cid>:<index>" or "<cid>:w<slots>"
-    let giving = null;                          // a stack dropped on a companion: { cid, idx, id, max, name }
+    let giving = null;                          // a stack dropped on a companion: { cid, idx, id, max, name, n }
+    let takeN = { key: null, n: 0 };            // how many to take of the picked stack (kept through the refresh)
     // Item icons (the game's own), kept so the 3 s refresh doesn't flicker.
     const iconUrl = new Map(), iconAsk = new Set();
     function fillIcons(root) {
@@ -353,6 +364,14 @@ export default function init(parameters, api) {
             it.bound ? 'bound' : '', it.rental ? 'rental' : ''
         ].filter(Boolean).join(' · ');
         const cardName = id => api.items?.get?.(id)?.name || `Card #${id}`;
+        // How many: a plain box between - and + (no tiny spinner), All, and the
+        // button says the number it will move.
+        const amountRow = (n, max, go, word) => `<div class="cnt">`
+            + `<button class="act st" data-act="step" data-d="-1" title="One less">&minus;</button>`
+            + `<input type="number" min="1" max="${max}" value="${n}" data-n>`
+            + `<button class="act st" data-act="step" data-d="1" title="One more">+</button>`
+            + `<button class="act st" data-act="step" data-d="all" title="All ${num(max)}">All</button>`
+            + `<button class="act go" ${go}>${word} <b>${num(n)}</b></button></div>`;
         const slot = (c, it, key, cls) => {
             const pips = (it.cardIds.length ? '<i class="pc"></i>' : '') + (it.opts.length ? '<i class="po"></i>' : '') + (it.bound || it.rental ? '<i class="pb"></i>' : '');
             const tip = [label(it), facts(it), ...it.opts.map(optText), ...it.cardIds.map(cardName)].filter(Boolean).join('\n');
@@ -377,15 +396,15 @@ export default function init(parameters, api) {
             const pick = sel && sel.startsWith(c.cid + ':') ? sel.slice(c.cid.length + 1) : null;
             const it = pick === null ? null : pick[0] === 'w' ? wornIt.find(x => 'w' + x.worn === pick) : bagIt.find(x => x.idx === pick);
             if (it) {
-                let acts = '';
+                let acts = '', row = '';
                 if (it.worn && it.worn !== AMMO) {
                     const tip = it.worn & 0x3C00 ? 'Hands back every costume piece you gave' : 'Back to you; it puts its own piece back on';
                     acts = `<button class="act" data-act="gearback" data-cid="${esc(c.cid)}" data-eq="${it.worn}" title="${tip}">Take back</button>`;
                 } else if (it.worn) {
                     acts = '<span class="am">in use</span>';
                 } else if (bag.inv && it.amount > 1) {
-                    acts = `<input type="number" min="1" max="${it.amount}" value="${it.amount}" data-amt>`
-                        + `<button class="act" data-act="take" data-cid="${esc(c.cid)}" data-idx="${esc(it.idx)}" data-amt="box">Take</button>`;
+                    const n = takeN.key === sel && takeN.n > 0 ? Math.min(takeN.n, it.amount) : it.amount;
+                    row = amountRow(n, it.amount, `data-act="take" data-cid="${esc(c.cid)}" data-idx="${esc(it.idx)}" data-amt="box"`, 'Take');
                 } else if (bag.inv) {
                     acts = `<button class="act" data-act="take" data-cid="${esc(c.cid)}" data-idx="${esc(it.idx)}" data-amt="1">Take</button>`;
                 }
@@ -398,7 +417,7 @@ export default function init(parameters, api) {
                     + (desc ? `<div class="ds">${esc(desc)}</div>` : '');
                 det = `<div class="det"><div class="hd"><img data-icon="${it.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
                     + `<div class="tx"><b title="${esc(label(it))}">${esc(label(it))}</b><span>${esc(facts(it))}</span></div>${acts}</div>`
-                    + (more ? `<div class="more">${more}</div>` : '') + '</div>';
+                    + row + (more ? `<div class="more">${more}</div>` : '') + '</div>';
             }
             // Outfit and hair colour: the arrows wrap around the class's own range.
             const dye = (kind, label, v, lo, hi) => {
@@ -414,9 +433,9 @@ export default function init(parameters, api) {
             if (giving && giving.cid === c.cid) {
                 const src = iconUrl.get(giving.id);
                 det += `<div class="det give"><div class="hd"><img data-icon="${giving.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
-                    + `<div class="tx"><b>${esc(giving.name)}</b><span>Give how many? You have ${num(giving.max)}.</span></div>`
-                    + `<input type="number" min="1" max="${giving.max}" value="${giving.max}" data-give>`
-                    + `<button class="act" data-act="give">Give</button><button class="act" data-act="nogive" title="Cancel">&#10005;</button></div></div>`;
+                    + `<div class="tx"><b>${esc(giving.name)}</b><span>Give how many to <b style="display:inline">${esc(c.name)}</b>? You have ${num(giving.max)}.</span></div>`
+                    + `<button class="act" data-act="nogive" title="Cancel">&#10005;</button></div>`
+                    + amountRow(giving.n, giving.max, 'data-act="give"', 'Give') + '</div>';
             }
             out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span></div>`
                 + (dyes ? `<div class="dyes">${dyes}</div>` : '')
@@ -501,6 +520,16 @@ export default function init(parameters, api) {
     }
     api.cleanup(stopTimer);
 
+    // A how-many box changed: its button's number, and the choice kept so the
+    // next refresh draws it the same.
+    function setAmount(box, v, write) {
+        if (write) box.value = v;
+        const b = box.parentElement.querySelector('.go b');
+        if (b) b.textContent = num(v);
+        if (giving && box.closest('.det.give')) giving.n = v;
+        else takeN = { key: sel, n: v };
+    }
+
     function ensureWindow() {
         if (win) return win;
         win = api.ui.window({ id: 'companions', title: 'Companions', width: 300, height: 340, resizable: true });
@@ -511,10 +540,17 @@ export default function init(parameters, api) {
         body.addEventListener('click', event => {
             const a = event.target.closest('button[data-act]');
             if (a) {
-                if (a.dataset.act === 'take') {
+                if (a.dataset.act === 'step') {
+                    const box = a.parentElement.querySelector('input[data-n]');
+                    if (!box) return;
+                    const max = Number(box.max) || 1;
+                    const v = a.dataset.d === 'all' ? max : (Math.floor(Number(box.value)) || 0) + Number(a.dataset.d);
+                    setAmount(box, Math.min(Math.max(v, 1), max), true);
+                }
+                else if (a.dataset.act === 'take') {
                     let n = a.dataset.amt;
                     if (n === 'box') {
-                        const box = a.parentElement.querySelector('input[data-amt]');
+                        const box = a.parentElement.querySelector('input[data-n]');
                         n = Math.floor(Number(box?.value || 0));
                         if (!(n > 0)) { bagMsg = { ok: false, text: 'Type how many first.' }; box?.blur(); render(); return; }
                         box?.blur();
@@ -522,7 +558,7 @@ export default function init(parameters, api) {
                     bagAction(`take ${a.dataset.cid} ${a.dataset.idx} ${n}`);
                 }
                 else if (a.dataset.act === 'give' && giving) {
-                    const box = a.parentElement.querySelector('input[data-give]');
+                    const box = a.parentElement.querySelector('input[data-n]');
                     const n = Math.floor(Number(box?.value || 0));
                     if (!(n > 0)) { bagMsg = { ok: false, text: 'Type how many first.' }; box?.blur(); render(); return; }
                     box?.blur();
@@ -603,15 +639,25 @@ export default function init(parameters, api) {
             if (!id || idx < 0) return;
             if (item.WearState) { bagMsg = { ok: false, text: 'Take it off first, then drag it over.' }; render(); return; }
             const name = api.items?.get?.(id)?.name || `Item #${id}`;
-            if (max > 1) { giving = { cid: c.dataset.cid, idx, id, max, name }; bagMsg = null; render(); return; }
+            if (max > 1) { giving = { cid: c.dataset.cid, idx, id, max, name, n: max }; bagMsg = null; render(); return; }
             bagAction(`give ${c.dataset.cid} ${idx} ${id} 1`);
         });
         // Typing in the purse box: keep the keys away from the game (chat, hotkeys).
         // Enter or Escape leaves the box.
+        // In a how-many box Enter presses its Give / Take button.
         body.addEventListener('keydown', event => {
             if (!event.target.matches?.('input')) return;
             event.stopPropagation();
+            const go = event.key === 'Enter' && event.target.matches('input[data-n]') ? event.target.parentElement.querySelector('.go') : null;
             if (event.key === 'Enter' || event.key === 'Escape') event.target.blur();
+            go?.click();
+        });
+        // Typing a number: the button follows it (an empty box waits for a number).
+        body.addEventListener('input', event => {
+            const box = event.target;
+            if (!box.matches?.('input[data-n]')) return;
+            const v = Math.floor(Number(box.value));
+            if (v > 0) setAmount(box, Math.min(v, Number(box.max) || 1), false);
         });
         win.onClose?.(() => { stopTimer(); try { api.preferences.set('open', false); } catch { /* fine */ } });
         return win;

@@ -1,6 +1,6 @@
 {
   "name": "companion-party-overhaul",
-  "version": "2.3.0",
+  "version": "2.3.3",
   "author": "Always",
   "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, at bosses and in every fight, with orders in party chat and the items you give them. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags, the gear you gave, their colours and the party purse. Options are grouped in the Settings window.",
   "requires": { "app": ">=1.5.9", "era": "any" },
