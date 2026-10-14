@@ -23,6 +23,8 @@ Your companions as a real party of people who live in this world with you. This 
 
 Press **Alt+N**, or use the small on-screen button. The window shows everyone's HP, SP, level and state, plus their memories, bags, the gear you gave, their colours and the party purse.
 
+In the **Bag** tab, drag an item from your inventory onto a companion to give it. For a stack, you pick how many. Gear they can wear goes on at once. Click an item to see it; double-click to take it back.
+
 ## Install
 
 In Ragnarok Offline, open **Mods → Find Mods** and install **companion-party-overhaul**. Updates show up there too.
