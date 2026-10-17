@@ -1,17 +1,34 @@
 //===== Ragnarok Offline: companion-party-overhaul, companion growth ======
-//= (Moved here from population-tweaks 4.1.0, which replaced its stat fix. App 1.5.3 fixed the
-//= "about 100 in every stat" bug itself: shells now get the stat points a
-//= character of their level has, so the AI-player part and @statfix went.)
+//= Companions keep up with you the way a real player of their class would
+//= (setting "companion_growth"). 3.0.0, all four parts:
 //=
-//= What is still missing in the engine (1.5.4): a companion earns stat
-//= points as it levels, but the engine only spends them on the stats its
-//= profile names (pop_companion_spend_stat_points), and the low-level
-//= profiles name none. A companion recruited from them banks its points
-//= forever. Here those points are spent like a player would: one at a time,
-//= at the real cost, on the stat furthest behind its job's build.
+//= 1. Builds. A player spends stat points on one or two stats at a time, the
+//=    way the guides say: an Assassin AGI first, then STR, a little DEX. The
+//=    engine spends a companion's points on a spread over every stat (a level
+//=    63 Blacksmith had STR 43, AGI 32, VIT 41, INT 26, DEX 32, LUK 20). Here
+//=    each class has a leveling guide (.b_<job>$: stat:target steps, in order),
+//=    and a companion's stats are exactly what that guide gives at its level.
+//=    The points a level gives are rAthena's pre-renewal table (48 at level 1,
+//=    +floor((lv-1)/5)+3 a level, flat after 200; +52 transcendent), so the
+//=    build depends on the level alone: a companion recruited with the old
+//=    spread is rebuilt once, and points the engine spends on its own are put
+//=    back where the guide wants them (status points are kept at 0).
+//= 2. Refine. Its worn gear (weapon, shield, armor, garment, shoes, upper
+//=    headgear) is refined as it levels: +4 at 40, +5 at 55, +6 at 70, +7 at
+//=    85, then +8 at 110, +9 at 140, +10 at 180 (Level Cap Plus). Gear you
+//=    gave it too: it comes back to you refined.
+//= 3. Rebirth with you. While you are transcendent, a companion in a normal
+//=    class becomes its transcendent one, keeping its level (Knight -> Lord
+//=    Knight, Archer -> High Archer, Novice -> High Novice): +25% HP and SP,
+//=    +52 stat points, and Level Cap Plus's higher caps. The engine only does
+//=    this at 99/50 from the Rebirth tab.
+//= 4. Broken gear. A weapon or armor that breaks comes off and stays in the
+//=    bag. It is repaired and put back on, and you get a line about it.
 //=
-//= Also, once: a companion still saved with the old ~100-everywhere stats
-//= (recruited before 1.5.3) is given a normal build for its level.
+//= Changes are saved at once (the engine writes a companion's row when its
+//= gear or level changes, not its stats or refine): "@companion rest" with the
+//= values it already has writes every row. Everything here is worked out again
+//= from the level each tick, so nothing is lost if a save is missed.
 //=
 //= How: a timer on each player (every 3 s) looks at the party's companions
 //= (char id 95000000+), attaches to each one, and attaches back.
@@ -22,37 +39,52 @@
 OnInit:
 	.mod$ = "companion-party-overhaul";
 	.on = callfunc("F_ModSetting", .mod$, "companion_growth", 1);
-	.say = callfunc("F_ModSetting", .mod$, "growth_announce", 0);
+	.say = callfunc("F_ModSetting", .mod$, "companion_announce", 1);	// 2.5.2: was growth_announce
 
-	// Build weights per base job: Str,Agi,Vit,Int,Dex,Luk. A stat with 0
-	// gets nothing. Transcendent jobs use their normal job's weights.
-	.wdef$ = "3,2,2,2,2,1";
-	setd ".w_0$", "3,2,2,0,2,1";	// Novice
-	setd ".w_1$", "5,3,3,0,2,1";	// Swordman
-	setd ".w_7$", "5,3,3,0,2,1";	// Knight
-	setd ".w_14$", "4,1,4,2,3,0";	// Crusader
-	setd ".w_2$", "0,1,2,6,4,0";	// Mage
-	setd ".w_9$", "0,0,2,6,4,0";	// Wizard
-	setd ".w_16$", "0,2,2,5,4,0";	// Sage
-	setd ".w_3$", "1,4,1,0,6,2";	// Archer
-	setd ".w_11$", "1,4,1,1,6,2";	// Hunter
-	setd ".w_19$", "1,4,2,2,5,0";	// Bard
-	setd ".w_20$", "1,4,2,2,5,0";	// Dancer
-	setd ".w_4$", "5,2,4,4,3,1";	// Acolyte (mace)
-	setd ".w_8$", "1,1,4,6,3,0";	// Priest
-	setd ".w_15$", "5,3,3,1,3,1";	// Monk
-	setd ".w_5$", "5,1,3,0,3,2";	// Merchant
-	setd ".w_10$", "5,2,3,0,3,1";	// Blacksmith
-	setd ".w_18$", "4,1,3,2,3,0";	// Alchemist
-	setd ".w_6$", "4,5,1,0,2,2";	// Thief
-	setd ".w_12$", "4,5,1,0,2,2";	// Assassin
-	setd ".w_17$", "4,4,1,0,3,2";	// Rogue
-	setd ".w_23$", "3,2,2,1,2,1";	// Super Novice
-	setd ".w_24$", "0,4,1,0,6,2";	// Gunslinger
-	setd ".w_25$", "3,3,1,3,4,0";	// Ninja
-	setd ".w_4046$", "4,4,2,0,3,1";	// Taekwon
-	setd ".w_4047$", "4,4,2,0,3,1";	// Star Gladiator
-	setd ".w_4049$", "0,1,2,6,4,0";	// Soul Linker
+	// Leveling guides per base job (transcendent and baby folded in): stat:target
+	// steps, raised in order. A step it can't afford waits for the next level, as a
+	// player saves up for the main stat. Past the last step, every stat named goes
+	// on to the cap in the same order. Pre-renewal min-max builds.
+	.st$ = "str,agi,vit,int,dex,luk";
+	setd ".b_0$", "str:20,agi:20,dex:15,str:40,agi:40,dex:25,vit:20";	// Novice
+	.@knight$ = "str:30,agi:30,str:50,agi:55,dex:20,str:70,agi:75,vit:20,str:85,agi:90,dex:35,vit:40,str:99,dex:50,vit:60,luk:30";
+	setd ".b_1$", .@knight$;	// Swordman
+	setd ".b_7$", .@knight$;	// Knight: two-hand / spear, AGI and STR
+	setd ".b_14$", "vit:30,str:30,vit:50,str:50,dex:20,vit:70,str:70,int:20,dex:35,vit:90,str:85,int:30,dex:50,vit:99,str:99,agi:40";	// Crusader: the tank
+	.@wiz$ = "int:35,dex:30,int:60,dex:50,vit:15,int:80,dex:65,vit:30,int:99,dex:80,vit:50,agi:30";
+	setd ".b_2$", .@wiz$;	// Mage
+	setd ".b_9$", .@wiz$;	// Wizard: INT, DEX for cast time, some VIT
+	setd ".b_16$", "int:35,dex:30,int:60,dex:50,vit:15,int:80,dex:65,agi:20,vit:30,int:99,dex:80,vit:50,agi:40";	// Sage
+	.@hunt$ = "dex:40,agi:30,dex:60,agi:50,dex:80,agi:60,int:15,dex:99,agi:80,luk:30,vit:30,agi:90,luk:50,int:30";
+	setd ".b_3$", .@hunt$;	// Archer
+	setd ".b_11$", .@hunt$;	// Hunter: DEX 99, AGI, LUK and INT for the falcon
+	.@bard$ = "dex:40,agi:30,dex:60,agi:50,int:20,dex:80,vit:30,agi:70,int:40,dex:99,vit:50,agi:80";
+	setd ".b_19$", .@bard$;	// Bard
+	setd ".b_20$", .@bard$;	// Dancer
+	.@priest$ = "int:30,dex:20,vit:20,int:50,dex:35,vit:35,int:70,dex:45,vit:50,int:90,dex:60,vit:70,int:99,luk:30";
+	setd ".b_4$", .@priest$;	// Acolyte
+	setd ".b_8$", .@priest$;	// Priest: full support, INT VIT DEX
+	setd ".b_15$", "str:30,agi:30,agi:55,str:50,dex:20,agi:75,str:70,vit:20,agi:90,str:85,dex:35,vit:40,str:99,dex:50,int:30";	// Monk: combo
+	.@smith$ = "str:30,agi:30,str:50,agi:50,dex:25,str:70,agi:70,dex:40,str:85,agi:85,luk:20,str:99,dex:55,vit:40";
+	setd ".b_5$", .@smith$;	// Merchant
+	setd ".b_10$", .@smith$;	// Blacksmith: battle smith, STR AGI DEX
+	setd ".b_18$", "str:30,dex:30,str:50,agi:40,dex:45,str:70,int:20,agi:60,dex:60,str:85,vit:40,agi:80,str:99";	// Alchemist: battle
+	.@sin$ = "agi:30,str:30,agi:55,str:45,dex:20,agi:75,str:65,dex:35,agi:90,str:80,luk:20,str:99,dex:50,vit:30";
+	setd ".b_6$", .@sin$;	// Thief
+	setd ".b_12$", .@sin$;	// Assassin: katar, AGI STR DEX
+	setd ".b_17$", "str:30,agi:30,str:50,agi:55,dex:30,str:70,agi:75,dex:45,str:85,agi:90,vit:30,str:99,dex:60";	// Rogue
+	setd ".b_23$", "str:30,agi:30,dex:20,str:50,agi:55,dex:35,str:70,agi:75,vit:30,dex:50,str:85,agi:90,str:99,int:40";	// Super Novice
+	setd ".b_24$", "dex:40,agi:30,dex:60,agi:50,dex:80,agi:65,luk:20,dex:99,agi:80,vit:30,luk:40";	// Gunslinger
+	setd ".b_25$", "int:30,dex:30,int:55,dex:50,agi:20,int:75,dex:65,vit:30,int:90,dex:80,int:99,agi:40";	// Ninja: the spells (Party roles)
+	.@tk$ = "str:30,agi:30,agi:55,str:50,dex:25,agi:75,str:70,dex:40,agi:90,str:85,luk:30,str:99,dex:55";
+	setd ".b_4046$", .@tk$;	// Taekwon
+	setd ".b_4047$", .@tk$;	// Star Gladiator
+	setd ".b_4049$", "int:35,dex:30,int:60,dex:50,vit:20,int:80,dex:65,vit:35,int:99,dex:80,vit:50";	// Soul Linker
+
+	// Refine by base level: +4 at 40 ... +10 at 180.
+	setarray .rlv, 40, 55, 70, 85, 110, 140, 180;
+	setarray .rto, 4, 5, 6, 7, 8, 9, 10;
+	setarray .req, EQI_HAND_R, EQI_HAND_L, EQI_ARMOR, EQI_GARMENT, EQI_SHOES, EQI_HEAD_TOP;
 	initnpctimer;	// the tick below
 	end;
 
@@ -70,15 +102,11 @@ OnTimer3000:
 		end;	// an AI player, not a person
 	goto OnTick;
 
-OnPCLoginEvent:
-	if (!.on)
-		end;
-	end;
-
 OnTick:
 	if (!getcharid(1))
 		end;
 	.@me = getcharid(3);
+	.@up = (eaclass(readparam(Class)) & EAJL_UPPER) ? 1 : 0;	// you are transcendent
 	getpartymember getcharid(1), 1;
 	getpartymember getcharid(1), 2;
 	.@nc = 0;
@@ -92,15 +120,18 @@ OnTick:
 		end;
 	.nrep = 0;
 	deletearray .rep$;
+	.saved = 0;
 	freeloop(1);
 	for (.@i = 0; .@i < .@nc; .@i++) {
 		if (!isloggedin(.@ca[.@i]) || !attachrid(.@ca[.@i], 1))
 			continue;
-		callsub L_Weights;
-		if (callsub(L_Broken))
-			callsub L_Rebuild;
-		else if (readparam(StatusPoint) > 0)
-			callsub L_Spend;
+		if (readparam(Hp) <= 0)
+			continue;
+		if (.@up)
+			callsub L_Rebirth;
+		callsub L_Build;
+		callsub L_Refine;
+		callsub L_Repair;
 	}
 	freeloop(0);
 	attachrid(.@me);
@@ -108,122 +139,196 @@ OnTick:
 		for (.@i = 0; .@i < .nrep; .@i++)
 			dispbottom "[Companions] " + .rep$[.@i], 0x99DDFF;
 	}
+	// Write the rows now: the engine's own save doesn't look at stats or refine.
+	if (.saved) {
+		query_sql "SELECT rest_below, rest_until, COUNT(*) AS c FROM cp_companion_persistence WHERE owner_char_id = " + getcharid(0)
+			+ " AND active = 1 GROUP BY rest_below, rest_until ORDER BY c DESC LIMIT 1", .@b, .@u, .@cnt;
+		if (getarraysize(.@u) && .@u[0] >= .@b[0] + 5)
+			atcommand "@companion rest " + .@b[0] + " " + .@u[0];
+	}
 	end;
 
-// The attached companion's build weights into .@w[0..5] (caller's scope
-// is shared through .w[]).
-L_Weights:
-	.@ea = eaclass(Class);
-	.@job = roclass(.@ea & ~(EAJL_UPPER | EAJL_BABY));
-	.@w$ = "";
-	if (.@job >= 0)
-		.@w$ = getd(".w_" + .@job + "$");
-	if (.@w$ == "")
-		.@w$ = .wdef$;
-	explode(.@ws$, .@w$, ",");
-	for (.@s = 0; .@s < 6; .@s++)
-		.w[.@s] = atoi(.@ws$[.@s]);
+// The attached companion's base job for the guides (transcendent and baby folded in).
+L_Job:
+	return roclass(eaclass(readparam(Class)) & ~(EAJL_UPPER | EAJL_BABY), readparam(Sex));
+
+// 3. You are transcendent: a companion in a normal class (Novice, 1st or 2nd job, not
+// a mounted id) becomes its transcendent class, level kept. 2nd -> trans and 1st ->
+// high 1st are both +4001 (Knight 7 -> Lord Knight 4008, Archer 3 -> High Archer 4004).
+L_Rebirth:
+	.@cls = readparam(Class);
+	if (.@cls < 0 || .@cls > 20 || .@cls == 13)
+		return;	// expanded classes have no rebirth; 13 is a Peco Knight id
+	.@to = .@cls + 4001;
+	.@was$ = jobname(.@cls);
+	jobchange .@to, 1;
+	if (readparam(Class) != .@to)
+		return;
+	.saved = 1;
+	.rep$[.nrep] = strcharinfo(0) + " was reborn as " + jobname(.@to) + " to keep up with you (level " + readparam(BaseLevel) + " kept, was " + .@was$ + ").";
+	.nrep++;
 	return;
 
-// Str..Luk of the attached unit into .st[0..5]. Always readparam: the bare
-// names read 0 on an attached shell.
-L_Read:
-	setarray .st[0], readparam(bStr), readparam(bAgi), readparam(bVit), readparam(bInt), readparam(bDex), readparam(bLuk);
-	return;
-
-// 1 when the attached companion still has the old 90-109 in all six.
-L_Broken:
-	callsub L_Read;
-	for (.@s = 0; .@s < 6; .@s++) {
-		if (.st[.@s] < 90 || .st[.@s] > 109)
-			return 0;
-	}
-	return 1;
-
-// Spend the attached companion's own stat points, one at a time at the real
-// cost, on the stat furthest behind its weight. A stat the server refuses
-// (at its cap) is passed over from then on.
-L_Spend:
-	callsub L_Read;
-	.@before$ = .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
-	setarray .@full[0], 0, 0, 0, 0, 0, 0;
-	.@spent = 0;
-	for (.@guard = 0; .@guard < 300; .@guard++) {
-		.@pts = readparam(StatusPoint);
-		.@best = -1;
-		for (.@s = 0; .@s < 6; .@s++) {
-			if (.w[.@s] <= 0 || .@full[.@s])
-				continue;
-			// Two ifs: this server evaluates both sides of ||, and .w[-1] is an error.
-			if (.@best < 0)
-				.@best = .@s;
-			else if (.st[.@s] * .w[.@best] < .st[.@best] * .w[.@s])
-				.@best = .@s;
-		}
-		if (.@best < 0)
-			break;
-		.@cost = (.st[.@best] - 1) / 10 + 2;
-		if (.@cost > .@pts)
-			break;	// saving up for the next point there
-		switch (.@best) {
-		case 0: statusup bStr; break;
-		case 1: statusup bAgi; break;
-		case 2: statusup bVit; break;
-		case 3: statusup bInt; break;
-		case 4: statusup bDex; break;
-		default: statusup bLuk; break;
-		}
-		.@was = .st[.@best];
-		callsub L_Read;
-		if (.st[.@best] == .@was)
-			.@full[.@best] = 1;
-		else
-			.@spent++;
-	}
-	if (.@spent) {
-		.rep$[.nrep] = strcharinfo(0) + " (" + jobname(Class) + " Lv " + BaseLevel + ") spent " + .@spent + " stat point(s): "
-			+ .@before$ + " -> " + .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
-		.nrep++;
-	}
-	return;
-
-// The old broken build: set the stats to what a real player of this level
-// and job has (pre-renewal costs), without handing out points.
-L_Rebuild:
-	.@pts = 48;
-	if (eaclass(Class) & EAJL_UPPER)
-		.@pts += 52;
-	for (.@l = 2; .@l <= BaseLevel; .@l++)
+// 1. Stats exactly as the class's guide gives them at this level.
+L_Build:
+	.@lv = readparam(BaseLevel);
+	.@cls = readparam(Class);
+	.@key$ = .@cls + ":" + .@lv;
+	.@cid = getcharid(0);
+	// Worked out once per level and class, and again whenever the engine spent points.
+	if (getd(".gk_" + .@cid + "$") == .@key$ && readparam(StatusPoint) <= 0)
+		return;
+	setd ".gk_" + .@cid + "$", .@key$;
+	.@b$ = getd(".b_" + callsub(L_Job) + "$");
+	if (.@b$ == "")
+		return;	// a class without a guide keeps the engine's own way
+	.@upper = (eaclass(.@cls) & EAJL_UPPER) ? 1 : 0;
+	// Points from level 1 to now (pre-renewal table: flat after 200).
+	.@pts = 48 + 52 * .@upper;
+	.@top = min(.@lv, 200);
+	for (.@l = 2; .@l <= .@top; .@l++)
 		.@pts += (.@l - 1) / 5 + 3;
+	.@cap = getbattleflag(.@upper ? "max_trans_parameter" : "max_parameter");
+	if (.@cap <= 0)
+		.@cap = 99;
 	setarray .@t[0], 1, 1, 1, 1, 1, 1;
-	while (1) {
-		.@best = -1;
-		for (.@s = 0; .@s < 6; .@s++) {
-			if (.w[.@s] <= 0 || .@t[.@s] >= 99)
-				continue;
-			if (.@best < 0)
-				.@best = .@s;
-			else if (.@t[.@s] * .w[.@best] < .@t[.@best] * .w[.@s])
-				.@best = .@s;
+	explode(.@step$, .@b$, ",");
+	.@ns = getarraysize(.@step$);
+	.@order$ = "";
+	.@stop = 0;
+	for (.@s = 0; .@s < .@ns && !.@stop; .@s++) {
+		explode(.@kv$, .@step$[.@s], ":");
+		.@x = callsub(L_StatIx, .@kv$[0]);
+		if (.@x < 0)
+			continue;
+		if (!compare("," + .@order$ + ",", "," + .@x + ","))
+			.@order$ += (.@order$ == "" ? "" : ",") + .@x;
+		.@goal = atoi(.@kv$[1]);
+		if (.@goal > .@cap)
+			.@goal = .@cap;
+		while (.@t[.@x] < .@goal) {
+			.@cost = (.@t[.@x] - 1) / 10 + 2;
+			if (.@cost > .@pts) {
+				.@stop = 1;	// saving up for this one
+				break;
+			}
+			.@pts -= .@cost;
+			.@t[.@x]++;
 		}
-		if (.@best < 0)
-			break;
-		.@cost = (.@t[.@best] - 1) / 10 + 2;
-		if (.@cost > .@pts)
-			break;
-		.@pts -= .@cost;
-		.@t[.@best]++;
 	}
-	.@before$ = .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
-	if (.@t[0] != .st[0]) statusup2 bStr, .@t[0] - .st[0];
-	if (.@t[1] != .st[1]) statusup2 bAgi, .@t[1] - .st[1];
-	if (.@t[2] != .st[2]) statusup2 bVit, .@t[2] - .st[2];
-	if (.@t[3] != .st[3]) statusup2 bInt, .@t[3] - .st[3];
-	if (.@t[4] != .st[4]) statusup2 bDex, .@t[4] - .st[4];
-	if (.@t[5] != .st[5]) statusup2 bLuk, .@t[5] - .st[5];
-	callsub L_Read;
-	.rep$[.nrep] = strcharinfo(0) + " (" + jobname(Class) + " Lv " + BaseLevel + ") had the old broken stats: "
-		+ .@before$ + " -> " + .st[0] + "/" + .st[1] + "/" + .st[2] + "/" + .st[3] + "/" + .st[4] + "/" + .st[5];
+	// Past the guide (high levels, Level Cap Plus): its stats on to the cap, in turn.
+	if (!.@stop) {
+		explode(.@ord$, .@order$, ",");
+		.@no = getarraysize(.@ord$);
+		.@more = 1;
+		while (.@more) {
+			.@more = 0;
+			for (.@o = 0; .@o < .@no; .@o++) {
+				.@x = atoi(.@ord$[.@o]);
+				if (.@t[.@x] >= .@cap)
+					continue;
+				.@cost = (.@t[.@x] - 1) / 10 + 2;
+				if (.@cost > .@pts)
+					continue;
+				.@pts -= .@cost;
+				.@t[.@x]++;
+				.@more = 1;
+			}
+		}
+	}
+	setarray .@c[0], readparam(bStr), readparam(bAgi), readparam(bVit), readparam(bInt), readparam(bDex), readparam(bLuk);
+	.@same = 1;
+	for (.@x = 0; .@x < 6; .@x++) {
+		if (.@c[.@x] != .@t[.@x])
+			.@same = 0;
+	}
+	// No points left over for the engine to spend on top of the guide: the build is
+	// worked out from the level, so nothing is lost by this.
+	StatusPoint = 0;
+	if (.@same)
+		return;
+	if (.@t[0] != .@c[0]) statusup2 bStr, .@t[0] - .@c[0];
+	if (.@t[1] != .@c[1]) statusup2 bAgi, .@t[1] - .@c[1];
+	if (.@t[2] != .@c[2]) statusup2 bVit, .@t[2] - .@c[2];
+	if (.@t[3] != .@c[3]) statusup2 bInt, .@t[3] - .@c[3];
+	if (.@t[4] != .@c[4]) statusup2 bDex, .@t[4] - .@c[4];
+	if (.@t[5] != .@c[5]) statusup2 bLuk, .@t[5] - .@c[5];
+	.saved = 1;
+	.rep$[.nrep] = strcharinfo(0) + " (" + jobname(.@cls) + " Lv " + .@lv + ") trained: "
+		+ .@c[0] + "/" + .@c[1] + "/" + .@c[2] + "/" + .@c[3] + "/" + .@c[4] + "/" + .@c[5] + " -> "
+		+ readparam(bStr) + "/" + readparam(bAgi) + "/" + readparam(bVit) + "/" + readparam(bInt) + "/" + readparam(bDex) + "/" + readparam(bLuk)
+		+ " (Str/Agi/Vit/Int/Dex/Luk)";
+	.nrep++;
+	return;
+
+L_StatIx:
+	explode(.@nm$, .st$, ",");
+	for (.@k = 0; .@k < 6; .@k++) {
+		if (.@nm$[.@k] == getarg(0))
+			return .@k;
+	}
+	return -1;
+
+// 2. Worn gear refined to the level's mark, one step at a time (the refine effect shows).
+L_Refine:
+	.@lv = readparam(BaseLevel);
+	.@to = 0;
+	for (.@k = 0; .@k < getarraysize(.rlv); .@k++) {
+		if (.@lv >= .rlv[.@k])
+			.@to = .rto[.@k];
+	}
+	if (!.@to)
+		return;
+	.@done$ = "";
+	for (.@k = 0; .@k < getarraysize(.req); .@k++) {
+		.@e = .req[.@k];
+		if (!getequipisequiped(.@e) || !getequipisenableref(.@e))
+			continue;
+		.@r = getequiprefinerycnt(.@e);
+		if (.@r >= .@to)
+			continue;
+		.@id = getequipid(.@e);
+		for (.@g = .@r; .@g < .@to; .@g++)
+			successrefitem .@e;
+		.@done$ += (.@done$ == "" ? "" : ", ") + getitemname(.@id);
+	}
+	if (.@done$ == "")
+		return;
+	.saved = 1;
+	.rep$[.nrep] = strcharinfo(0) + "'s gear is +" + .@to + " now (level " + .@lv + "): " + .@done$ + ".";
+	.nrep++;
+	return;
+
+// 4. Broken gear (it came off when it broke): repaired and put back on where that
+// slot is empty.
+L_Repair:
+	getinventorylist;
+	.@broke = 0;
+	for (.@k = 0; .@k < @inventorylist_count; .@k++) {
+		if (@inventorylist_attribute[.@k] == 1) {
+			.@bid[.@broke] = @inventorylist_id[.@k];
+			.@broke++;
+		}
+	}
+	if (!.@broke)
+		return;
+	repairall;
+	.@what$ = "";
+	for (.@k = 0; .@k < .@broke; .@k++) {
+		.@loc = getiteminfo(.@bid[.@k], ITEMINFO_LOCATIONS);
+		.@free = 1;
+		if ((.@loc & EQP_HAND_R) && getequipisequiped(EQI_HAND_R))
+			.@free = 0;
+		if ((.@loc & EQP_ARMOR) && getequipisequiped(EQI_ARMOR))
+			.@free = 0;
+		if ((.@loc & EQP_HAND_L) && !(.@loc & EQP_HAND_R) && getequipisequiped(EQI_HAND_L))
+			.@free = 0;
+		if (.@free)
+			equip .@bid[.@k];
+		.@what$ += (.@what$ == "" ? "" : ", ") + getitemname(.@bid[.@k]) + (.@free ? "" : " (in the bag)");
+	}
+	.saved = 1;
+	.rep$[.nrep] = strcharinfo(0) + "'s " + .@what$ + " had broken. Repaired and back on.";
 	.nrep++;
 	return;
 }

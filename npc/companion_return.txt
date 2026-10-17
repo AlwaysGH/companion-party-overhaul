@@ -30,7 +30,7 @@
 OnInit:
 	.mod$ = "companion-party-overhaul";
 	.on = callfunc("F_ModSetting", .mod$, "companion_return", 1);
-	.say = callfunc("F_ModSetting", .mod$, "return_announce", 1);
+	.say = callfunc("F_ModSetting", .mod$, "companion_announce", 1);	// 2.5.2: was return_announce
 	initnpctimer;	// the tick below
 	end;
 

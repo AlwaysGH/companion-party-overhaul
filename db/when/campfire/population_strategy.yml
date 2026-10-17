@@ -1,0 +1,54 @@
+# companion-party-overhaul: campfire nights (setting "campfire"). 3.0.0.
+# The script (npc/companion_life.txt, L_CampTick) keeps the harmless Reuse_Limit_G status
+# on every companion at the fire. This sits them down round it, above the idle Hold (12)
+# and idle_sit's own Sit (21). They wait while they walk to their seat
+# (Entry_Queue_Apply_Delay) and after you take a step (Reuse_Limit_H), and get up the
+# moment something attacks the party nearby; the fight rules come first anyway.
+#
+# Scouts (archers, gunslingers) keep first watch: two minutes standing at their seat, held
+# there (a standing companion is otherwise walked into formation beside you, onto the fire
+# when you stand next to it), then they sit like the rest. Each camp starts the watch anew.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      - Job: All
+        Build: ct_camp
+        Rules:
+          - Name: ct_camp_sit
+            Priority: 23
+            When: [self_reuse_limit_g, not_self_entry_queue_apply_delay, not_self_reuse_limit_h]
+            Count: { Enemy: attacking, Range: 14, Below: 1 }
+            Sit: true
+
+      - Job: [Archer, Gunslinger]
+        Build: ct_camp_watch
+        Start: idle
+        Strategies:
+          - Name: idle
+            Rules:
+              - Name: ct_cw_start
+                When: self_reuse_limit_g
+                Switch: watch
+          - Name: watch
+            Rules:
+              - Name: ct_cw_end
+                When: not_self_reuse_limit_g
+                Switch: idle
+              - Name: ct_cw_done
+                InStrategy: { AtLeast: 120000 }
+                Switch: rest
+              - Name: ct_cw_hold
+                Priority: 24
+                When: [self_reuse_limit_g, not_self_entry_queue_apply_delay]
+                Count: { Enemy: attacking, Range: 14, Below: 1 }
+                Hold: true
+          - Name: rest
+            Rules:
+              - Name: ct_cw_reset
+                When: not_self_reuse_limit_g
+                Switch: idle

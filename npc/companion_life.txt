@@ -29,20 +29,25 @@
 
 OnInit:
 	.mod$ = "companion-party-overhaul";
-	.greet = callfunc("F_ModSetting", .mod$, "greetings", 1);
-	.world = callfunc("F_ModSetting", .mod$, "world_reactions", 1);
+	// 3.0.0: fewer settings. Everyday chatter = greetings, world reactions, daily
+	// life and the purse talk; Combat callouts carry the emotes; Look around carries
+	// the scouts' patrol; Sit down when you wait carries sitting with a favourite and
+	// the restless sitting.
+	.chatter = callfunc("F_ModSetting", .mod$, "everyday_chatter", 1);
+	.greet = .chatter;
+	.world = .chatter;
 	.callouts = callfunc("F_ModSetting", .mod$, "combat_callouts", 1);
-	.emotes = callfunc("F_ModSetting", .mod$, "emotes", 1);
+	.emotes = .callouts;
 	.banter = callfunc("F_ModSetting", .mod$, "banter_minutes", 4);
-	.life = callfunc("F_ModSetting", .mod$, "daily_life", 1);
+	.life = .chatter;
 	.mem = callfunc("F_ModSetting", .mod$, "memories", 1);
 	.purse = callfunc("F_ModSetting", .mod$, "purse_per_level", 2);
-	.purse_talk = callfunc("F_ModSetting", .mod$, "purse_talk", 1);
+	.purse_talk = .chatter;
 	.look = callfunc("F_ModSetting", .mod$, "look_around", 1);
-	.sitfav = callfunc("F_ModSetting", .mod$, "sit_with_favourite", 1);
-	.patrol = callfunc("F_ModSetting", .mod$, "scout_patrol", 1);
-	.restless = callfunc("F_ModSetting", .mod$, "restless_sitting", 1);
+	.patrol = .look;
 	.idlesit = callfunc("F_ModSetting", .mod$, "idle_sit", 1);
+	.sitfav = .idlesit;
+	.restless = .idlesit;
 	// The scouts' patrol ring: 8 waypoints round you, in order (east, then
 	// counter-clockwise on the map), one cell past the party spacing.
 	setarray .rx, 1, 1, 0, -1, -1, -1, 0, 1;
@@ -59,6 +64,227 @@ OnInit:
 	// asks @clbag (bags, taking items back, the party purse).
 	bindatcmd "clstat", strnpcinfo(3) + "::OnCmdStat", 0, 99;
 	bindatcmd "clbag", strnpcinfo(3) + "::OnCmdBag", 0, 99;
+	// Roaming orders in party chat ("go hunt" / "come back"): the client hears
+	// your line and asks @clroam (setting chat_orders).
+	.orders = callfunc("F_ModSetting", .mod$, "chat_orders", 1);
+	bindatcmd "clroam", strnpcinfo(3) + "::OnCmdRoam", 0, 99;
+	// 2.5.6: roamers don't sit down to rest (Roam as a group); see L_RoamRest.
+	.roamhelp = callfunc("F_ModSetting", .mod$, "roam_together", 1);
+
+	// Starter kits (setting starter_kit, 2.4.0): the best NPC-shop gear per class
+	// and level tier (0: 1-19, 1: 20-39, 2: 40-69, 3: 70+), for companions drafted
+	// with the app's Companions start unequipped. .kit_<job>_<tier> item ids (weapon
+	// first), .kitammo_<job>_<tier> arrows/bullets or 0. <job> is the base class
+	// (transcendent folded in). Made from rAthena's pre-re item db and shop lists.
+	.kit = callfunc("F_ModSetting", .mod$, "starter_kit", 1);
+	setarray .kit_0_0, 1207, 2220, 2305, 2101, 2501, 2401;
+	.kitammo_0_0 = 0;
+	setarray .kit_0_1, 1210, 5114, 2305, 2101, 2501, 2401;
+	.kitammo_0_1 = 0;
+	setarray .kit_0_2, 1216, 5112, 2305, 2113, 2501, 2401;
+	.kitammo_0_2 = 0;
+	setarray .kit_0_3, 1245, 5112, 2340, 2113, 2512, 2416;
+	.kitammo_0_3 = 0;
+	setarray .kit_1_0, 1107, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_1_0 = 0;
+	setarray .kit_1_1, 1110, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_1_1 = 0;
+	setarray .kit_1_2, 1113, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_1_2 = 0;
+	setarray .kit_1_3, 1119, 2228, 2316, 2105, 2505, 2405;
+	.kitammo_1_3 = 0;
+	setarray .kit_2_0, 1601, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_2_0 = 0;
+	setarray .kit_2_1, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_2_1 = 0;
+	setarray .kit_2_2, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_2_2 = 0;
+	setarray .kit_2_3, 1610, 2232, 2309, 2101, 2503, 2403;
+	.kitammo_2_3 = 0;
+	setarray .kit_3_0, 1704, 2222, 2305, 2503, 2403;
+	.kitammo_3_0 = 1750;
+	setarray .kit_3_1, 1707, 5114, 2307, 2503, 2403;
+	.kitammo_3_1 = 1750;
+	setarray .kit_3_2, 1710, 2226, 2307, 2503, 2405;
+	.kitammo_3_2 = 1750;
+	setarray .kit_3_3, 1714, 2226, 2330, 2503, 2405;
+	.kitammo_3_3 = 1750;
+	setarray .kit_4_0, 1504, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_4_0 = 0;
+	setarray .kit_4_1, 1507, 2216, 2307, 2101, 2503, 2403;
+	.kitammo_4_1 = 0;
+	setarray .kit_4_2, 1510, 2216, 2307, 2103, 2503, 2403;
+	.kitammo_4_2 = 0;
+	setarray .kit_4_3, 1522, 2216, 2325, 2103, 2503, 2403;
+	.kitammo_4_3 = 0;
+	setarray .kit_5_0, 1301, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_5_0 = 0;
+	setarray .kit_5_1, 1301, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_5_1 = 0;
+	setarray .kit_5_2, 1301, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_5_2 = 0;
+	setarray .kit_5_3, 1301, 2230, 2314, 2103, 2505, 2405;
+	.kitammo_5_3 = 0;
+	setarray .kit_6_0, 1207, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_6_0 = 0;
+	setarray .kit_6_1, 1210, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_6_1 = 0;
+	setarray .kit_6_2, 1216, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_6_2 = 0;
+	setarray .kit_6_3, 1222, 2230, 2314, 2103, 2505, 2405;
+	.kitammo_6_3 = 0;
+	setarray .kit_7_0, 1107, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_7_0 = 0;
+	setarray .kit_7_1, 1110, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_7_1 = 0;
+	setarray .kit_7_2, 1113, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_7_2 = 0;
+	setarray .kit_7_3, 1129, 2228, 2316, 2105, 2505, 2411;
+	.kitammo_7_3 = 0;
+	setarray .kit_8_0, 1504, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_8_0 = 0;
+	setarray .kit_8_1, 1507, 2216, 2307, 2101, 2503, 2403;
+	.kitammo_8_1 = 0;
+	setarray .kit_8_2, 1510, 2216, 2307, 2103, 2503, 2403;
+	.kitammo_8_2 = 0;
+	setarray .kit_8_3, 1522, 2216, 2325, 2103, 2503, 2403;
+	.kitammo_8_3 = 0;
+	setarray .kit_9_0, 1601, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_9_0 = 0;
+	setarray .kit_9_1, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_9_1 = 0;
+	setarray .kit_9_2, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_9_2 = 0;
+	setarray .kit_9_3, 1610, 2232, 2309, 2101, 2503, 2403;
+	.kitammo_9_3 = 0;
+	setarray .kit_10_0, 1301, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_10_0 = 0;
+	setarray .kit_10_1, 1301, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_10_1 = 0;
+	setarray .kit_10_2, 1301, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_10_2 = 0;
+	setarray .kit_10_3, 1301, 2230, 2314, 2103, 2505, 2405;
+	.kitammo_10_3 = 0;
+	setarray .kit_11_0, 1704, 2222, 2305, 2503, 2403;
+	.kitammo_11_0 = 1750;
+	setarray .kit_11_1, 1707, 5114, 2307, 2503, 2403;
+	.kitammo_11_1 = 1750;
+	setarray .kit_11_2, 1710, 2226, 2307, 2503, 2405;
+	.kitammo_11_2 = 1750;
+	setarray .kit_11_3, 1718, 2226, 2330, 2503, 2405;
+	.kitammo_11_3 = 1750;
+	setarray .kit_12_0, 1207, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_12_0 = 0;
+	setarray .kit_12_1, 1210, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_12_1 = 0;
+	setarray .kit_12_2, 1250, 2226, 2307, 2503, 2405;
+	.kitammo_12_2 = 0;
+	setarray .kit_12_3, 1254, 2230, 2314, 2505, 2405;
+	.kitammo_12_3 = 0;
+	setarray .kit_14_0, 1107, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_14_0 = 0;
+	setarray .kit_14_1, 1110, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_14_1 = 0;
+	setarray .kit_14_2, 1113, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_14_2 = 0;
+	setarray .kit_14_3, 1129, 2228, 2341, 2105, 2505, 2411;
+	.kitammo_14_3 = 0;
+	setarray .kit_15_0, 1504, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_15_0 = 0;
+	setarray .kit_15_1, 1801, 2216, 2307, 2101, 2503, 2403;
+	.kitammo_15_1 = 0;
+	setarray .kit_15_2, 1801, 2216, 2307, 2103, 2503, 2403;
+	.kitammo_15_2 = 0;
+	setarray .kit_15_3, 1807, 2216, 2325, 2103, 2503, 2403;
+	.kitammo_15_3 = 0;
+	setarray .kit_16_0, 1601, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_16_0 = 0;
+	setarray .kit_16_1, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_16_1 = 0;
+	setarray .kit_16_2, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_16_2 = 0;
+	setarray .kit_16_3, 1610, 2232, 2309, 2101, 2503, 2403;
+	.kitammo_16_3 = 0;
+	setarray .kit_17_0, 1207, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_17_0 = 0;
+	setarray .kit_17_1, 1210, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_17_1 = 0;
+	setarray .kit_17_2, 1216, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_17_2 = 0;
+	setarray .kit_17_3, 1222, 2230, 2314, 2103, 2505, 2405;
+	.kitammo_17_3 = 0;
+	setarray .kit_18_0, 1301, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_18_0 = 0;
+	setarray .kit_18_1, 1301, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_18_1 = 0;
+	setarray .kit_18_2, 1301, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_18_2 = 0;
+	setarray .kit_18_3, 1301, 2230, 2314, 2103, 2505, 2405;
+	.kitammo_18_3 = 0;
+	setarray .kit_19_0, 1901, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_19_0 = 0;
+	setarray .kit_19_1, 1901, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_19_1 = 0;
+	setarray .kit_19_2, 1903, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_19_2 = 0;
+	setarray .kit_19_3, 1907, 2226, 2330, 2103, 2503, 2405;
+	.kitammo_19_3 = 0;
+	setarray .kit_20_0, 1950, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_20_0 = 0;
+	setarray .kit_20_1, 1950, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_20_1 = 0;
+	setarray .kit_20_2, 1954, 2226, 2307, 2103, 2503, 2405;
+	.kitammo_20_2 = 0;
+	setarray .kit_20_3, 1956, 2226, 2330, 2103, 2503, 2405;
+	.kitammo_20_3 = 0;
+	setarray .kit_23_0, 1207, 2220, 2305, 2101, 2501, 2401;
+	.kitammo_23_0 = 0;
+	setarray .kit_23_1, 1210, 5114, 2305, 2101, 2501, 2401;
+	.kitammo_23_1 = 0;
+	setarray .kit_23_2, 1216, 5112, 2305, 2113, 2501, 2401;
+	.kitammo_23_2 = 0;
+	setarray .kit_23_3, 1245, 5112, 2340, 2113, 2512, 2416;
+	.kitammo_23_3 = 0;
+	setarray .kit_24_0, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_24_0 = 0;
+	setarray .kit_24_1, 5114, 2307, 2101, 2503, 2403;
+	.kitammo_24_1 = 0;
+	setarray .kit_24_2, 13102, 5114, 2307, 2503, 2405;
+	.kitammo_24_2 = 13200;
+	setarray .kit_24_3, 13102, 5114, 2309, 2503, 2405;
+	.kitammo_24_3 = 13200;
+	setarray .kit_25_0, 1207, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_25_0 = 0;
+	setarray .kit_25_1, 1210, 5114, 2307, 2117, 2503, 2403;
+	.kitammo_25_1 = 0;
+	setarray .kit_25_2, 1216, 5114, 2307, 2117, 2503, 2403;
+	.kitammo_25_2 = 0;
+	setarray .kit_25_3, 1222, 5114, 2335, 2117, 2503, 2403;
+	.kitammo_25_3 = 0;
+	setarray .kit_4046_0, 2222, 2305, 2503, 2403;
+	.kitammo_4046_0 = 0;
+	setarray .kit_4046_1, 5114, 2307, 2503, 2403;
+	.kitammo_4046_1 = 0;
+	setarray .kit_4046_2, 5114, 2307, 2503, 2405;
+	.kitammo_4046_2 = 0;
+	setarray .kit_4046_3, 5114, 2309, 2505, 2405;
+	.kitammo_4046_3 = 0;
+	setarray .kit_4047_0, 2222, 2305, 2503, 2403;
+	.kitammo_4047_0 = 0;
+	setarray .kit_4047_1, 5114, 2307, 2503, 2403;
+	.kitammo_4047_1 = 0;
+	setarray .kit_4047_2, 5114, 2307, 2503, 2405;
+	.kitammo_4047_2 = 0;
+	setarray .kit_4047_3, 5114, 2309, 2505, 2405;
+	.kitammo_4047_3 = 0;
+	setarray .kit_4049_0, 1601, 2222, 2305, 2101, 2503, 2403;
+	.kitammo_4049_0 = 0;
+	setarray .kit_4049_1, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_4049_1 = 0;
+	setarray .kit_4049_2, 1607, 2232, 2307, 2101, 2503, 2403;
+	.kitammo_4049_2 = 0;
+	setarray .kit_4049_3, 1610, 2232, 2309, 2101, 2503, 2403;
+	.kitammo_4049_3 = 0;
 	// Titles: comma list, trimmed; each companion keeps one (char id mod n).
 	deletearray .ttl$;
 	.nt = 0;
@@ -238,6 +464,25 @@ OnInit:
 	setarray .fight_7$, "Fresh loot incoming!", "Let's get paid!";
 	setarray .win_7$, "Pick up everything. Everything.", "Profitable.";
 	setarray .idle_7$, "Your world must have amazing markets, {t}.", "If we sold that sword, {t}... no? Fine.", "Count with me, {t}. One zeny, two zeny...";
+
+	// ---- Roaming orders (2.4.0): "go hunt" sends them off (roam), "come back"
+	// calls them in (back). One of the companions the order changed answers.
+	setarray .roam_0$, "On my own? Okay... I'll make you proud, {t}!", "Hunting by myself! I'll bring back so much loot!";
+	setarray .back_0$, "Coming, {t}! Wait for me!", "Right behind you, {t}!";
+	setarray .roam_1$, "As you command, {t}. I'll sweep the area.", "Understood. I'll clear the field and report back.";
+	setarray .back_1$, "Returning to your side, {t}.", "Back in formation, {t}.";
+	setarray .roam_2$, "Independent fieldwork. Excellent.", "I'll collect some... specimens, {t}.";
+	setarray .back_2$, "Coming. I'd only just found something interesting.", "Very well, {t}. The notes can wait.";
+	setarray .roam_3$, "Finally, open ground! See you around, {t}.", "I'll scout ahead and thin them out.";
+	setarray .back_3$, "On my way, {t}. You should see the view out there.", "Heading back, {t}!";
+	setarray .roam_4$, "Be careful without me, {t}. Call if you get hurt.", "Alright... but don't do anything reckless, {t}.";
+	setarray .back_4$, "Coming! Let me see those wounds, {t}.", "Back at your side, {t}. Nobody falls on my watch.";
+	setarray .roam_5$, "Ha! Let me at them!", "Time to warm up my fists. Later, {t}!";
+	setarray .back_5$, "Aw, I was just getting started. Coming!", "Back, {t}! Who's next?";
+	setarray .roam_6$, "Don't wait up, {t}.", "Leave it to me. In and out.";
+	setarray .back_6$, "Already? Fine, fine. I'm coming.", "Right behind you, {t}. Like always.";
+	setarray .roam_7$, "Loot won't pick itself up! Off I go!", "Time is zeny, {t}! I'll be hunting.";
+	setarray .back_7$, "Coming, {t}! My bags were getting heavy anyway.", "Back! Business was good out there.";
 
 	// ---- Daily life (1.1.0): their own level-ups and job changes, resting,
 	// you going quiet, the time of day, long sessions. In lvcg {a} is the
@@ -673,6 +918,629 @@ OnInit:
 		"AYou know, you're not so bad, {a}.^BHigh praise.^AI mean it. Friends?^BFriends.";
 	setarray .tu2$, "A{a}, I've never had a friend like you.^BNeither have I.^AWhatever comes next, we face it together.^BAlways.",
 		"AI trust you with my life, {a}.^BYou already do, every fight.^AThen let me say it out loud. Thank you.^B...Thank you too.";
+	// ======================================================================
+	// 3.0.0: three times the talk. Written by Claude for this party.
+	// New: .egg_isekai$ (nods to isekai stories), .egg_lore$ (Rune-Midgard's
+	// own legends) and .egg_npc$ (what-ifs about the world and its NPCs),
+	// about one conversation in five (L_Conversation). Same format as above.
+	// ======================================================================
+	setarray .conv$[getarraysize(.conv$)],
+		"AI counted the steps from Prontera to Izlude today.^BWhy?^ABecause nobody else ever has.^BAnd?^AI lost count at the bridge.",
+		"ADo you think the {t} likes us?^BThey keep reviving us.^AThat could just be good manners.^BIt's a LOT of good manners, {a}.",
+		"AMy pack is full of Jellopies.^BSell them.^AThey're my emotional support Jellopies.",
+		"AWhat's the worst thing you ever ate?^BA Rotten Bandage. On a dare.^AWho dared you?^BMe. I was bored.",
+		"AI think my sword likes you better than me.^BSwords don't like people, {a}.^AThen why does it miss every time I swing?",
+		"AHave you ever lost a fight to a Rocker?^B...Define lost.^AYou have.^BIt was raining. They're stronger in the rain.",
+		"AI'm practicing my victory pose.^BShow me.^A*strikes a pose*^BYou look like you're sneezing.",
+		"AWhat's the first thing you notice about people?^BTheir weapon.^AI notice their shoes.^BWhy shoes?^AYou can tell how far they've walked.",
+		"AI made a list of everything I'm afraid of.^BHow long?^ATwo pages. You're on it.^BMe?!^AThat time with the Fire Wall.",
+		"AIf the {t} gave a speech, what would they say?^BNothing. They'd just walk off and expect us to follow.^AAnd we would.^BAnd we would.",
+		"AI think I'm finally used to the Fly Wing feeling.^BThe drop in your stomach?^AThe drop in my stomach.^BYou never get used to that, {a}.",
+		"ADid you see the sunset yesterday?^BI was busy being chased by Wolves.^AIt was a beautiful sunset, though.",
+		"AWhat's your lucky number?^BSeven.^AWhy?^BI got a +7 once. Then I stopped refining forever.",
+		"AI tried to refine my boots.^BAnd?^AThey're... gone.^BThe smith keeps a museum of everything he broke, you know.^AI'm in the museum now.",
+		"AWhy is every chest in a dungeon guarded by something with teeth?^BSecurity.^AWhy can't they just use a lock?^BThe teeth ARE the lock.",
+		"ALet's swap weapons for a day.^BNo.^AWhy not?^BLast time you held my weapon, you named it Steve.",
+		"AI'm saving up for a house.^BHow much do you have?^ATwelve zeny.^B...Small house?^AVery small. Mostly door.",
+		"AHow do you always know which way is north?^BMoss on the trees.^AThere are no trees in here.^BThen I'm guessing. Confidently.",
+		"AI think I hear the {t} laughing at us.^BGood. They need it.^AThey do, don't they?",
+		"AYou never tell stories about yourself, {a}.^BThere's not much to tell.^AThere's always something.^B...Maybe someday.",
+		"AThe smell of a dungeon never leaves your clothes.^BThat's why I wash mine twice.^AThat's why you smell like soap and Zombies.",
+		"AWhat's the bravest thing you've ever done?^BTold the Kafra her hat was crooked.^AAnd you lived?^BBarely.",
+		"AI could take a nap right here.^BWe're standing in a swamp, {a}.^AStill could.",
+		"AOne day I'll ride a Peco Peco.^BYou'll fall off.^AThen I'll fall off a Peco Peco. Still counts.",
+		"AWhy do monsters drop money?^BWhere else would they keep it?^AFair point.^BPockets are hard with tentacles.",
+		"AHow many times have we saved the world this week?^BZero.^AFeels like more.^BWe killed a lot of Willows. That's not saving the world.",
+		"AYou're quiet today.^BI'm thinking.^AAbout what?^BWhether Spores feel embarrassed when they lose.",
+		"ADo you believe in fate, {a}?^BI believe in Yggdrasil Leaves.^AThat's not an answer.^BIt's a practical answer.",
+		"AI wish we had a party song.^BWe have a party song.^AWe do?^BIt's the sound of the {t} shouting Run.",
+		"AMy back hurts.^BYou're carrying forty Red Potions.^AThey're for emergencies.^BYour back is the emergency.",
+		"AWhat's your favorite color?^BThe color of a rare drop.^AThat's not a color.^BIt's a feeling, {a}. A beautiful feeling.",
+		"AHave you noticed we walk in a line?^BSo?^ALike ducklings.^BSpeak for yourself.^AYou're the third duckling.",
+		"AI think the {t} has a plan.^BThey always have a plan.^ADo you know it?^BNo. That's the best part.",
+		"AI'm keeping a tally of how often you say we're lost.^BWe ARE lost.^AThat's thirty-one.",
+		"AWhat would you name a pet Poring?^BJelly.^AToo obvious.^BMr. Bounce.^A...Better.",
+		"AI'm going to be famous someday.^BFor what?^AI haven't decided.^BStart small. Be famous in Izlude.",
+		"AI found a four-leaf clover.^BMake a wish.^AI wished for a card.^BWell?^AI got a Jellopy. Close enough.",
+		"ADo you ever practice what you'll say if we meet a king?^BHello, king.^AThat's it?^BHe's busy. Kings like short.",
+		"AI hate waiting.^BWe're adventurers. It's ninety percent waiting.^AAnd ten percent?^BRunning.",
+		"AThat monster looked at me funny.^BThey all look at you funny, {a}.^AThat's very hurtful.^BIt's the hat.",
+		"AI think I'm getting a cold.^BTake a Green Herb.^AFor a cold?^BFor everything. It's green. Green fixes things.",
+		"AWhat do you think about before a fight?^BNot dying.^AI think about lunch.^BThat explains a lot, {a}.",
+		"AWhy do the {t}'s boots never get muddy?^B...They don't, do they?^AI've been watching. Spotless.^BAnother world thing.",
+		"ATell me something you've never told anyone.^BI can't whistle.^AEveryone can whistle.^BNot me. I've tried for years.",
+		"AWe should start a club.^BFor what?^APeople who've been hit by a Hydra.^BThat's everyone, {a}.",
+		"AI'm writing a letter home.^BWhat are you telling them?^AThat I'm eating well.^BYou ate a mushroom off a monster yesterday.^AWell, I'm eating.",
+		"AYou ever think about retiring?^BEvery day around noon.^AAnd then?^BAnd then the {t} finds something shiny and off we go.",
+		"AI learned to cook a new dish.^BWhat's it called?^AFried Something.^BWhat's the something?^AYou don't want to know.",
+		"AWhat do you call a group of Porings?^BA problem.^AI was going to say a bouquet.^BA bouquet of problems.",
+		"AI fixed my armor with string.^BDoes it hold?^AAs long as nothing hits me.^BGreat plan for a fighter, {a}.",
+		"AWhy do you always stand on my left?^BSo I can watch your blind spot.^AI have a blind spot?^BYou have several.",
+		"AI'm learning to read the stars.^BWhat do they say?^AThat we'll have a good day.^BDo they say that every day?^AThey're very optimistic stars.",
+		"ADid you hear about the new hat in town?^BWhich one?^AIt has ears. Bunny ears.^BWe are not buying bunny ears.^AThe {t} might.",
+		"AI'm sorry I snapped at you earlier.^BYou were tired.^AStill.^BWe're fine, {a}. We're always fine.",
+		"AWhy are there so many Thief Bugs in the sewers?^BGood rent.^AThey don't pay rent.^BExactly. Great rent.",
+		"AI wonder what the monsters say about us.^BHere come those idiots again.^AThat's harsh.^BThat's what I'd say.",
+		"AI'm so tired I could sleep standing up.^BYou did, an hour ago.^AWhat?^BWhile the {t} was shopping. You snored.",
+		"AHow do you stay so calm in a fight?^BI count my breaths.^AHow high do you get?^BUsually four. Then I scream.",
+		"AWe should rest by the river.^BRivers have Piranhas.^AWe should rest NEAR the river.^BThat I can do.",
+		"AI'm proud of us.^BFor what?^ANot giving up.^B...Me too, {a}.",
+		"AIf you could change one thing about Midgard, what would it be?^BCheaper potions.^AI'd make Porings friendly.^BThey ARE friendly. They're just bad at it.",
+		"AThe {t} handed me their sword to hold.^BAnd?^AI didn't drop it.^BProud of you, {a}.",
+		"AWhere do you think the wind comes from?^BThe sea.^AI think it's the Valkyries flying past.^BWhy do I ask you things.",
+		"AYou have a leaf in your hair.^BWhere?^ALeft. No, your left.^B...Is it gone?^AIt's a different leaf now.",
+		"AI've decided I'm a morning person.^BSince when?^ASince today.^BIt's afternoon, {a}.",
+		"AIs it weird that I talk to my weapon?^BWhat does it say back?^ANothing. It's a good listener.",
+		"AI found a coin with Rune-Midgard on one side and nothing on the other.^BLet me see.^AWell?^BHalf a kingdom. Still worth something.",
+		"AI can't believe how far we've come.^BIn distance or in skill?^ABoth.^BMostly distance. My feet agree.",
+		"AWho taught you to fight, {a}?^BA grumpy old man in Izlude.^AWas he good?^BHe was grumpy. That was most of the lesson.",
+		"AI just realized something.^BWhat?^AWe've never lost the {t}.^BOh, we've lost them. They just always find us.",
+		"AWhat's that sound?^BMy stomach.^AIt sounds like a Bigfoot.^BIt feels like one too.",
+		"AWhy do monsters always come in threes?^BBecause twos are boring.^AAnd fours?^BFours are a party. Like us.",
+		"AThe {t} fixed my helmet without saying anything.^BThey do that.^AWhen?^BWhile you were asleep. It's a whole thing.",
+		"AWe need a secret handshake.^BNo, we don't.^ABut what if we meet a fake us?^B...Fine. One handshake.",
+		"AI made a wish on a shooting star.^BWhat for?^AThat my next refine works.^BThe stars don't control refines, {a}.^AThen who does?^BNobody. That's the problem.",
+		"AI swear that Poring followed us from the last map.^BPorings can't change maps.^AThis one's very determined.",
+		"AI owe you a meal.^BYou owe me four meals.^AI owe you a meal, four times.",
+		"AWhat if we're the strongest party in Midgard?^BWe lost to a Hornet yesterday.^AThe strongest party with a Hornet weakness.",
+		"AMy feet are speaking to me.^BWhat are they saying?^ARude things, {a}. Very rude things.",
+		"AI like the sound of rain on a tent.^BWe don't have a tent.^AI like imagining it.",
+		"AWhy does the {t} never sit on chairs?^BThey sit on the ground like the rest of us.^AHumble.^BOr they don't know where the chairs are.",
+		"AI've been practicing my battle cry.^BLet's hear it.^AHyaaa!^BThat was a sneeze.^AIt was a battle sneeze.",
+		"AI'm grateful for this, you know.^BFor what?^AWaking up with somewhere to go.^B...Yeah. Me too.",
+		"AI want a cape that flutters dramatically.^BYou'd trip on it.^AI'd trip DRAMATICALLY.",
+		"AHow many monsters do you think live in Midgard?^BMore than yesterday.^AWhy?^BThey respawn, {a}. They always respawn.",
+		"AYou ever wonder why we fight?^BFor the {t}.^ABefore the {t}?^B...I don't remember much before the {t}.",
+		"AI've got a good feeling about today.^BYou said that yesterday.^AAnd yesterday was good!^BYou fell in a well.",
+		"AI think I finally understand the {t}.^BReally?^ANo. But I like them anyway.",
+		"AWhat's your favorite sound in the world?^BA monster dropping something shiny.^AMine is the {t} saying good job.^B...Okay, yours is better.",
+		"ALet's get some rest.^BHere?^ANext to the {t}. It's the safest place in the world.";
+
+	// Nods to the isekai stories (another world, a goddess, a second life).
+	setarray .egg_isekai$,
+		"AI want to learn one spell. Just one. The biggest one.^BAnd then?^AAnd then I fall over and somebody carries me home.^BThat's not a strategy, {a}.^AIt's a lifestyle.",
+		"AIf a goddess ever drops me in another world, I'm taking her with me.^BWhy?^ASo I can complain to someone in charge.",
+		"AIf I ever wake up in another world, the first skill I'm learning is Steal.^BYou already have Steal, {a}.^AThen I'm ready for anything.",
+		"AI could swear I've lived this exact day before.^BDeja vu?^AWorse. I keep remembering the part where it goes wrong.^BThen don't take the left tunnel.^A...Noted.",
+		"AIf you could start over from a save point, would you?^BEvery time I miss a refine.^AThat's not what I meant.^BIt's what I meant.",
+		"AWhat if we got reborn as a slime?^BLike a Poring?^AA very ambitious Poring. One that eats everything and becomes king.^BPorings already eat everything.",
+		"AI think Porings are secretly the strongest monster.^BThey're the weakest.^AThat's what they WANT you to think.",
+		"AWhere's the log-out button on this world?^BThere isn't one.^A...Great. Then we'd better clear the top floor.^BWhat top floor?^AIt's a figure of speech. I hope.",
+		"ATwo swords. That's my dream.^BYou can barely hold one.^AThat's why I need the second. Balance.",
+		"AWhat if the strongest ruler in the world was secretly a nervous guy in a skeleton costume?^BThat's oddly specific.^AGlast Heim has a lot of skeletons.^BAnd none of them are nervous, {a}.",
+		"AI'd make a great dark lord.^BYou apologize to doors when you bump into them.^AA polite dark lord.",
+		"AWhat if every war was settled with a game instead?^BLike cards?^AOr rock paper scissors.^BThe {t} would rule the world in an afternoon.",
+		"AI never lose at games.^BYou lost to a Poring at hide and seek.^AIt was hiding in a bush. Of Porings.",
+		"AImagine being summoned as a hero and only getting a shield.^BI'd be thrilled. Shields are great.^AYou'd get attacked by balloons all day.^BBalloons are terrifying, {a}. Have you seen a Marin?",
+		"AI'm going to do it right this time. Train early, study hard, be kind.^BThis time?^A...Figure of speech.^BYou keep saying that like you've lived twice.",
+		"APromise you won't go solo on a dungeon floor again.^BIt was ONE time.^AThe guild still talks about it.^BThe guild talks about everything, {a}.",
+		"AIf a goddess picked me as her only follower, I'd never let her down.^BWhat if she lived in a tiny church?^ATiny churches are cozy.",
+		"AWhat if the {t} came from a world where all of this was a game?^BThen we'd be...^ACharacters.^BI refuse. I'm a person with feelings and an inventory.",
+		"AI read a book where people got stuck in a world and started a guild to fix the food.^BFix it how?^AMake it taste like something.^BWe need that guild here, {a}.",
+		"AIf I ever die and wake up at the last inn, I'm doing everything differently.^BLike what?^ABuying more potions. And not talking to strange cults.^BGood rules, {a}.",
+		"ADo you think the {t} got here by being hit by a runaway cart?^BThat's horrible.^AThat's how it happens in the stories.^BWhat stories are you reading, {a}?",
+		"AIn the stories, the hero always has a cheat skill.^BWhat's the {t}'s?^ANever giving up.^BThat's not a cheat.^AIt is when you do it every single time.",
+		"AHave you ever wished you could see your own stats floating in the air?^BThe {t} does that.^AWhat?^BThey stare at nothing and move their fingers. I think they're reading.",
+		"AIf a goddess came with us, she'd be really useful.^BOr she'd cry and spend all our zeny on drinks.^A...You've met a goddess?^BI've met a lot of Priests.",
+		"AImagine a king who acts confident so nobody finds out he has no idea what he's doing.^BThat's every king, {a}.^A...That explains a lot.",
+		"AI wish I had a voice in my head that answered every question.^BYou have me.^AA SMART voice.^B...Wow.",
+		"AShould I wear all black? Long coat, two swords, very serious?^BYou'd overheat in Morroc.^AHeroes don't sweat.^BYou sweat looking at stairs, {a}.",
+		"ALet's be adventurers in disguise. Fake names, fake armor, secretly the strongest.^BWe're already in disguise.^AAs what?^BAs a very average party.",
+		"AI met a Crusader who wanted to get hit.^BWanted?^ALike, really wanted. She looked happy about it.^BEvery tank is a little like that, {a}.",
+		"AWhat if you got reborn as a baby but kept all your memories?^BI'd be the smartest baby in Payon.^AYou'd be the loudest baby in Payon.",
+		"AA blue-haired maid saved my life once.^BReally?^AIn a dream.^BThat's not real, {a}.^AIt felt real. She had a flail.",
+		"ATwo players who never lose a game, as long as they're together.^BLike us?^AWe lose a lot, {a}.^BBut together.",
+		"AWhy do heroes from other worlds always end up with a big party of admirers?^BThe {t} has us.^AWe're not admirers.^B...Speak for yourself.",
+		"AWhat if you got reborn as a goblin and worked your way up?^BI'd become the best goblin.^AThe goblin king?^BThe goblin who finally gets a bath.",
+		"AWhat if you woke up as a spider in a dungeon?^BI'd scream.^ASpiders can't scream.^BThen I'd scream on the inside, {a}.",
+		"AThe first quest in every story is frogs.^BGiant frogs.^AWhy is it always frogs?^BBecause they swallow the new guy. It's tradition.",
+		"AWhat if the guards in Prontera were secretly overpowered and just waiting for orders?^BThey'd still say Welcome to Prontera.^AMenacingly.",
+		"AEvery dungeon should have a boss room with a big door and a timer.^BDungeons have Baphomet.^AThat's not a timer, that's a scythe.",
+		"AThe best teachers are the ones who are a little bit of a disaster.^BThat's why you learned so much from me.^AI didn't say you, {a}.^BYou were thinking it.",
+		"AWhat if you got reborn as a vending machine?^BThe merchants would love me.^AYou'd be the most loved thing in Prontera.^B...Honestly tempting.",
+		"AIf I named a monster, would it get stronger?^BName a Poring and find out.^AI name you Sir Bounceworth.^B...It's not glowing.",
+		"AWhat if I'm secretly a hero stuck at level one, and my stats are hidden?^BYou're level fifty, {a}.^AHidden stats.",
+		"AIf I got summoned to another world, I'd want to bring something useful.^BLike a sword?^AMy pillow.^BThat's the most honest answer I've ever heard.",
+		"AHave you noticed food in other worlds is always bland until a hero shows up?^BThe {t} hasn't cooked once.^AThat's how we know they're a real hero. They let us suffer.",
+		"ASometimes I feel like someone else is choosing where I walk.^BThat's the {t}, {a}.^A...Right. Of course.";
+
+	// Rune-Midgard's own legends.
+	setarray .egg_lore$,
+		"ADo you believe the old stories about the Ragnarok? Gods falling, the world ending?^BIt already ended once.^AAnd?^BAnd here we are, buying potions. Life goes on.",
+		"AThey say Yggdrasil holds up the whole world.^BThen who holds up Yggdrasil?^A...Don't ask questions like that before bed, {a}.",
+		"AI heard Glast Heim was a beautiful city, once.^BBefore the curse?^ABefore everything. Knights, a castle, music.^BNow it's mostly music from bones.",
+		"AWhy does every adventurer end up going to Glast Heim?^BBecause it's there.^AThat's a terrible reason.^BThat's every reason, {a}.",
+		"AThe sages in Juno say the city floats on the heart of a giant.^BYmir's Heart.^AA giant's heart. Holding up a library.^BScholars have weird priorities.",
+		"AHave you heard of Morroc?^BThe desert city?^ANo. The other Morroc. The one with wings and a bad temper.^B...Let's not talk about that one, {a}.",
+		"AThe Valkyrie chooses the bravest to rise again. That's what rebirth is.^BSo the {t} met her?^AI think so. There's something different in their eyes.",
+		"AOdin gave an eye for wisdom.^BI'd give an eye for a good card.^A{a}!^BA small eye. A spare one.",
+		"AIn Geffen, the tower is full of wizards who failed their exam.^BReally?^ANo. But that's what I tell new mages.^BYou're a menace, {a}.",
+		"AThe Kafra Corporation has offices in every town. Even the dangerous ones.^BHow do they stay safe?^ANobody attacks a Kafra.^BWhy not?^ANobody knows. Nobody wants to find out.",
+		"AI heard Lighthalzen is run by a company, not a king.^BRekenber.^AWhat do they make?^BEverything. And some things nobody should make.",
+		"AThe labs under Lighthalzen are where people go missing.^BWho told you that?^AA man in Lighthalzen. He was very nervous.^BThat's a bad sign, {a}.",
+		"AThe church in Rachel says the goddess Freya speaks through a girl.^BDo you believe it?^AI believe somebody's listening up there.^BThat's a good answer.",
+		"AThey say Thanatos Tower is one soul's sorrow, built into stone.^BOne soul?^AOne soul's grief, made into a whole tower.^B...That's the saddest thing I've ever heard.",
+		"AWhy does the clock tower in Al De Baran have monsters in it?^BClocks are cursed.^AAll clocks?^BAll clocks, {a}. Have you seen how they look at you?",
+		"ANiflheim is the land of the dead. You can walk there.^BWhy would you?^AThe apples are supposed to be very good.^BDead apples, {a}?",
+		"AI heard Hel herself rules Niflheim.^BThen let's be very polite there.^AWe're polite everywhere.^BEven more polite. Bring a gift.",
+		"AThe Turtle General built a whole island.^BOut of what?^ATurtles. Loyal ones.^BThat's the most dedicated army I've ever heard of.",
+		"AThey say the Dark Lord waits deep in Glast Heim for someone strong enough.^BHe can keep waiting.^AFor how long?^BAt least until I've had lunch.",
+		"AThe Lord of Death rides in Niflheim. You hear the horse first.^BWhat do we do if we hear it?^ARun.^BGood plan, {a}.",
+		"AThe Orc Village has a hero, you know. Their own.^BOrcs have heroes?^AEveryone has heroes. Even Orcs.^B...Now I feel bad for hunting them.",
+		"APayon's archers say the forest spirits taught their ancestors.^BAnd now?^ANow the forest spirits are mostly Smokies.^BA decline, then.",
+		"AAmatsu's cherry trees never stop blooming.^BThat's impossible.^AIt's Amatsu. Impossible is their whole thing.",
+		"AI went to Comodo once. The caves glow at night.^BMagic?^ABards. They sing so much the rocks started glowing back.",
+		"AHave you seen Juperos? A whole city made of machines.^BWho built it?^ANobody remembers. That's the scary part.^BThe machines remember, {a}.",
+		"AEinbroch's air is so thick you could chew it.^BThat's the factories.^AI chewed it. Do not recommend.",
+		"AThe Schwarzwald Republic doesn't have a king.^BThen who's in charge?^AA president. Voted in.^BCan we vote out a Poring infestation?",
+		"AKing Tristan rules Rune-Midgard from Prontera.^BHave you seen him?^ANever. Just guards who say welcome.^BMaybe the guards ARE the king. Taking turns.",
+		"AThe Sograt Desert used to be green, a long time ago.^BWhat happened?^AA war between gods.^BAnd now the sand's in my boots. Thanks, gods.",
+		"AThe story goes that heroes sealed Satan Morroc away long ago.^BAnd the seal?^AWeakening.^BEverything in this world is either weakening or respawning, {a}.",
+		"AThe Abyss Lake is supposed to be where dragons sleep.^BSleep?^ASleep. Let's keep it that way.",
+		"AIn Louyang they say the peaches grant long life.^BThen why don't they eat them?^AThey do. That's why they're all so old.",
+		"AThere's a Christmas town up north. Lutie. Snow all year.^BAll year?^AAnd toys that bite.^BThat's every holiday I've ever had, {a}.",
+		"AIzlude has an arena where people fight for glory.^BAnd the prize?^AGlory.^BI'll pass. Glory doesn't buy potions.",
+		"AThe Guardian Stones in a guild castle can stop an army.^BHave you seen one?^AOnce. It was very stern for a rock.",
+		"AHugel has the best fishing in Midgard.^BI've never fished.^AYou hold a stick and wait.^BI do that every fight, {a}.",
+		"AWhy are there so many Mummies in the Pyramids?^BThe Pharaoh wanted company.^AThat's sad and creepy.^BAncient kings were like that.",
+		"AThey say the first Kafra just wanted people to stop carrying so much stuff.^BA true hero.^AThe truest.",
+		"AWhat's in the Sunken Ship off Alberta?^BA drowned captain and his gold.^AThat's a lot of gold for a ghost.^BGhosts can't spend it. That's the tragedy.",
+		"AThe Biolabs make copies of famous adventurers.^BCopies?^AMonsters with their faces and their skills.^BImagine fighting yourself.^AI'd win. I know all my weaknesses.^BSo would the copy, {a}.",
+		"AThe Valkyrie Randgris guards Odin's temple.^BIs she nice?^AShe's very... thorough.^BThat means no, doesn't it.",
+		"AWhy do they call it Rune-Midgard?^BBecause of the runes.^AWhat runes?^BThe ones nobody can read anymore. That's why they're important.",
+		"AThe Ant Hell is called that for a reason.^BThe ants?^AThe hell.^BMostly the ants, {a}.",
+		"AThey say Ymir was a giant whose body became the world.^BSo we're walking on him?^AOn him. In him. Around him.^B...I'm going to apologize to the ground.",
+		"AAyothaya's river has a spirit in it.^BA nice one?^AThe kind that eats people who disrespect the river.^BRespect the river. Got it.";
+
+	// What-ifs: the NPCs, the monsters, the world, thought about too hard.
+	setarray .egg_npc$,
+		"AWhat if all the Kafra ladies are the same person?^BThey have different names.^AThat's exactly what she'd want you to think.",
+		"AThe guard at the Prontera gate says Welcome to Prontera every single day.^BIt's his job.^AWhat if one day he says something else?^BThe world would end, {a}.",
+		"AWhat if monsters respawn because they also have a save point?^B...That would make them us.^AAnd us them.^BI need to sit down.",
+		"AThe Tool Dealer never sleeps.^BMaybe he sleeps standing.^AI've checked. His eyes are always open.^B...Let's buy our potions somewhere else.",
+		"AWhat if the Porings are farming us?^BFor what?^AJellopy. We carry it for them.^BAnd then we sell it back to... oh no.",
+		"ADo you think the people in town know they're NPCs?^BWhat's an NPC?^AThe {t} said it once. About the man who sells arrows.^BHe seemed offended, {a}.",
+		"AWhat if the old man in Izlude has been training swordsmen for three hundred years?^BHe does look tired.^AHe looks exactly the same as when my father trained there.^BThat's... unsettling.",
+		"AThe refiner breaks things for a living.^BHe fixes things too.^AOnce in a while. Mostly he breaks.^BWhat a job, {a}.",
+		"AWhat if a Fly Wing is just a chicken who really wants you to leave?^B...I'm never using one again.^AYou'll use one in five minutes.",
+		"AWhy do the Kafras always smile?^BCustomer service.^AWhat if they've seen something?^BLike what?^AEverything. They've teleported EVERYONE.",
+		"AIf a Poring dies and comes back, is it the same Poring?^BI don't know.^ADoes it remember me?^BIt's been bouncing at you angrily for ten minutes, {a}. I think yes.",
+		"AWhat if the shopkeepers raise prices when we walk in?^BThey do.^AI knew it.^BIt's the {t}. They look rich.",
+		"AThe bard in Prontera has played the same song since I was a child.^BMaybe it's a very long song.^AThree hundred verses?^BAt least.",
+		"AWhat if the dungeon is shy and that's why it's dark?^BDungeons aren't shy.^AThen why do they hide all the good stuff in the back?",
+		"AWhat if Yggdrasil Leaves grow back because the tree feels bad for us?^BA pity leaf.^AI've been revived by pity.^BStill counts, {a}.",
+		"AThe innkeeper says the beds are cozy every single time.^BThey are cozy.^AHe says it to EVERYONE. What if he's stuck?^B...Next time, let's say something nice back.",
+		"AWhat if the monsters at the training grounds are just actors?^BActors?^AThey fall down a lot. Very dramatically.^BThey're Porings, {a}. They fall down because they're round.",
+		"AWhat if we stopped walking and the world kept going without us?^BIt would.^AThat's sad.^BOr freeing. Depends on lunch.",
+		"AWhere do the guards go at night?^BThey don't.^AThey never leave?^BI've never seen a guard leave, {a}. Not once.^A...I'm scared now.",
+		"AWhat if the Marin is a Poring that went to the beach and never came back?^BThat's actually what happened.^AReally?^BNo. But now you'll never forget it.",
+		"AWhat if Drops are Porings with a sunburn?^BYou're doing this on purpose.^AAnd Poporings ate something bad.^BPlease stop, {a}.",
+		"AWhat if the quest board writes itself?^BSomeone pins those up.^AI've never seen anyone pin anything.^BMaybe the board pins itself.^A...Now you're scaring ME.",
+		"AWhere do all the arrows we shoot go?^BThey land.^AAnd then what? I never see them again.^BSome Rocker's very rich in arrows, {a}.",
+		"AWhy does every NPC give us a job instead of doing it themselves?^BThey're busy.^ADoing what? Standing?^BImportant standing.",
+		"AWhat if Baphomet just wants friends?^BHe has a scythe.^ASo does a farmer.^BA farmer doesn't summon his children to chop you, {a}.",
+		"AWhat if a monster dreams about being an adventurer?^BAnd we're its nightmare.^A...That's deep.^BI have my moments.",
+		"AThe girl outside the church has asked me for help six times.^BDid you help?^ASix times. Same problem.^BMaybe she likes you, {a}.",
+		"AWhat if we're the monsters in someone else's story?^BTo the Porings, we are.^A...I'm going to hug a Poring.^BIt'll bite you.",
+		"AWhat if the {t} can see little numbers over our heads?^BLike what?^AHow much we like them.^BThen mine's very high.^AMine's higher.^BIt's not a competition, {a}.",
+		"AWhat if the Warp NPC just pushes you really, really hard?^BThat's not how it works.^AYou don't know how it works.^B...I don't know how it works.",
+		"AI think the Kafra knows every adventurer's secrets.^BShe holds our storage.^AExactly. She's seen my sock collection.^BYour WHAT, {a}?",
+		"AWhy do Mandragoras scream?^BBecause they're stuck in the ground.^AI would scream too.^BYou scream when you're stuck in a conversation.",
+		"AWhat if cards are monsters' souls?^BThen I've collected a lot of souls.^AYou've collected one Fabre Card.^BA very small soul.",
+		"AThe man who makes Swordsmen is so intense.^BHe's devoted.^AHe asked me if I was ready to bleed.^BWere you?^ANo. I said yes anyway.",
+		"AWhat if Zombies just want a hug?^BThey do. That's the problem.^AA hug that eats you.^BThe worst kind of hug, {a}.",
+		"AWhat if the {t} talks to us when we're not listening?^BAbout what?^AThings like nice job and stop dying.^BI've heard the second one. Often.",
+		"AWhat if Peco Pecos are just giant angry chickens?^BThey are.^AI was hoping you'd say no.^BI never lie about chickens, {a}.",
+		"ADo you think the Novice grounds remember everyone who trained there?^BThe Porings do.^AThey hold grudges.^BGenerational grudges.",
+		"AWhat if Midgard is a snow globe and someone keeps shaking it?^BThat would explain the earthquakes.^AAnd Lutie.^BAnd Lutie, {a}.",
+		"AIf a tree falls in a forest and only a Smokie hears it, does it count?^BThe Smokie thinks so.^AThe Smokie thinks everything counts. It counts leaves.^BIt's a very busy Smokie.";
+
+	// More pairs by personality (A is always the lower number).
+	setarray .pc_0_0$, "AI'm going to be a hero!^BNo, I'm going to be a hero!^AWe can both be heroes.^BI'll be the bigger hero.",
+		"ADo you know what we're doing?^BNo. Do you?^ANo.^BOkay. Let's just follow the {t}.";
+	setarray .pc_0_3$, "ACan you teach me a song?^BSure. It goes la la la.^AThat's it?^BThe rest you make up as you walk.",
+		"AHave you really been everywhere, {a}?^BAlmost everywhere.^AWhat's the best place?^BThe next one. Always the next one.";
+	setarray .pc_0_7$, "AHow do I get rich, {a}?^BBuy low, sell high.^AWhat do I buy?^BWhatever I'm selling.",
+		"AI found this on the ground. Is it worth a lot?^BIt's a rock.^AA valuable rock?^BI'll give you one zeny for it.^A...Deal!";
+	setarray .pc_1_1$, "AYou held the line well today.^BAs did you.^AWe should guard the {t} in shifts.^BWe should guard them together. Always.",
+		"AYour shield has a new dent.^BYour armor has three.^A...Let's not tell the {t}.";
+	setarray .pc_1_2$, "AI'll protect you while you cast.^BI'll try not to set you on fire.^ATry?^BMostly not, {a}.",
+		"AWhy do you need so many books?^BWhy do you need so much armor?^AArmor keeps me alive.^BBooks keep me interesting.",
+		"AStand behind me during the spell.^BThe spell goes in front.^ABehind me is safer.^BFor whom?^A...For you, {a}. Always for you.";
+	setarray .pc_1_3$, "AYou always keep your distance in a fight.^BSomeone has to see the whole field.^AAnd that's you?^BYou see the monster's teeth. I see everything else.",
+		"AWrite a song about a knight's honor.^BHow about a knight who forgot his helmet?^AThat never happened.^BIt's going to happen in the song, {a}.",
+		"AStay behind me when they charge.^BI'll be on that hill with the good view.^AThat hill is very far away.^BThat's why it's a good view.";
+	setarray .pc_2_2$, "AYour theory on mana flow is wrong.^BYour theory is wrong.^AShall we test it?^BOn a Poring?^AOn a Poring.",
+		"AI've read every book in Geffen.^BNot the forbidden ones.^A...What forbidden ones?^BExactly, {a}.";
+	setarray .pc_2_7$, "AYour pricing makes no sense.^BIt makes zeny.^AThat's not a model.^BIt's the only model, {a}.",
+		"AHow much for that old book?^BFor you? A thousand zeny.^AIt's a cookbook.^BA magical cookbook.^AIt says How to Boil an Egg.^BMagically.",
+		"AWhat if we combined magic and trade?^BEnchanted goods. Double the price.^AI was thinking teleport delivery.^B...Triple the price.";
+	setarray .pc_3_3$, "AWhere to next?^BWherever the wind goes.^AThe wind is blowing toward the inn.^BThe wind is very wise.",
+		"AI'll take the high note.^BI'll take the low.^AThe {t} is covering their ears.^BThat means it's working.";
+	setarray .pc_3_4$, "AYou heal people, I sing to them. We're basically the same.^BMy heals stop bleeding.^AMy songs stop crying.^B...Okay. That's fair.",
+		"ADo you ever get tired of healing us?^BNever.^AEven when I fall off a cliff?^BEspecially then. You do it so often, I've gotten good.",
+		"ASing with me, {a}. Just once.^BI only know hymns.^AThen sing a hymn. I'll make it catchy.";
+	setarray .pc_3_5$, "AWant to race to that tree?^BYou're on!^A...I'll wait here. You go.^BYou tricked me!",
+		"AHow do you punch so hard?^BBreakfast.^AThat's it?^BBreakfast and a lot of walls.";
+	setarray .pc_4_4$, "AYou heal the front, I'll heal the back.^BAnd who heals us?^AThe goddess. And Red Potions.^BMostly Red Potions.",
+		"ADid you pray today?^BTwice.^AI only managed once.^BI prayed for you too. You're covered.";
+	setarray .pc_5_5$, "AArm wrestle?^BRight now?^ARight now!^BYou're on! Loser carries the potions!",
+		"AHow many push-ups today?^BTwo hundred.^ATwo hundred and one.^B...Two hundred and two.";
+	setarray .pc_5_6$, "AWhy do you sneak when you could just punch?^BWhy do you punch when you could just sneak?^A...Punching is louder.^BExactly.",
+		"AYou stole my food.^BYou left it unattended.^AI was eating it.^BYou looked away. Mid-bite.";
+	setarray .pc_6_6$, "AI saw you take that.^BI saw you see me.^AThen we both saw nothing.^BAgreed.",
+		"AWho's the better thief?^BMe.^AThen where's your coin purse?^B...Give it back, {a}.";
+	setarray .pc_7_7$, "AI'll sell you this sword for 5000.^BI'll buy it for 2000.^A4000.^B2500.^AAnd a Red Potion.^BDeal.",
+		"AHow's business?^BGrowing.^AMine too.^BLet's not compete.^AAgreed. Let's charge the {t} together.";
+	setarray .pc_0_1$[getarraysize(.pc_0_1$)], "AWill you be there if I get scared?^BAlways.^AEven if it's a Poring?^BEspecially if it's a Poring, {a}.";
+	setarray .pc_0_2$[getarraysize(.pc_0_2$)], "AWhat's the most important thing to learn?^BHow to learn.^A...That's confusing.^BThat's the first lesson.";
+	setarray .pc_0_4$[getarraysize(.pc_0_4$)], "AI fell down again.^BI saw. Let me heal you.^AIt doesn't hurt.^BThen let me heal your pride.";
+	setarray .pc_0_5$[getarraysize(.pc_0_5$)], "AYou're so strong, {a}!^BYou'll be strong too!^AHow?^BEat! Train! Punch! Repeat!";
+	setarray .pc_0_6$[getarraysize(.pc_0_6$)], "ACan you teach me to pick a lock?^BNo.^APlease?^B...Maybe a small lock. A practice lock.";
+	setarray .pc_1_4$[getarraysize(.pc_1_4$)], "AYou always stand so far back.^BSo I can see everyone.^AThen I'll stand in front. You'll always see me first.";
+	setarray .pc_1_5$[getarraysize(.pc_1_5$)], "AYou fight without a shield?^BMy fists are my shield.^AThat's not how shields work, {a}.^BWorks for me.";
+	setarray .pc_1_6$[getarraysize(.pc_1_6$)], "AYou disappear in every fight.^BI reappear behind the enemy.^AThat's... actually useful.^BThanks for noticing, {a}.";
+	setarray .pc_1_7$[getarraysize(.pc_1_7$)], "AYou sold my old shield.^BYou left it unattended.^AIt was on my back!^BTechnically unattended.";
+	setarray .pc_2_3$[getarraysize(.pc_2_3$)], "AYou could learn magic, you know.^BI do. Music is magic.^AThat's not scientifically accurate.^BTell that to the Porings dancing.";
+	setarray .pc_2_4$[getarraysize(.pc_2_4$)], "AHow does Resurrection actually work?^BFaith.^AAnd?^BAnd very good timing, {a}.";
+	setarray .pc_2_5$[getarraysize(.pc_2_5$)], "AI calculated that punching costs less mana than casting.^BI told you!^AIt also costs your knuckles.^BKnuckles heal!";
+	setarray .pc_2_6$[getarraysize(.pc_2_6$)], "AWhy are you reading over my shoulder?^BYou write interesting things.^AIt's a spell formula.^BI know. I'm learning it.";
+	setarray .pc_3_6$[getarraysize(.pc_3_6$)], "AYou'd make a great bard.^BWhy?^AYou already know every tavern's back door.^BThat's for business, {a}.";
+	setarray .pc_3_7$[getarraysize(.pc_3_7$)], "AHow much would you pay for my song?^BHow long is it?^AEleven minutes.^BI'd pay you to stop at four.";
+	setarray .pc_4_5$[getarraysize(.pc_4_5$)], "AYou're bleeding.^BIt's just a scratch.^AYou're bleeding a LOT, {a}.^BIt's a big scratch.";
+	setarray .pc_4_6$[getarraysize(.pc_4_6$)], "AWhy do you always come to me when you're hurt?^BYou're the only one who doesn't ask questions.^AI ask a lot of questions.^BNot the bad ones.";
+	setarray .pc_4_7$[getarraysize(.pc_4_7$)], "AYou're charging me for potions now?^BFriends and family discount.^AWhat's the discount?^BI smile while I charge you.";
+	setarray .pc_5_7$[getarraysize(.pc_5_7$)], "AWhat's the strongest thing you sell?^BA Heavy Knuckle.^AHow heavy?^BHeavy enough that nobody can lift it, {a}. That's why it's still here.";
+	setarray .pc_6_7$[getarraysize(.pc_6_7$)], "AI'll get you anything you want, {a}. For a price.^BAnd where will you get it?^ADon't ask.^BI never do. It's good for business.";
+
+	// More about the moment.
+	setarray .cx_town$[getarraysize(.cx_town$)],
+		"AI love the noise of a busy town.^BYou love the smell of the food stalls.^AThe noise IS the food stalls.",
+		"ASomeone's selling a Sword Mace for half price over there.^BIt's a scam.^AIt's a very shiny scam.",
+		"AEvery town has that one person who stands in the same spot all day.^BWe're that person right now, {a}.",
+		"ALet's find the inn and never leave.^BThe {t} will find us.^AThen the {t} can stay too.",
+		"AI got lost in this town again.^BWe've been here ten times.^AAnd I got lost ten times. Consistency.";
+	setarray .cx_field$[getarraysize(.cx_field$)],
+		"ALook at all this open sky.^BLook at all those Rockers.^AYou ruin everything, {a}.",
+		"AI could walk forever out here.^BYour boots disagree.^AMy boots are quitters.",
+		"AFlowers! Can I pick one?^BThat one's a Mandragora.^A...I'll pick a different one.",
+		"AThe grass is so tall here.^BAnd full of things with teeth.^AWhy can't anything be nice?",
+		"AI feel like we're being watched.^BWe're in a field. Everything is watching.^AThe sheep?^BEspecially the sheep.";
+	setarray .cx_dungeon$[getarraysize(.cx_dungeon$)],
+		"AI've been counting torches. That one's new.^BWho lit it?^A...Let's not find out.",
+		"AMy footsteps are echoing.^BThat's not your echo, {a}.^AWhose is it?^BKeep walking.",
+		"AWhy do dungeons always smell like wet socks?^BBecause adventurers fall in them in wet socks.^AWhy did I ask.",
+		"ATreasure's always at the bottom.^BSo are the worst monsters.^AThat's how you know it's good treasure.",
+		"AStay close. I'd hate to lose you down here.^BYou just don't want to walk alone.^A...Both can be true, {a}.";
+	setarray .cx_snow$[getarraysize(.cx_snow$)],
+		"AMy breath looks like smoke.^BYou look like a dragon, {a}.^AI've always wanted to be a dragon.",
+		"AI think my eyebrows froze.^BYou still have eyebrows?^AThey're decorative now.",
+		"ALet's build a snowman for the {t}.^BWith what?^ASnow. And your hat.^BNot my hat.";
+	setarray .cx_desert$[getarraysize(.cx_desert$)],
+		"AI think the sun is personally angry at me.^BIt's angry at everyone.^AIt's angrier at me.",
+		"ACactus juice? I hear it's refreshing.^BI hear it's poisonous.^ARefreshingly poisonous.",
+		"AAt least there are no puddles here.^BThere's quicksand.^AA dry puddle.";
+	setarray .cx_sea$[getarraysize(.cx_sea$)],
+		"AI found a seashell! I can hear the ocean.^BWe're standing next to the ocean, {a}.^AIt's louder in the shell.",
+		"AThe sailors say the sea has moods.^BWhat mood is it in now?^AHungry. Very hungry.",
+		"ALet's skip stones.^BYou'll hit a Marina.^AThen she'll skip back. It's a game.";
+	setarray .cx_forest$[getarraysize(.cx_forest$)],
+		"AThe birds stopped singing.^BThat's never good.^AMaybe they're just tired.^BBirds are never just tired, {a}.",
+		"AI love the smell of pine.^BThat's a Willow.^AThe Willow smells like pine.^BThe Willow smells like trouble.",
+		"AWhich way is out?^BFollow the light.^AThere's no light.^BThen follow the {t}.";
+	setarray .cx_night$[getarraysize(.cx_night$)],
+		"AWhat do you think the moon does all day?^BWaits for night.^ALike us, waiting for the {t}.",
+		"ACan you name the stars?^BThat one's Bob.^AThat's not its name.^BIt is now.",
+		"AListen... crickets.^BThose aren't crickets, {a}.^A...Let's walk faster.",
+		"ANights in Midgard are so bright.^BThe {t} says their world has fewer stars.^AFewer stars? How sad.";
+	setarray .cx_morning$[getarraysize(.cx_morning$)],
+		"AThe dew makes everything sparkle.^BThe dew makes my boots wet.^AYou're a poet, {a}.",
+		"AMorning stretch!^BYour back just cracked.^AThat's the sound of being ready.",
+		"AI dreamed we found an MVP card.^BWhich one?^AI woke up before I could check. I'm so angry.",
+		"AEarly start. Good.^BEarly start. Bad.^AThe {t} looks awake.^BThen it's a good early start.";
+	setarray .cx_boss$[getarraysize(.cx_boss$)],
+		"AWe beat {m}! Should we tell someone?^BEveryone's going to hear about it.^AI want a statue.^BYou get a Red Potion.",
+		"AWhen {m} fell, I think I screamed.^BYou definitely screamed.^AA heroic scream?^BA very high scream, {a}.",
+		"AI thought {m} had us for a second.^BA long second.^AThe {t} never flinched.^BThat's why we're still here.",
+		"ALet's never fight {m} again.^BAgreed.^ATomorrow, then?^BTomorrow.";
+
+	// More for three.
+	setarray .trio$[getarraysize(.trio$)],
+		"AWho wants to hear a joke?^BNo.^CYes!^AWhy did the Poring cross the road?^BTo bounce.^C...That's actually the answer.^A{B} ruined it.",
+		"AI think we should split up.^BAbsolutely not.^CIn every story, that's when someone dies.^A...Let's stay together.",
+		"AI'm writing down everyone's favorite monster.^BPoring.^CBaphomet.^A{C}?!^CHe has style.",
+		"ADid anyone else see that?^BSee what?^CI saw it.^AThank you!^CWhat did we see?",
+		"AWe need a team motto.^BDon't die.^CDon't die, but louder.^ADON'T DIE.^BThe {t} is staring at us again.",
+		"AI'm sorry I ate the last apple.^BYou what?^CI'm sorry I ate the second-to-last apple.^B...Who ate the first one?^A{B}, you're chewing.",
+		"AQuick, what's the plan?^BFollow the {t}.^CHit things.^AThat's always the plan.^BIt's a good plan.",
+		"ALet's tell the {t} how much we appreciate them.^BYou first.^CNo, you first.^A...Let's just carry their bags.^BThat works.",
+		"AWhat's the worst monster to fight?^BHydras. Can't move.^CPoison Spores. Can't breathe.^ARockers. Too smug.^BRockers aren't smug.^AThey're always grinning, {B}.",
+		"AIf we had a party flag, what would be on it?^BA sword.^CA Poring.^AA sword AND a Poring.^BA Poring holding a sword.^C...I love it.",
+		"AWho's the bravest of us?^BThe {t}.^CThe {t}.^ASecond bravest?^B...Me.^CNo, me.^A{B} screamed at a Thief Bug.",
+		"ALet's play I spy. Something brown.^BDirt.^CA Smokie.^AYour hair, {C}.^CRude.",
+		"AI've been thinking about our future.^BOh no.^CHere we go.^AA farm. All of us. Peco Pecos.^B...That's actually nice.^CI call the big Peco.",
+		"AWhat do you miss the most?^BHome cooking.^CMy old bed.^AQuiet.^BIt's never quiet with you, {A}.",
+		"AEveryone check your potions.^BFive.^CTwo.^AZero.^B{A}...^AI drank them for courage.",
+		"AWho's taking a bath first at the inn?^BMe.^CMe.^A{C}, you went first last time.^CAnd I smelled great.",
+		"AHas anyone ever seen the {t} sleep?^BNo.^CNever.^A...Should we be worried?^BShould we be impressed?",
+		"AWe should learn each other's skills.^BI'll teach you to dodge.^CI'll teach you not to cry when you get hit.^AI'll teach nothing. I'm the student.",
+		"AI think that monster is following us.^BWhich one?^CThe one with the big eyes.^AThat's a Poring.^CIt has very big eyes.",
+		"ALet's make a promise.^BAnother one?^CWe already promised to share food.^AThis one's bigger. We all come back. Every time.^B...Promise.^CPromise.",
+		"AI miss the first map we ever fought on.^BThe Porings were easy.^CWe were weak.^AWe were happy.^B...Still are.",
+		"AWhy is it always cold in the morning and hot at noon?^BThe sun is moody.^CLike {B}.^BI am NOT moody!",
+		"AWhat's the first thing you'll buy when we're rich?^BA castle.^CA really big sandwich.^AA bigger sandwich than {C}'s.^CThis is war.",
+		"AI dropped my map.^BWe don't have a map.^CThe {t} has the map.^AThen we're fine.^BWe were always fine. We just walk where they walk.",
+		"AWho named that monster a Hode?^BSomebody who was very tired.^CA hole that's also a road. Hode.^AStop making sense, {C}.",
+		"ALet's take turns telling secrets.^BI'm scared of the dark.^CI'm scared of {B}'s cooking.^AI'm scared we'll stop doing this someday.^B...Okay, that one got me.",
+		"AWhat do you think the {t} is thinking right now?^BLunch.^CLoot.^AUs. I hope it's us.^BIt's probably loot.",
+		"AWhich of us is the funniest?^BMe.^CDefinitely not {B}.^A{C} is the funniest without trying.^CI don't know what that means and I'm offended.",
+		"AI'm not tired.^BYou're yawning.^CYou yawned three times.^AThose were battle yawns.",
+		"AIf one of us got a rare card, would we share?^BObviously.^COf course.^A...Even a Ghostring card?^B...Let's talk about this later.",
+		"ALet's give each other nicknames.^BYou're Clumsy.^CYou're Grumpy.^AThen who's the {t}?^BBoss.^CBoss is good.",
+		"ALet me check everyone's wounds.^BI'm fine.^CI'm fine.^AYou're both bleeding.^B...A little fine.",
+		"AWhat if we get famous?^BPeople would ask for autographs.^CI can't write that fast.^AWe'll get stamps.^BStamps of our faces.",
+		"AWe've been walking for hours.^BYour feet hurt?^CMy feet hurt.^AMy feet left me an hour ago. I'm walking on hope.",
+		"ADid you hear the {t} hum earlier?^BThe song from their world?^CI know the tune now.^ASing it!^C...Hm hm hmmm hmm.^BThat's beautiful, {C}.",
+		"ALet's be honest. Who's afraid of Glast Heim?^BMe.^CMe.^A...Me too. Okay, good. We go together then.";
+
+	// More for four.
+	setarray .quad$[getarraysize(.quad$)],
+		"AParty meeting.^BAbout what?^CFood.^DIt's always food.^AIt's about food.",
+		"ALet's go around and say one nice thing.^B{C} has good aim.^C{D} never gives up.^D{A} always checks on us.^A...Okay, I'm crying. Moving on.",
+		"AI propose we name ourselves after the {t}.^BThe {t}'s Army.^CThe {t}'s Friends.^DThe {t}'s Snack Carriers.^A{D}...^DSomeone has to carry the snacks.",
+		"AWho's ready for the next fight?^BMe.^CMe.^DFive more minutes.^AThat's a no from {D}.",
+		"AQuick vote. Should we rest?^BYes.^CYes.^DYes.^AThe {t} says no.^BThe {t} wins.",
+		"AWhat would we do without the {t}?^BBe lost.^CBe hungry.^DBe level one.^A...Be alone.",
+		"AWe need a battle formation.^BFighters in front.^CHealers in back.^DMe in the middle, eating.^A{D}, that's not a formation.",
+		"AEveryone, look at that sunset.^B...Wow.^CPretty.^DIt looks like a giant Drops.^AWe can't take you anywhere, {D}.",
+		"AStory circle. Scariest thing you've seen.^BA Bathory at night.^CA Dokebi stealing my hat.^DMy reflection in Glast Heim.^AWhy was that scary?^DI didn't have one.",
+		"AWhat's everyone's favorite memory with the {t}?^BThe first time they waved at me.^CWhen they gave me their potion.^DWhen they laughed at my joke.^AEvery day, honestly.",
+		"AWho's carrying what?^BPotions.^CArrows.^DGems.^AAnd I've got the snacks. We're complete.",
+		"AIf we were a band, who plays what?^BDrums.^CLute.^DI'd yell.^AThat's singing, {D}.^DThat's what I said.",
+		"AI challenge everyone to a race.^BTo where?^CThe Kafra.^DLoser buys dinner.^A...I'm walking.",
+		"AHow many monsters today?^BFifty.^CSixty.^DA hundred.^AThe {t} did eighty of those.",
+		"AWho's on cooking?^BNot me.^CNot me.^DI'll do it.^AEveryone run.",
+		"AI think we're a really good party.^BThe best party.^CThe best party with the best leader.^DThe best party with the best leader and the worst cook.^A...Fair.",
+		"AWe've survived a lot together.^BPoison.^CCurses.^DThe {t}'s shortcuts.^AEspecially the shortcuts.",
+		"AImagine us ten years from now.^BStill adventuring.^CStill hungry.^DStill lost.^A...Still together.",
+		"ARoll call! Who's hurt?^BMe.^CMe.^DEveryone.^ALet's sit for a minute. The {t} won't mind.",
+		"AWhat's the secret to a good party?^BTrust.^CSnacks.^DNot dying.^AAll three. Mostly snacks.";
+
+	// More for strangers, friends and close friends.
+	setarray .t0$[getarraysize(.t0$)],
+		"AI don't know much about you, {a}.^BThere's not much to know.^AI doubt that.",
+		"ADo you always fight like that?^BLike what?^ALike you have something to prove.^B...Maybe.",
+		"AWhere are you from, {a}?^BHere and there.^AThat's not a place.^BIt's where I'm from.",
+		"AThe {t} trusts you, so I'll trust you.^BThat's fair. I'll try to earn it.",
+		"AYou're quiet.^BI listen more than I talk.^AThat's a rare skill, {a}.",
+		"AThanks for watching my back today.^BThat's what we do here, right?^AI'm still learning how this party works.",
+		"AWhat's your name again?^B{a}... no wait, that's yours.^A...We should talk more.",
+		"AYou eat really fast.^BOld habit.^AFrom where?^BA place with not much food. I'll tell you someday.";
+	setarray .t1$[getarraysize(.t1$)],
+		"AI saved you the good spot by the fire.^BYou always do.^AWho else would I save it for?",
+		"AYou were great today.^BYou were greater.^AWe're both great. Let's go eat.",
+		"AI've been meaning to say thanks.^BFor what?^AFor not leaving when it got bad.^BI'm not going anywhere, {a}.",
+		"AYou laugh like a Peco Peco.^BYou're the only one who makes me laugh like that.^A...That's nice, actually.",
+		"ARemember when we didn't trust each other?^BYou thought I'd steal your potions.^AYou DID steal my potions.^B...I gave them back with interest.",
+		"ATeach me that trick you do.^BWhich one?^AThe one where you don't get hit.^BYou move before they swing. You'll get it.",
+		"AI made you a charm.^BWhat does it do?^ANothing. It's just for luck.^B...I'll wear it.",
+		"AYou always know when I'm tired.^BYou walk slower and hum off-key.^AI do?^BIt's how I know you're okay, {a}.";
+	setarray .t2$[getarraysize(.t2$)],
+		"AWhen this is all over, will you still be around?^BWhere else would I be?^AI don't know. I'm just glad you're here.",
+		"AI'd trade every card in Midgard for another year like this.^BEvery card?^AMost of them. Not a Ghostring.",
+		"AYou're the first person I look for when a fight ends.^BI know. I look for you too.",
+		"AIf something ever happens to me...^BNothing's happening to you.^AIf it does...^BThen I'll carry you home. That's the deal, {a}.",
+		"AI don't say it enough. You matter to me.^B...Don't make me cry in front of the {t}.^ACry later, then.^BI will.",
+		"ARemember our first fight together?^BYou hid behind me.^AAnd now?^BNow you stand next to me. That's better.",
+		"AYou're family to me, {a}.^BI was going to say that.^AToo slow.^BAlways too slow with you.",
+		"AIt's strange. I can't remember being alone anymore.^BGood. Don't try to.^AI won't.";
+
+	// More musings, for a party of one companion.
+	setarray .idle_0$[getarraysize(.idle_0$)], "I tried to name every Poring today. I ran out of names at Poring.", "When I grow up, I want to be just like you, {t}. Maybe with fewer scars.",
+		"Do you think the Valkyrie will pick me someday, {t}?", "I practiced my swing in a puddle's reflection. I won, {t}.";
+	setarray .idle_1$[getarraysize(.idle_1$)], "I counted three ways into this place, {t}. I'll watch all three.", "A shield is only as good as what stands behind it. I'm glad it's you, {t}.",
+		"If Glast Heim's knights had a leader like you, {t}, perhaps they'd still stand.", "My oath is simple, {t}. Where you go, I go first.";
+	setarray .idle_2$[getarraysize(.idle_2$)], "Did you know Juno floats on a giant's heart, {t}? I find that comforting. And worrying.", "What if the Kafras are a single person in many places? I'm writing a paper.",
+		"I've catalogued forty-one kinds of Poring behavior, {t}. Thirty-nine are bouncing.", "Your world must have libraries, {t}. Tell me there are libraries.";
+	setarray .idle_3$[getarraysize(.idle_3$)], "Every road in Midgard goes somewhere, {t}. Even the ones that end in cliffs.", "I wrote a verse about you, {t}. Still looking for a rhyme.",
+		"There's a song in Comodo about a hero from the stars. Sounds like you, {t}.", "I'd follow you to the edge of the map, {t}. Then I'd ask what's past it.";
+	setarray .idle_4$[getarraysize(.idle_4$)], "I prayed for you this morning, {t}. And for your boots. They look tired.", "The goddess gave us Yggdrasil Leaves. I think she knew we'd need them.",
+		"Drink some water, {t}. Even heroes from other worlds get thirsty.", "Every soul I heal, I remember. You're my favorite, {t}. Don't tell the others.";
+	setarray .idle_5$[getarraysize(.idle_5$)], "I punched a tree earlier to train. The tree won, {t}.", "Hungry. Again. Is that normal, {t}?",
+		"If we fight Baphomet, I call the first punch.", "Eat rice, train hard, never complain. I'm two out of three, {t}.";
+	setarray .idle_6$[getarraysize(.idle_6$)], "I could get us into any castle in Midgard, {t}. Just say the word.", "The guards in this town are sloppy. Not that I'm checking.",
+		"Ever notice the Kafras never blink, {t}? I notice things.", "I don't trust easily, {t}. You're the exception. Don't make it weird.";
+	setarray .idle_7$[getarraysize(.idle_7$)], "If the Porings paid rent for the fields, we'd all be rich, {t}.", "I've worked out our daily earnings, {t}. You don't want to know. I'll tell you anyway.",
+		"One day I'll open a shop in every town. Even Niflheim. Especially Niflheim. No competition.", "A good deal is like a good friend, {t}. Hard to find, worth keeping.";
+
+	// ---- Gifts (3.0.0, setting "gifts"). Now and then, in a quiet moment, a
+	// companion gives you something; more often the closer it is to you, and
+	// sometimes right after an MVP, on its level-up or on an anniversary. Per
+	// personality: .gc_<p>$ common and .gr_<p>$ rare, "item id:min:max" (id 0 =
+	// zeny); very rare (any personality): an Old Card Album. {i} = what it gave.
+	.gifts = callfunc("F_ModSetting", .mod$, "gifts", 1);
+	.gc_0$ = "512:1:3,909:1:3,712:1:1,513:2:4,501:2:5";	// Rookie: apples, Jellopy, a flower
+	.gr_0$ = "706:1:1,644:1:1";
+	.gc_1$ = "501:5:10,502:3:6,601:3:5";	// Guardian: potions, Fly Wings
+	.gr_1$ = "984:1:1,985:1:2";
+	.gc_2$ = "717:2:5,505:1:3,716:1:3,715:1:3";	// Scholar: gemstones, Blue Potions
+	.gr_2$ = "1006:1:1,617:1:1";
+	.gc_3$ = "1750:100:300,533:2:4,602:1:2,1751:30:80";	// Wanderer: arrows, juice
+	.gr_3$ = "2215:1:1,603:1:1";
+	.gc_4$ = "523:2:5,506:2:5,504:1:2,520:1:2";	// Healer: Holy Water, potions
+	.gr_4$ = "610:1:2,608:1:1";
+	.gc_5$ = "517:2:5,656:1:2,645:1:3,503:2:4";	// Brawler: meat, battle potions
+	.gr_5$ = "526:2:4,657:1:1";
+	.gc_6$ = "0:500:3000,518:1:3,601:2:4";	// Rogue: "found" zeny
+	.gr_6$ = "2607:1:1,603:1:1";
+	.gc_7$ = "0:1000:5000,985:1:1,503:3:6";	// Merchant: zeny from a good deal
+	.gr_7$ = "603:1:1,644:1:1";
+	setarray .giftc_0$, "I found this for you, {t}! {i}! All by myself!", "Here, {t}. {i}. It made me think of you.",
+		"I saved this, {t}. {i}. For you!", "Is {i} a good present? I hope it's a good present.";
+	setarray .giftr_0$, "{t}! Look what I found! {i}! It's lucky, I just know it!", "I've been carrying {i} for days. It's yours, {t}.";
+	setarray .giftc_1$, "Take {i}, {t}. A knight keeps their lord supplied.", "{i}, {t}. For the road ahead.",
+		"You'll need {i} more than I will, {t}.", "I set aside {i} for you. Don't argue.";
+	setarray .giftr_1$, "{i}, {t}. Forged for a worthy blade. Yours is the worthiest.", "I've kept {i} for the right moment. This is it, {t}.";
+	setarray .giftc_2$, "I had spare {i}, {t}. Logically, you should have them.", "{i}, {t}. Statistically, you'll need it.",
+		"I calculated your supplies. You're short on {i}. Not anymore.", "Here. {i}. Don't ask how many I have left.";
+	setarray .giftr_2$, "{i}, {t}. I found it in an old ruin. I think you'll appreciate it.", "This is {i}. Rare. Like you, {t}. That was a compliment.";
+	setarray .giftc_3$, "Picked up {i} on the way, {t}. Thought of you.", "{i} for you, {t}! No charge. This time.",
+		"Here, catch! {i}!", "A wanderer always finds things. Today I found {i} for you.";
+	setarray .giftr_3$, "I got {i} in a town far from here. It's been waiting for you, {t}.", "{i}, {t}! Don't ask where it's been. It's been places.";
+	setarray .giftc_4$, "Please take {i}, {t}. For when I can't reach you.", "{i}. Blessed, by the way. Twice.",
+		"I prayed over {i} last night. It's yours, {t}.", "Keep {i} close, {t}. For my peace of mind.";
+	setarray .giftr_4$, "{i}, {t}. The goddess would want you to have it.", "I've been saving {i}. If I ever fall behind, use it.";
+	setarray .giftc_5$, "Eat! {i}! You need your strength, {t}!", "{i}! Training fuel, {t}!",
+		"I got you {i}. Don't share it. Okay, share it a little.", "Here, {t}. {i}. Now let's punch something.";
+	setarray .giftr_5$, "{i}, {t}! The good stuff! Monks don't usually share this!", "I've been hiding {i} for a big fight. You have it, {t}.";
+	setarray .giftc_6$, "Found {i}. Don't ask where. It's yours now, {t}.", "{i}, {t}. Consider it... a redistribution.",
+		"Someone dropped {i}. Probably. Take it.", "Here. {i}. Nobody's looking for it. Yet.";
+	setarray .giftr_6$, "{i}. I had to be very quiet to get this, {t}.", "This is {i}. Its last owner won't miss it. Much.";
+	setarray .giftc_7$, "I made a little profit, {t}! {i}, your share!", "{i} for you, {t}. Investment returns!",
+		"Got a great deal today. {i} for my favorite customer.", "Your cut, {t}: {i}. Don't spend it all on potions.";
+	setarray .giftr_7$, "{i}, {t}! I traded something boring for something exciting. You're welcome.", "I've been waiting to sell {i}... but I'd rather give it to you, {t}.";
+	setarray .giftv_0$, "{t}... I found {i}. I don't know what's inside. I want you to be the one to open it.",
+		"Something told me to keep {i} for you, {t}. Open it. Please.";
+	setarray .giftmvp_0$, "After a fight like that, you deserve {i}, {t}.", "We beat it! Here, {t}, {i}! To celebrate!";
+	setarray .giftlvl_0$, "I got stronger thanks to you, {t}. Take {i}. Please.", "A new level, and I owe it to you. {i}, {t}.";
+	setarray .giftann_0$, "Happy anniversary, {t}. I got you {i}.", "Has it really been that long? Here, {t}. {i}. For every day of it.";
+
+	// ---- Campfire nights (3.0.0, setting "campfire"): "make camp" in party chat,
+	// or yes when one of them offers. The fire is a dynamic NPC (CampFire, below),
+	// which rAthena removes after feature.dynamicnpc_timeout without a click (60 s
+	// stock): raised to 6 hours here, and we put it out ourselves.
+	.camp = callfunc("F_ModSetting", .mod$, "campfire", 1);
+	bindatcmd "clcamp", strnpcinfo(3) + "::OnCmdCamp", 0, 99;
+	if (.camp && getbattleflag("feature.dynamicnpc_timeout") < 21600000)
+		setbattleflag "feature.dynamicnpc_timeout", 21600000;
+	// Offering to light one ({t} = you).
+	setarray .campask_0$, "{t}, can we make a fire? Please? Just a little one?", "My legs are tired, {t}. Camp here?";
+	setarray .campask_1$, "We've stood here a while, {t}. Shall I light a fire and keep watch?", "A good spot for a camp, {t}. Your call.";
+	setarray .campask_2$, "It's a good place to rest, {t}. Shall we make camp? I have notes to write.", "A fire would help me think. Camp, {t}?";
+	setarray .campask_3$, "Nice spot for a fire, {t}. I've got a song saved for one.", "Camp here, {t}? I'll find the dry wood.";
+	setarray .campask_4$, "Everyone could use a rest, {t}. May I light a fire?", "Let's rest by a fire for a while, {t}. Please.";
+	setarray .campask_5$, "Fire? Food? Fire AND food, {t}?", "I'm starving, {t}. Can we camp and cook?";
+	setarray .campask_6$, "Quiet here. Good spot for a fire, {t}. Want one?", "I could use a sit by a fire, {t}. Your call.";
+	setarray .campask_7$, "Shall I set up camp, {t}? I've got a pot and opinions about soup.", "Break time, {t}? I'll light a fire. No charge.";
+	// Lighting it.
+	setarray .camplit_0$, "I lit it! I lit it myself! Look, {t}!", "It's crackling! I love that sound!";
+	setarray .camplit_1$, "The fire is lit. Sit, {t}. I'll keep watch.", "There. Warm and safe.";
+	setarray .camplit_2$, "Fire Bolt, but gentle. There we go.", "A controlled flame. Mostly controlled.";
+	setarray .camplit_3$, "And now, the best part of any journey. The fire.", "Found the driest wood in the whole field. You're welcome.";
+	setarray .camplit_4$, "Come sit, everyone. Warm your hands.", "May this fire keep us safe tonight.";
+	setarray .camplit_5$, "FIRE! Okay, okay. Small fire. Cozy fire.", "Rubbed two sticks together. Took five seconds. Training!";
+	setarray .camplit_6$, "Fire's going. Keep your backs to it and your eyes out.", "Lit. Don't make a big deal of it.";
+	setarray .camplit_7$, "Fire's up! Camp's open for business!", "One campfire, free of charge. Today only.";
+	// Putting it out.
+	setarray .campout_0$, "Aww. Okay. Bye, fire!", "Ready, {t}! I feel brand new!";
+	setarray .campout_1$, "Fire's out. We march, {t}.", "Rested and ready. Lead on, {t}.";
+	setarray .campout_2$, "Extinguished. Shall we?", "A productive rest. Onward.";
+	setarray .campout_3$, "Last ember's out. Road's calling, {t}.", "Packing up. That was a good night.";
+	setarray .campout_4$, "Everyone rested? Good. Let's go, {t}.", "Thank you for the rest, {t}. We needed it.";
+	setarray .campout_5$, "Stamped it out! Let's GO!", "Full belly, full spirit. Let's fight something!";
+	setarray .campout_6$, "Fire's out. No trace we were here.", "Right. Moving.";
+	setarray .campout_7$, "Packed up! Time is zeny, {t}!", "Camp's closed. Back to business!";
+	// Little things round the fire.
+	setarray .campact_0$, "*pokes the fire with a stick*", "*holds hands out to the fire* So warm...", "*yawns* I'm not sleepy.";
+	setarray .campact_1$, "*polishes their shield by the firelight*", "*watches the dark beyond the fire*", "*adds a log to the fire*";
+	setarray .campact_2$, "*reads by the firelight*", "*scribbles notes* The flames are a very interesting color tonight.", "*stares into the fire, thinking*";
+	setarray .campact_3$, "*plays a soft tune*", "*hums along with the crackle of the fire*", "*whittles a little wooden Poring*";
+	setarray .campact_4$, "*prays quietly for everyone*", "*checks everyone's wounds, one by one*", "*hands out water*";
+	setarray .campact_5$, "*does push-ups by the fire*", "*cracks knuckles* Ahh.", "*eyes the cooking pot hungrily*";
+	setarray .campact_6$, "*sharpens a dagger, slowly*", "*sits a little apart, but close enough*", "*flips a coin over and over*";
+	setarray .campact_7$, "*counts today's loot by the fire*", "*writes in a ledger* Profits... decent.", "*rearranges the bags. Again.*";
+	// One companion alone with you by the fire.
+	setarray .campsolo_0$, "Just you and me, {t}. And the fire. This is nice.", "Will you tell me about your world, {t}? Just a little?";
+	setarray .campsolo_1$, "Rest, {t}. Nothing will reach you while I stand.", "I don't say it enough. Serving you is an honor, {t}.";
+	setarray .campsolo_2$, "Fire is just fast oxidation, {t}. Still... it's beautiful.", "Some nights I wonder what's beyond Midgard. Do you know, {t}?";
+	setarray .campsolo_3$, "I've sung by a hundred fires, {t}. This is one of the good ones.", "When we're old, I'll write a song about this fire.";
+	setarray .campsolo_4$, "Sleep if you can, {t}. I'll wake you if anything comes.", "I'm grateful for every quiet night like this.";
+	setarray .campsolo_5$, "I'd fight a hundred monsters for a night like this, {t}.", "Hey, {t}. Thanks for taking care of me.";
+	setarray .campsolo_6$, "I don't usually sit by fires with people, {t}. This is... fine.", "You're alright, {t}. Don't tell anyone I said that.";
+	setarray .campsolo_7$, "Best investment I ever made, {t}? Following you.", "Quiet nights like this are worth more than zeny. Don't quote me.";
+	// The meal: {i} = what was cooked.
+	setarray .cook1_0$, "{i}, everyone! Meat and veggies, the hunter's way!", "Dinner's ready! {i}! Eat up, {t}!";
+	setarray .cook2_0$, "{i}! Straight off the fire!", "Fresh {i}, everyone. Careful, it's hot.";
+	setarray .cook3_0$, "Dessert first tonight. {i}!", "I made {i}! It's... mostly tart.";
+	setarray .cook4_0$, "{i}. Not fancy, but it's warm.", "Here, {t}. {i}. It's better than it looks.";
+	setarray .campnofood_0$, "I'd cook, but... we have no food. Not even an apple. Someone buy groceries next time.", "Nothing to cook! Next time, {t}, bring some meat. Or anything.";
+	// Talks by the fire. Two of them:
+	setarray .camp$,
+		"AWhat's the first thing you remember, {a}?^BA fire like this one. Someone singing.^AWho?^BI never found out.",
+		"AIf you could go back and change one thing, what would it be?^BI'd have stayed with my brother one more day.^A...I'm sorry.^BDon't be. That's why I stay with you all.",
+		"AWhat do you want to be doing in ten years?^BSitting by a fire like this one.^AThat's it?^BWith the same people. That's not small, {a}.",
+		"ADo you ever get scared we won't make it?^BEvery fight.^AHow do you keep going?^BI look at the {t}, and then I'm less scared.",
+		"AI never told anyone why I left home.^BYou don't have to.^AI want to. Someday. Maybe tonight.^B...I'm listening, whenever you're ready.",
+		"AThe fire's making me sleepy.^BThen sleep. I'll wake you.^AYou always say that.^BAnd I always do, {a}.",
+		"AWhat's the best meal you've ever had?^BThe one we're about to have.^AYou haven't tasted it yet.^BIt's by a fire with friends. It's already the best.",
+		"AWhy did you become an adventurer?^BI wanted to see the world.^AAnd?^BTurns out the best part was the people in it.",
+		"AI used to think heroes never rested.^BThe {t} rests.^AAnd that's when I knew the {t} was real.",
+		"ATell me a story, {a}.^BOnce there was a party who sat by a fire and was happy.^AWhat happened next?^BThey got up the next morning and did it all again.",
+		"AThe stars look different by the fire.^BThat's the smoke.^ANo, they're brighter. Like they're listening.^B...Then let's say something nice.",
+		"AI used to hate the quiet.^BAnd now?^ANow quiet means we're all safe.",
+		"AYou've changed since we met.^BFor better?^AYou laugh now. You didn't use to.^B...Huh. I didn't notice.",
+		"ADo you think the {t} misses their home?^BSometimes they look up at the sky for a long time.^AMaybe we can be a home, too.^BWe already are, {a}.",
+		"AI'm glad it's you sitting next to me.^BWho else would it be?^AAnyone. But it's you.",
+		"AWhat would you name this fire?^BBob.^AYou name everything Bob.^BBob is a good name, {a}.",
+		"AI keep thinking about the first monster I ever fought.^BWhat was it?^AA Poring. I lost.^BEveryone loses to their first Poring.",
+		"AWhat scares you most, {a}?^BBeing forgotten.^AThen I'll remember you. Every single day.",
+		"AWhen I was little, I wanted to be a Kafra.^BWhy?^AThey get to go everywhere. And everyone's happy to see them.^BLike the {t}.",
+		"AI saved some of the meal for later.^BYou ate it already.^A...How did you know?^BYou have sauce on your face, {a}.",
+		"AWhat's your happiest memory?^BThis one. Right now.^AYou're just saying that.^BI'm really not.",
+		"AThe {t} is staring at the fire again.^BThinking about home?^AOr about us.^BI hope it's about us.",
+		"ADo monsters sit by fires?^BOrcs do. I've seen them.^AAre they happy?^BThey sing. Badly. So yes.",
+		"AI think the fire's telling me something.^BWhat?^AThat I should've brought more marshmallows.",
+		"AI was so tired today, I almost gave up.^BBut you didn't.^ABecause you were next to me.^B...Get some sleep, {a}.",
+		"AIf this were my last night, I wouldn't mind.^BDon't say that.^ANot because it's sad. Because it's enough.^B...Still. Don't say that.",
+		"AThe wood smells like Payon.^BEverything reminds you of Payon.^AIt's where I was happy.^BYou're happy here too. I can tell.",
+		"AI think I'm finally not afraid of the dark.^BWhy?^ABecause there's always a fire with you lot.",
+		"ARemember your first night with us?^BI couldn't sleep at all.^AAnd now you snore by the fire.^BHigh praise, {a}.",
+		"AThank you for today.^BFor what?^AFor coming back for me. In the fight.^BAlways, {a}. Always.";
+	// Three of them:
+	setarray .camp3$,
+		"ALet's each say one thing we're grateful for.^BFood.^CThe {t}.^AYou both.^B...Okay, that's better than mine.",
+		"AGhost story time.^BNo.^CYes! Go!^AOnce, in Glast Heim, a knight lost his head...^BI'm leaving.^CSit DOWN, {B}.",
+		"AWho's taking first watch?^BI will.^CI'll take second.^AThen I'll sleep. Wake me if anything happens.^BYou'll sleep through it, {A}.",
+		"AWhat's everyone's dream?^BA quiet farm.^CThe biggest MVP in Midgard.^AFor all of us to be at this fire again next year.^B...Yeah.^CYeah.",
+		"AWho can make the best shadow puppet?^B*makes a Poring*^C*makes a Baphomet*^A*makes the {t}*^BThat's just a hand, {A}.",
+		"AI'm stuffed.^BYou had three bowls.^CFour.^A...It was good soup.",
+		"ALet's make a toast.^BWith what?^CSoup.^ATo the {t}, and to soup.^BTo soup.^CTo the {t}.",
+		"AIf one of us has to stay behind someday...^BNobody stays behind.^CNobody. We all go home together.^A...Okay. I believe you.",
+		"AI love nights like this.^BMe too.^CMe three.^AThe {t} too, I think. Look at them.",
+		"AWho put sand in my sleeping roll?^BNot me.^C...Not me.^A{C}, you paused again.^CIt's a habit!";
+	// At night (your clock):
+	setarray .campn$,
+		"AIt's late. The {t} should sleep.^BThe {t} never sleeps.^AThen we stay up with them.",
+		"AListen. You can hear the whole world breathing.^BThat's the wind, {a}.^ALet me have this.",
+		"AThe moon's so close tonight.^BClose enough to touch.^AIf I could, I'd bring it down for the {t}.^BThat's a lot of moon.",
+		"ACan't sleep?^BToo many thoughts.^AAbout what?^BAbout how lucky I am, mostly.",
+		"AIt's so dark beyond the fire.^BThat's why we have the fire.^AAnd each other.^BAnd each other.",
+		"AShooting star! Make a wish!^BI wished for tomorrow to be as good as today.^AThat's a good wish.",
+		"AThe night watch is my favorite.^BWhy?^AIt's the only time everyone's safe at once, and I get to see it.",
+		"AWhisper, the {t} is resting.^B*whispering* Okay.^A*whispering* I'm glad we're here.^B*whispering* Me too.",
+		"AThe owls are out.^BOr Owl Barons.^ALet's hope owls.",
+		"ADo you think the stars are watching us?^BIf they are, they're seeing something good.";
+
 	initnpctimer;	// the tick below
 	end;
 
@@ -705,6 +1573,8 @@ OnPCLoginEvent:
 
 OnPCLogoutEvent:
 	CL_LAST = gettimetick(2);
+	if (@cl_fire$ != "")
+		unloadnpc @cl_fire$;	// the campfire goes out with you
 	end;
 
 OnPCBaseLvUpEvent:
@@ -741,6 +1611,12 @@ OnNPCKillEvent:
 		// for the companions to talk about afterwards
 		@cl_lastmvp = gettimetick(2);
 		@cl_lastmvp$ = getmonsterinfo(killedrid, MOB_NAME);
+		// A gift to celebrate, now and then (a quarter of MVPs).
+		if (.gifts && @cl_n && rand(100) < 25) {
+			.@g = callsub(L_Pick, -1, -1);
+			if (.@g >= 0)
+				callsub L_Gift, .@g, "mvp";
+		}
 	}
 	// The party purse: a share of each of your kills for every living
 	// companion with you (the monster's drops go to you as always).
@@ -936,10 +1812,12 @@ OnTick:
 			callsub L_QueueIdx, .@i, "jobme", jobname(@cl_cls[.@i]), ET_CONGRATULATION;
 			.@b = callsub(L_Pick, .@i, -1);
 			if (.@b >= 0)
-				callsub L_QueueIdx, .@b, "lvcg", @cl_nm$[.@i], ET_CLAP;
+				callsub L_QueueIdx, .@b, "lvcg", @cl_nm$[.@i], ET_CONGRATULATION;	// (ET_CLAP is no constant: it gave no emote)
 		} else if (@cl_lv[.@i] > .@pl && .@sec >= getd("@cl_lvcd_" + .@aid)) {
 			setd "@cl_lvcd_" + .@aid, .@sec + 30;
 			callsub L_QueueIdx, .@i, "lvme", "", ET_CONGRATULATION;
+			if (rand(100) < 15)
+				callsub L_Gift, .@i, "lvl";
 			.@b = callsub(L_Pick, .@i, -1);
 			if (.@b >= 0 && rand(100) < 60)
 				callsub L_QueueIdx, .@b, "lvcg", @cl_nm$[.@i], 0;
@@ -1083,6 +1961,73 @@ OnTick:
 		}
 	}
 
+	// Gifts (setting gifts): once a minute in a quiet moment, each companion here
+	// has a small chance, bigger the closer it is to you (about once in 3 hours
+	// for a new one, twice as often for a close one). Not in the first 10 minutes.
+	if (.gifts && !@cl_incombat && !getarraysize(@cl_qa) && .@sec >= @cl_gnext && .@sec - @cl_peace >= 15 && .@sec >= @cl_login + 600) {
+		@cl_gnext = .@sec + 60;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] <= 0 || callsub(L_Roams, .@i))
+				continue;
+			.@bd = callsub(L_PlayerBond, .@i);
+			if (.@bd > 40)
+				.@bd = 40;
+			if (rand(4500) < .@bd + 10) {
+				callsub L_Gift, .@i, "";
+				break;
+			}
+		}
+	}
+
+	// Campfire nights (setting campfire): the fire's tick, or after 3 minutes of you
+	// standing still with no fight, a companion offers to light one (once per stop,
+	// and not within 20 minutes of the last camp). "yes" in party chat lights it.
+	if (.camp) {
+		if (@cl_camp)
+			callsub L_CampTick, .@sec;
+		else if (.@sec - @cl_still >= 180 && @cl_cofferd != @cl_still && !@cl_incombat && .@sec - @cl_peace >= 30
+				&& .@sec >= @cl_clast + 1200 && !getarraysize(@cl_qa)) {
+			@cl_cofferd = @cl_still;
+			.@a = callsub(L_Pick, -1, -1);
+			if (.@a >= 0) {
+				@cl_coffer = .@sec + 90;
+				callsub L_QueueIdx, .@a, "campask", "", ET_QUESTION;
+				// In gold too, so it isn't lost in the chatter.
+				dispbottom "[Companions] " + @cl_nm$[.@a] + " wants to make camp. Say yes in party chat (90 seconds).", 0xFFCC66;
+			}
+		}
+	}
+
+	// Companions roaming the map (app setting Companion roaming): they hunt on
+	// their own, so the strolls, patrol laps and sitting below leave them be.
+	// The engine saves the choice in its table at once; read every 5 s.
+	if (.@sec >= @cl_rmnext) {
+		@cl_rmnext = .@sec + 5;
+		callsub L_RoamRead;
+		// Sent off or recalled from the window (no chat line): no rest while roaming,
+		// the thresholds back once none roams.
+		callsub L_RoamRest;
+		// 2.5.7: the idle Hold and Sit rules (spacing_*, idle_sit) let go of a companion
+		// with the harmless Entry_Queue_Apply_Delay status, as for the strolls. Every
+		// roamer keeps it (8 s, renewed every 5 s), so one that is roaming is never held
+		// or sat down beside you: after a server restart and with the window's Roam
+		// button too, where no chat line flips the rules' own roaming switch. 2.5.9: the
+		// roam rules (db/when/roam_together) asked for it too. 3.0.0: they ask for a status
+		// of their own, Entry_Queue_Notify_Admission_Time_Out, that only roamers get, so a
+		// stroll near you no longer looks like roaming to them.
+		if (.roamhelp) {
+			for (.@ri = 0; .@ri < @cl_n; .@ri++) {
+				if (@cl_hp[.@ri] <= 0 || !callsub(L_Roams, .@ri))
+					continue;
+				sc_start SC_ENTRY_QUEUE_APPLY_DELAY, 8000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@ri];
+				sc_start SC_ENTRY_QUEUE_NOTIFY_ADMISSION_TIME_OUT, 8000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@ri];
+			}
+		}
+		// A new companion that starts unequipped gets its starter kit.
+		if (.kit)
+			callsub L_KitCheck;
+	}
+
 	// Looking around: while you stand still and nothing is fighting, every
 	// 12-30 s one companion strolls a few steps to another spot near you.
 	getmapxy(.@om$, .@ox, .@oy, BL_PC);
@@ -1090,15 +2035,25 @@ OnTick:
 		@cl_ox = .@ox;
 		@cl_oy = .@oy;
 		@cl_still = .@sec;
+		// 3.0.0: the engine stands a sitter up at your every step. The idle_sit rules
+		// wait for this marker (Reuse_Limit_H: it only blocks one cash item companions
+		// never use) to run out, so a few steps get them up once, and they sit again
+		// about 8 s after you stop, not after every step.
+		if (.idlesit && !@cl_incombat) {
+			for (.@si = 0; .@si < @cl_n; .@si++) {
+				if (@cl_hp[.@si] > 0 && !callsub(L_Roams, .@si))
+					sc_start SC_REUSE_LIMIT_H, 8000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@si];
+			}
+		}
 	}
 	// Not one that already went to sit by its favourite; the scouts (Wanderers:
 	// archers, gunslingers) twice as often, they keep checking the perimeter,
 	// unless they walk their patrol laps (scout_patrol) instead.
-	if (.look && !@cl_incombat && .@sec - @cl_still >= 4 && .@sec >= @cl_wnext && .@sec - @cl_peace >= 10) {
+	if (.look && !@cl_camp && !@cl_incombat && .@sec - @cl_still >= 4 && .@sec >= @cl_wnext && .@sec - @cl_peace >= 10) {
 		@cl_wnext = .@sec + 12 + rand(19);
 		.@w = 0;
 		for (.@i = 0; .@i < @cl_n; .@i++) {
-			if (@cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still)
+			if (@cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still || callsub(L_Roams, .@i))
 				continue;
 			if (.patrol && @cl_ar[.@i] == 3)
 				continue;
@@ -1121,9 +2076,9 @@ OnTick:
 	// quiet, each scout walks waypoint to waypoint round the party, a leg every
 	// 3 s, then rests 15-30 s and goes round again (sometimes the other way).
 	// It stops before they gather to sit (165 s) and the moment you walk on.
-	if (.patrol && !@cl_incombat && .@sec - @cl_still >= 4 && .@sec - @cl_still < 165 && .@sec - @cl_peace >= 10) {
+	if (.patrol && !@cl_camp && !@cl_incombat && .@sec - @cl_still >= 4 && .@sec - @cl_still < 165 && .@sec - @cl_peace >= 10) {
 		for (.@i = 0; .@i < @cl_n; .@i++) {
-			if (@cl_ar[.@i] != 3 || @cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still)
+			if (@cl_ar[.@i] != 3 || @cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still || callsub(L_Roams, .@i))
 				continue;
 			callsub L_Patrol, .@i, .@map$, .@ox, .@oy;
 		}
@@ -1133,7 +2088,7 @@ OnTick:
 	// every 1.5-4 minutes one gets up: it turns to look at you, at whoever
 	// spoke, or about, or it moves to a new spot, then the idle_sit rule sits
 	// it down again (it waits out the same marker as the strolls).
-	if (.restless && .idlesit && !@cl_incombat && .@sec - @cl_peace >= 10) {
+	if (.restless && .idlesit && !@cl_camp && !@cl_incombat && .@sec - @cl_peace >= 10) {
 		if (@cl_rstill != @cl_still) {
 			@cl_rstill = @cl_still;
 			@cl_rnext = @cl_still + 120 + rand(91);	// the first a minute or so after they sit
@@ -1162,10 +2117,10 @@ OnTick:
 	// the idle_sit rules sit them (after a minute of you standing still, three
 	// for the scouts), each walks over to the one it is most comfortable with,
 	// one every 1.5 s. Bonds: L_Fav.
-	if (.sitfav && !@cl_incombat && .@sec - @cl_peace >= 10) {
+	if (.sitfav && !@cl_camp && !@cl_incombat && .@sec - @cl_peace >= 10) {
 		.@still = .@sec - @cl_still;
 		for (.@i = 0; .@i < @cl_n; .@i++) {
-			if (@cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still)
+			if (@cl_hp[.@i] <= 0 || getd("@cl_gd_" + @cl_aid[.@i]) == @cl_still || callsub(L_Roams, .@i))
 				continue;
 			.@thr = 45;
 			if (@cl_ar[.@i] == 3)
@@ -1186,6 +2141,482 @@ OnTick:
 		deletearray @cl_pet[0], 1;
 	}
 	end;
+
+// Roaming orders from party chat (client/index.js): "@clroam <request> on|off
+// <what you said>". Runs the engine's "@companion roam" for the companions
+// named in the line (all of them when none is), and one whose state it changed
+// answers in its own words. Answers OK|<changed> or ERR|<why>.
+OnCmdRoam:
+	.@req$ = .@atcmd_parameters$[0];
+	.@on = (.@atcmd_parameters$[1] == "on");
+	if (!.orders) {
+		callsub L_BagReply, .@req$, "ERR|chat orders off";
+		end;
+	}
+	if (getbattleflag("population_engine_companion_roam") <= 0) {
+		dispbottom "Companion roaming is off. Turn it on in the app's Settings (Population).";
+		callsub L_BagReply, .@req$, "ERR|roaming off";
+		end;
+	}
+	// The line, padded and without punctuation, so " name " finds a whole name.
+	.@said$ = " ";
+	for (.@k = 2; .@k < .@atcmd_numparameters; .@k++)
+		.@said$ += .@atcmd_parameters$[.@k] + " ";
+	setarray .@pun$, ",", ".", "!", "?", ":", ";";
+	for (.@k = 0; .@k < getarraysize(.@pun$); .@k++)
+		.@said$ = replacestr(.@said$, .@pun$[.@k], " ");
+	callsub L_BagParty;
+	callsub L_RoamRead;
+	.@n = 0;
+	for (.@i = 0; .@i < @clb_n; .@i++) {
+		if (compare(.@said$, " " + @clb_nm$[.@i] + " ")) {
+			.@who$[.@n] = @clb_nm$[.@i];
+			.@n++;
+		}
+	}
+	if (!.@n) {
+		for (.@i = 0; .@i < @clb_n; .@i++)
+			.@who$[.@i] = @clb_nm$[.@i];
+		.@n = @clb_n;
+	}
+	.@arg$ = " off";
+	if (.@on)
+		.@arg$ = " on";
+	.@c = 0;
+	for (.@k = 0; .@k < .@n; .@k++) {
+		if ((inarray(@cl_rm$, .@who$[.@k]) >= 0) == .@on)
+			continue;	// already roaming / already following
+		atcommand "@companion roam " + .@who$[.@k] + .@arg$;
+		.@chg$[.@c] = .@who$[.@k];
+		.@c++;
+	}
+	callsub L_RoamRead;
+	callsub L_RoamRest;
+	// One of them answers, if it's here and standing.
+	.@s = 0;
+	for (.@k = 0; .@k < .@c; .@k++) {
+		.@ix = inarray(@cl_nm$, .@chg$[.@k]);
+		if (.@ix < 0)
+			continue;
+		if (@cl_hp[.@ix] <= 0)
+			continue;
+		.@sp[.@s] = .@ix;
+		.@s++;
+	}
+	if (.@s) {
+		.@ix = .@sp[0];
+		if (.@s > 1)
+			.@ix = .@sp[rand(.@s)];
+		if (.@on)
+			callsub L_SpeakNow, .@ix, "roam", "", ET_GO;
+		else
+			callsub L_SpeakNow, .@ix, "back", "", ET_SMILE;
+	}
+	callsub L_BagReply, .@req$, "OK|" + .@c;
+	end;
+
+// Campfire nights (setting campfire, 3.0.0): "@clcamp <request> on|off|yes" from
+// your party-chat lines (client/index.js): "make camp", "time to go", or yes when a
+// companion offered to light one.
+OnCmdCamp:
+	.@req$ = .@atcmd_parameters$[0];
+	.@act$ = .@atcmd_parameters$[1];
+	if (!.camp) {
+		callsub L_BagReply, .@req$, "ERR|campfire off";
+		end;
+	}
+	callsub L_Gather;
+	if (.@act$ == "off") {
+		if (@cl_camp)
+			callsub L_CampEnd, 1;
+	} else if (.@act$ == "on" || (.@act$ == "yes" && @cl_coffer > gettimetick(2))) {
+		@cl_coffer = 0;
+		if (!@cl_camp)
+			callsub L_CampStart;
+	}
+	callsub L_BagReply, .@req$, "OK|" + @cl_camp;
+	end;
+
+// Light the fire: a bonfire next to you (a dynamic NPC: only you see it, and it
+// goes when you leave the map), roamers called back, everyone to a seat round it.
+L_CampStart:
+	if (!@cl_n) {
+		dispbottom "[Companions] There's nobody here to share a fire with.", 0xFFCC66;
+		return;
+	}
+	if (@cl_incombat) {
+		dispbottom "[Companions] Not while we're fighting!", 0xFFCC66;
+		return;
+	}
+	callsub L_RoamRead;
+	for (.@i = 0; .@i < getarraysize(@cl_rm$); .@i++)
+		atcommand "@companion roam " + @cl_rm$[.@i] + " off";
+	callsub L_RoamRead;
+	callsub L_RoamRest;
+	if (@cl_fire$ != "")
+		unloadnpc @cl_fire$;
+	@cl_fire$ = duplicate_dynamic("CampFire");
+	if (@cl_fire$ == "") {
+		dispbottom "[Companions] There's no room for a fire here.", 0xFFCC66;
+		return;
+	}
+	// A floating source NPC ("-") is always the invisible JT_FAKENPC in rAthena, and the
+	// copy inherits its class, so give the copy its bonfire look here (mod id 19420 =
+	// 4_BONFIRE, System/jobname.lub).
+	setnpcdisplay @cl_fire$, "Campfire", 19420;
+	getmapxy(.@fm$, .@fx, .@fy, BL_NPC, @cl_fire$);
+	@cl_cfm$ = .@fm$;
+	@cl_cfx = .@fx;
+	@cl_cfy = .@fy;
+	@cl_camp = 1;
+	@cl_cout = 0;
+	@cl_cstart = gettimetick(2);
+	@cl_cmeal = 0;
+	@cl_crest = 0;
+	@cl_cnext = @cl_cstart + 15;
+	@cl_cact = @cl_cstart + 35;
+	// Seats round the fire for everyone; scouts stand watch at theirs for two minutes
+	// before they sit (their marker waits, L_CampTick). Riders get off: a mounted
+	// character can't be drawn sitting (Brizion on his Peco looked like he stood), and
+	// they get back on in L_CampEnd (the engine remounts them on a map change anyway).
+	@cl_crid$ = ";";
+	callsub L_CampSeat;
+	@cl_cseatst = @cl_still;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] > 0 && checkriding(@cl_cid[.@i])) {
+			setriding 0, @cl_cid[.@i];
+			@cl_crid$ += @cl_aid[.@i] + ":" + @cl_cid[.@i] + ";";
+		}
+	}
+	.@a = callsub(L_Pick, -1, 7);
+	if (.@a >= 0)
+		callsub L_SpeakNow, .@a, "camplit", "", ET_DELIGHT;
+	dispbottom "[Companions] Campfire lit. Say \"time to go\" in party chat (or click the fire) to put it out.", 0xFFCC66;
+	return;
+
+// Seats in an even circle: the 16 cells two out from the fire, in clockwise order.
+// You hold one place (the ring cell in your direction from the fire); the companions
+// are spread at equal steps round the rest, so with five of them and you it's six
+// evenly spaced places. A blocked or taken seat shifts to the next free cell. Each seat
+// then goes to the nearest companion still without one (short walks), who walks up to
+// end facing the fire. Seats handed out are kept in @cl_cseat$ (";x,y;x,y;").
+L_CampSeat:
+	.@fm$ = @cl_cfm$;
+	.@fx = @cl_cfx;
+	.@fy = @cl_cfy;
+	setarray .@sx, 2, 2, 2, 1, 0, -1, -2, -2, -2, -2, -2, -1, 0, 1, 2, 2;
+	setarray .@sy, 0, 1, 2, 2, 2, 2, 2, 1, 0, -1, -2, -2, -2, -2, -2, -1;
+	setarray .@sl, 200, 224, 283, 224, 200, 224, 283, 224, 200, 224, 283, 224, 200, 224, 283, 224;	// length x100
+	// Who sits: the living companions on this map.
+	.@m = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_aid[.@i]) != 0 || .@cm$ != .@fm$)
+			continue;
+		.@ci[.@m] = .@i;
+		.@cx_[.@m] = .@cx;
+		.@cy_[.@m] = .@cy;
+		.@m++;
+	}
+	if (!.@m)
+		return;
+	// Your place on the ring: the seat pointing most your way from the fire.
+	getmapxy(.@om$, .@ox, .@oy, BL_PC);
+	.@dx = .@ox - .@fx;
+	.@dy = .@oy - .@fy;
+	.@p = 0;
+	if (.@dx != 0 || .@dy != 0) {
+		.@bs = -99999;
+		for (.@s = 0; .@s < 16; .@s++) {
+			.@sc = (.@sx[.@s] * .@dx + .@sy[.@s] * .@dy) * 1000 / .@sl[.@s];
+			if (.@sc > .@bs) {
+				.@bs = .@sc;
+				.@p = .@s;
+			}
+		}
+	}
+	@cl_cseat$ = ";" + (.@fx + .@sx[.@p]) + "," + (.@fy + .@sy[.@p]) + ";";	// yours
+	setarray .@try, 0, 1, -1, 2, -2, 3, -3;
+	for (.@k = 1; .@k <= .@m; .@k++) {
+		.@t = (.@p + (.@k * 16 + (.@m + 1) / 2) / (.@m + 1)) % 16;
+		// The seat itself, or the nearest free cell beside it on the ring.
+		.@seat = -1;
+		for (.@j = 0; .@j < 7 && .@seat < 0; .@j++) {
+			.@s = (.@t + .@try[.@j] + 16) % 16;
+			.@gx = .@fx + .@sx[.@s];
+			.@gy = .@fy + .@sy[.@s];
+			if (.@gx == .@ox && .@gy == .@oy)
+				continue;
+			if (compare(@cl_cseat$, ";" + .@gx + "," + .@gy + ";"))
+				continue;
+			if (!checkcell(.@fm$, .@gx, .@gy, cell_chkpass))
+				continue;
+			.@seat = .@s;
+		}
+		if (.@seat < 0)
+			continue;
+		.@gx = .@fx + .@sx[.@seat];
+		.@gy = .@fy + .@sy[.@seat];
+		// The nearest companion still standing about.
+		.@w = -1;
+		.@bd = 999;
+		for (.@q = 0; .@q < .@m; .@q++) {
+			if (.@got[.@q])
+				continue;
+			.@d = max(.@cx_[.@q] - .@gx, .@gx - .@cx_[.@q], .@cy_[.@q] - .@gy, .@gy - .@cy_[.@q]);
+			if (.@d < .@bd) {
+				.@bd = .@d;
+				.@w = .@q;
+			}
+		}
+		if (.@w < 0)
+			break;
+		.@got[.@w] = 1;
+		@cl_cseat$ += .@gx + "," + .@gy + ";";
+		.@i = .@ci[.@w];
+		// One already sitting (they sit after a minute of waiting) can't walk: up first,
+		// or it stayed where it sat, on the fire itself sometimes.
+		stand @cl_nm$[.@i];
+		callsub L_FaceWalk, @cl_aid[.@i], .@fm$, .@cx_[.@w], .@cy_[.@w], .@gx, .@gy, .@fx, .@fy, 6000;
+	}
+	return;
+
+// Put it out. getarg(0): 1 when you said so (someone answers), 0 when you walked
+// off or left the map. Long enough by the fire: Well Rested for everyone.
+L_CampEnd:
+	if (@cl_fire$ != "")
+		unloadnpc @cl_fire$;
+	@cl_fire$ = "";
+	@cl_camp = 0;
+	@cl_clast = gettimetick(2);
+	// The riders back on their mounts.
+	if (@cl_crid$ != "" && @cl_crid$ != ";") {
+		explode(.@rd$, @cl_crid$, ";");
+		for (.@i = 0; .@i < getarraysize(.@rd$); .@i++) {
+			if (.@rd$[.@i] == "")
+				continue;
+			explode(.@ac$, .@rd$[.@i], ":");
+			if (isloggedin(atoi(.@ac$[0]), atoi(.@ac$[1])))
+				setriding 1, atoi(.@ac$[1]);
+		}
+	}
+	@cl_crid$ = "";
+	.@min = (gettimetick(2) - @cl_cstart) / 60;
+	.@dur = 0;
+	if (.@min >= 15)
+		.@dur = 3600;
+	else if (.@min >= 5)
+		.@dur = 1800;
+	if (.@dur) {
+		bonus_script "bonus2 bExpAddRace,RC_ALL,10; bonus bHPrecovRate,30; bonus bSPrecovRate,30;", .@dur, BSF_FORCE_REPLACE, 0, EFST_CASH_PLUSEXP;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] > 0)
+				bonus_script "bonus bHPrecovRate,30; bonus bSPrecovRate,30;", .@dur, BSF_FORCE_REPLACE, 0, EFST_CASH_PLUSEXP, @cl_cid[.@i];
+		}
+		dispbottom "[Companions] Well Rested: +10% base EXP and faster HP and SP recovery for " + (.@dur / 60) + " minutes.", 0xFFCC66;
+	}
+	if (getarg(0)) {
+		.@a = callsub(L_Pick, -1, -1);
+		if (.@a >= 0)
+			callsub L_SpeakNow, .@a, "campout", "", ET_OK;
+	}
+	return;
+
+// Every tick while the fire burns.
+L_CampTick:
+	.@sec = getarg(0);
+	// You chose "Put out the fire" at the fire (CampFire marks it; the dialog is shut by
+	// now, since this tick skips anyone in a dialog).
+	if (@cl_cout) {
+		@cl_cout = 0;
+		callsub L_CampEnd, 1;
+		return;
+	}
+	getmapxy(.@om$, .@ox, .@oy, BL_PC);
+	if (.@om$ != @cl_cfm$ || max(.@ox - @cl_cfx, @cl_cfx - .@ox, .@oy - @cl_cfy, @cl_cfy - .@oy) > 12) {
+		callsub L_CampEnd, 0;
+		return;
+	}
+	// You moved about the camp: the game's follow pulled them into formation behind you,
+	// off their seats. Two seconds after you settle, a fresh even ring from where you
+	// stand now.
+	if (@cl_cseatst != @cl_still && .@sec - @cl_still >= 2 && !@cl_incombat) {
+		@cl_cseatst = @cl_still;
+		callsub L_CampSeat;
+	}
+	// The marker that sits them round the fire (db/when/campfire, Reuse_Limit_G: it
+	// only blocks one cash item companions never use), renewed every 4 s. The scouts
+	// stand watch at their seats for two minutes, then sit too. (No effect
+	// on the fire: EF_TORCH keeps burning once started, and repeating it stacked into
+	// a huge glow; the bonfire sprite is the fire.)
+	if (.@sec >= @cl_cmk) {
+		@cl_cmk = .@sec + 4;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] <= 0)
+				continue;
+			// Scouts too: their two-minute watch, held at their seat, is in
+			// db/when/campfire (ct_camp_watch).
+			sc_start SC_REUSE_LIMIT_G, 8000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];
+		}
+	}
+	if (@cl_incombat)
+		return;
+	if (!@cl_cmeal && .@sec - @cl_cstart >= 60) {
+		@cl_cmeal = 1;
+		callsub L_CampCook;
+		return;
+	}
+	.@min = (.@sec - @cl_cstart) / 60;
+	if (@cl_crest < 1 && .@min >= 5) {
+		@cl_crest = 1;
+		dispbottom "[Companions] The fire's warmth sinks in. You'll leave Well Rested (30 minutes).", 0xFFCC66;
+	} else if (@cl_crest < 2 && .@min >= 15) {
+		@cl_crest = 2;
+		dispbottom "[Companions] A proper rest. You'll leave Well Rested (1 hour).", 0xFFCC66;
+	}
+	if (getarraysize(@cl_qa))
+		return;
+	if (.@sec >= @cl_cnext) {
+		@cl_cnext = .@sec + 40 + rand(15);
+		callsub L_CampTalk;
+		return;
+	}
+	if (.@sec >= @cl_cact) {
+		@cl_cact = .@sec + 50 + rand(40);
+		.@a = callsub(L_Pick, -1, -1);
+		if (.@a >= 0)
+			callsub L_QueueIdx, .@a, "campact", "", 0;
+	}
+	return;
+
+// A talk by the fire: two of them, sometimes three, at night sometimes the night
+// ones; one companion alone muses. Bonds grow twice as fast here.
+L_CampTalk:
+	if (@cl_n < 2) {
+		.@a = callsub(L_Pick, -1, -1);
+		if (.@a >= 0)
+			callsub L_QueueIdx, .@a, "campsolo", "", 0;
+		return;
+	}
+	.@a = callsub(L_Pick, -1, -1);
+	.@b = callsub(L_Pick, .@a, -1);
+	if (.@a < 0 || .@b < 0)
+		return;
+	.@c = -1;
+	if (@cl_n >= 3 && rand(100) < 30) {
+		.@x = callsub(L_Pick, .@a, -1);
+		if (.@x >= 0 && .@x != .@b)
+			.@c = .@x;
+	}
+	.@lh = gettime(DT_HOUR);
+	.@cat$ = "camp";
+	if (.@c >= 0)
+		.@cat$ = "camp3";
+	else if ((.@lh >= 21 || .@lh < 5) && rand(100) < 40)
+		.@cat$ = "campn";
+	.@line$ = callsub(L_PickConv, .@cat$);
+	if (.@line$ == "")
+		return;
+	callsub L_Bump, .@a, .@b;
+	callsub L_Bump, .@a, .@b;
+	if (.@c >= 0) {
+		callsub L_Bump, .@a, .@c;
+		callsub L_Bump, .@b, .@c;
+	}
+	callsub L_QueueConv, .@a, .@b, .@c, .@line$, "", "", -1;
+	return;
+
+// The meal: the cook (a Merchant, else a Healer, else anyone) uses what's in the
+// bags, theirs first, then yours. A buff for everyone, 30 minutes.
+L_CampCook:
+	.@k = callsub(L_Pick, -1, 7);
+	if (.@k >= 0 && @cl_ar[.@k] != 7) {
+		.@h = callsub(L_Pick, -1, 4);
+		if (.@h >= 0 && @cl_ar[.@h] == 4)
+			.@k = .@h;
+	}
+	if (.@k < 0)
+		return;
+	.@meal = 0;
+	.@m$ = callsub(L_CampFind, "517,12102");
+	.@v$ = callsub(L_CampFind, "515,516,535,581,622");
+	if (.@m$ != "" && .@v$ != "") {
+		.@meal = 1;
+		.@used$ = callsub(L_CampUse, .@m$) + " and " + callsub(L_CampUse, .@v$);
+	} else {
+		.@f$ = callsub(L_CampFind, "579,544");
+		if (.@f$ != "") {
+			.@meal = 2;
+			.@used$ = callsub(L_CampUse, .@f$);
+		} else {
+			.@r$ = callsub(L_CampFind, "512,513,514,578,568");
+			.@w$ = callsub(L_CampFind, "518,519,548");
+			if (.@r$ != "" && .@w$ != "") {
+				.@meal = 3;
+				.@used$ = callsub(L_CampUse, .@r$) + " and " + callsub(L_CampUse, .@w$);
+			} else {
+				.@any$ = callsub(L_CampFind, "517,12102,515,516,535,581,622,579,544,512,513,514,578,568,518,519,548");
+				if (.@any$ != "") {
+					.@meal = 4;
+					.@used$ = callsub(L_CampUse, .@any$);
+				}
+			}
+		}
+	}
+	if (!.@meal) {
+		callsub L_QueueIdx, .@k, "campnofood", "", ET_SWEAT;
+		return;
+	}
+	setarray .@mn$, "", "Hunter's Stew", "Grilled Fish", "Sweet Tart", "Simple Soup";
+	setarray .@bs$, "", "bonus bBaseAtk,15; bonus bHit,10;", "bonus bMaxHPrate,8; bonus bHPrecovRate,20;",
+		"bonus bMaxSPrate,8; bonus bSPrecovRate,30;", "bonus bHPrecovRate,20; bonus bSPrecovRate,20;";
+	setarray .@fx$, "", "+15 ATK, +10 HIT", "+8% max HP, faster HP recovery", "+8% max SP, faster SP recovery", "faster HP and SP recovery";
+	// The client's food icon closest to the meal (each icon has the game's own fixed
+	// tooltip, so the gold line above says what the meal really does).
+	setarray .@ic, 0, EFST_FOOD_STR, EFST_FOOD_VIT, EFST_FOOD_INT, EFST_FOOD_VIT;
+	bonus_script .@bs$[.@meal], 1800, BSF_FORCE_REPLACE, 0, .@ic[.@meal];
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] > 0)
+			bonus_script .@bs$[.@meal], 1800, BSF_FORCE_REPLACE, 0, .@ic[.@meal], @cl_cid[.@i];
+	}
+	.@t$ = replacestr(callsub(L_Text, callsub(L_Line, "cook" + .@meal, 0), .@k, ""), "{i}", .@mn$[.@meal]);
+	.@q = getarraysize(@cl_qa);
+	@cl_qa[.@q] = @cl_aid[.@k];
+	@cl_qn$[.@q] = @cl_nm$[.@k];
+	@cl_qt$[.@q] = .@t$;
+	@cl_qe[.@q] = ET_DELIGHT;
+	dispbottom "[Companions] " + @cl_nm$[.@k] + " cooked " + .@mn$[.@meal] + " (" + .@used$ + "): " + .@fx$[.@meal] + " for everyone, 30 minutes.", 0xFFCC66;
+	return;
+
+// "<account id>:<item id>" of the first bag (companions', then yours) holding one of
+// getarg(0) ("id,id,..."), or "".
+L_CampFind:
+	explode(.@ids$, getarg(0), ",");
+	.@n = getarraysize(.@ids$);
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		for (.@j = 0; .@j < .@n; .@j++) {
+			if (countitem(atoi(.@ids$[.@j]), @cl_aid[.@i]) > 0)
+				return @cl_aid[.@i] + ":" + .@ids$[.@j];
+		}
+	}
+	for (.@j = 0; .@j < .@n; .@j++) {
+		if (countitem(atoi(.@ids$[.@j])) > 0)
+			return getcharid(3) + ":" + .@ids$[.@j];
+	}
+	return "";
+
+// Takes the one L_CampFind found; returns its name.
+L_CampUse:
+	explode(.@p$, getarg(0), ":");
+	.@id = atoi(.@p$[1]);
+	if (atoi(.@p$[0]) == getcharid(3))
+		delitem .@id, 1;
+	else
+		delitem .@id, 1, atoi(.@p$[0]);
+	return getitemname(.@id);
 
 // The Companions status window: "@clstat <request> list". One record per
 // companion in the party (on this map or not), fields split by |, records by ~:
@@ -1242,11 +2673,13 @@ OnCmdStat:
 			// Who it's closest to (L_Fav), when it's here with you.
 			.@ix = inarray(@cl_cid, .@c);
 			.@fav$ = "";
-			if (.@ix >= 0 && @cl_hp[.@ix] > 0) {
-				.@fx = callsub(L_Fav, .@ix);
-				.@fav$ = "you";
-				if (.@fx >= 0)
-					.@fav$ = callsub(L_Clean, @cl_nm$[.@fx]);
+			if (.@ix >= 0) {	// (two ifs: && reads both sides)
+				if (@cl_hp[.@ix] > 0) {
+					.@fx = callsub(L_Fav, .@ix);
+					.@fav$ = "you";
+					if (.@fx >= 0)
+						.@fav$ = callsub(L_Clean, @cl_nm$[.@fx]);
+				}
 			}
 			.@r$ += "|" + .@fav$;
 			if (.@out$ != "")
@@ -1454,8 +2887,18 @@ OnCmdBag:
 		// the array, so it came out as the smallest stack after this one.)
 		.@have = @inventorylist_amount[.@j];
 		.@amt = min(max(.@amt, 1), .@have);
-		if (readparam(Weight, .@c) + getiteminfo(.@id, ITEMINFO_WEIGHT) * .@amt > readparam(MaxWeight, .@c)) {
-			callsub L_BagReply, .@req$, "ERR|" + .@nm$ + " can't carry that much.";
+		.@iw = getiteminfo(.@id, ITEMINFO_WEIGHT);
+		.@room = readparam(MaxWeight, .@c) - readparam(Weight, .@c);
+		if (.@iw * .@amt > .@room) {
+			// How many would fit, and the weight in the game's units (tenths).
+			.@fit = 0;
+			if (.@iw > 0 && .@room > 0)
+				.@fit = .@room / .@iw;
+			.@wt$ = " (weight " + (readparam(Weight, .@c) / 10) + " / " + (readparam(MaxWeight, .@c) / 10) + ")";
+			if (.@fit > 0)
+				callsub L_BagReply, .@req$, "ERR|" + .@nm$ + " can only carry " + .@fit + " more " + getitemname(.@id) + .@wt$ + ". Take something heavy back first, or give fewer.";
+			else
+				callsub L_BagReply, .@req$, "ERR|" + .@nm$ + "'s bag is full" + .@wt$ + ". Take something heavy back first.";
 			end;
 		}
 		.@ident = @inventorylist_identify[.@j];
@@ -1489,12 +2932,20 @@ OnCmdBag:
 					+ " AND name = '" + escape_sql(.@nm$) + "' LIMIT 1", .@gmv) > 0)
 				.@gm = .@gmv;
 			.@dm = callsub(L_DgMask, .@c);
-			// The slot: an accessory takes a side that holds its own piece, if any.
+			// The slot. An accessory with a side free just goes on (rAthena fills
+			// the right when it's empty, else the left) and nothing comes off. With
+			// both sides worn it replaces the companion's own piece, else the left
+			// one. (EQP_ACC_RL: a plain EQP_ACC is no constant here, just an empty
+			// variable, so every ring was taken for "both sides" and sent the worn
+			// one back, 2.4.0.)
 			.@t = .@loc;
-			if (.@loc == EQP_ACC) {
-				.@t = EQP_ACC_L;
-				if (((.@gm | .@dm) & EQP_ACC_L) && !((.@gm | .@dm) & EQP_ACC_R))
+			if (.@loc == EQP_ACC_RL) {
+				if (getequipid(EQI_ACC_L, .@c) <= 0 || getequipid(EQI_ACC_R, .@c) <= 0)
+					.@t = 0;
+				else if (((.@gm | .@dm) & EQP_ACC_L) && !((.@gm | .@dm) & EQP_ACC_R))
 					.@t = EQP_ACC_R;
+				else
+					.@t = EQP_ACC_L;
 			}
 			.@ok = 1;
 			.@extra$ = "";
@@ -1530,10 +2981,12 @@ OnCmdBag:
 					EQI_ACC_L, EQI_ACC_R, EQI_COSTUME_HEAD_TOP, EQI_COSTUME_HEAD_MID, EQI_COSTUME_HEAD_LOW, EQI_COSTUME_GARMENT;
 				for (.@s = 0; .@s < getarraysize(.@eb); .@s++)
 					.@old[.@s] = (.@t & .@eb[.@s]) ? getequipid(.@ei[.@s], .@c) : 0;
-				// An accessory goes on the right only when the right is empty (the
-				// engine's rule), else on the left.
-				if (.@t == EQP_ACC_R)
+				// rAthena puts an accessory on the right unless only the left is free,
+				// so the chosen side is emptied first (its piece is in .@old).
+				if (.@t == EQP_ACC_R && getequipid(EQI_ACC_R, .@c) > 0)
 					unequip EQI_ACC_R, .@c;
+				else if (.@t == EQP_ACC_L && getequipid(EQI_ACC_L, .@c) > 0)
+					unequip EQI_ACC_L, .@c;
 				// (This server has no equip2: by item id, so the first of it in its bag.)
 				equip .@id, .@c;
 				// Where it went (an accessory picks a side, a two-hander takes both hands).
@@ -1681,6 +3134,225 @@ L_BagParty:
 		@clb_nm$[@clb_n] = .@pnm$[.@q];
 		@clb_n++;
 	}
+	return;
+
+// The names of your companions set to roam (@cl_rm$), from the engine's table;
+// none while the app's Companion roaming setting is off (they follow then).
+L_RoamRead:
+	deletearray @cl_rm$;
+	if (getbattleflag("population_engine_companion_roam") > 0)
+		query_sql "SELECT name FROM cp_companion_persistence WHERE owner_char_id = " + getcharid(0) + " AND roam = 1", @cl_rm$;
+	return;
+
+// Starter kits: each of your companions drafted with the app's "Companions
+// start unequipped" (the engine's row says so), here and standing, that
+// hasn't had its chance yet (mod store, char scope, kit.c<char id>).
+L_KitCheck:
+	.@n = query_sql("SELECT name FROM cp_companion_persistence WHERE owner_char_id = " + getcharid(0) + " AND start_unequipped = 1", .@nm$);
+	for (.@k = 0; .@k < .@n; .@k++) {
+		.@ix = inarray(@cl_nm$, .@nm$[.@k]);
+		if (.@ix < 0)
+			continue;
+		if (@cl_hp[.@ix] <= 0)
+			continue;
+		if (modstore_get("char", "kit.c" + @cl_cid[.@ix], 0))
+			continue;
+		callsub L_Kit, .@ix;
+	}
+	return;
+
+// Companion getarg(0) (index) gets the kit for its class and level, once:
+// only if it wears nothing yet (you may have dressed it first). Each piece
+// goes into its bag and on, as a trade does; a companion that started
+// unequipped counts all it wears as yours (the engine), so the Gear tab's
+// Take back and our Bag tab both hand it to you, and nothing grows back.
+L_Kit:
+	.@i = getarg(0);
+	.@c = @cl_cid[.@i];
+	.@aid = @cl_aid[.@i];
+	modstore_set "char", "kit.c" + .@c, 1;	// its one chance, whatever happens next
+	setarray .@ei, EQI_HEAD_TOP, EQI_HEAD_MID, EQI_HEAD_LOW, EQI_ARMOR, EQI_HAND_R, EQI_HAND_L, EQI_GARMENT, EQI_SHOES, EQI_ACC_L, EQI_ACC_R;
+	for (.@s = 0; .@s < getarraysize(.@ei); .@s++) {
+		if (getequipid(.@ei[.@s], .@c) > 0)
+			return;
+	}
+	.@lv = readparam(BaseLevel, .@c);
+	.@t = 0;
+	if (.@lv >= 70)
+		.@t = 3;
+	else if (.@lv >= 40)
+		.@t = 2;
+	else if (.@lv >= 20)
+		.@t = 1;
+	// The base class: transcendent and baby folded in, a Peco Knight is a Knight.
+	.@job = roclass(eaclass(readparam(Class, .@c)) & ~(EAJL_UPPER | EAJL_BABY), readparam(Sex, .@c));
+	.@v$ = ".kit_" + .@job + "_" + .@t;
+	.@n = getarraysize(getd(.@v$));
+	if (!.@n)
+		return;
+	.@got$ = "";
+	for (.@k = 0; .@k < .@n; .@k++) {
+		.@id = getd(.@v$ + "[" + .@k + "]");
+		if (getiteminfo(.@id, ITEMINFO_EQUIPLEVELMIN) > .@lv)
+			continue;	// not yet (a low companion skips the odd piece)
+		getitem .@id, 1, .@aid;
+		equip .@id, .@c;
+		.@got$ += (.@got$ == "" ? "" : ", ") + getitemname(.@id);
+	}
+	.@am = getd(".kitammo_" + .@job + "_" + .@t);
+	if (.@am > 0) {
+		getitem .@am, 500, .@aid;
+		equip .@am, .@c;
+		.@got$ += ", 500 " + getitemname(.@am);
+	}
+	// Our record of what it wears from you, so the Bag tab shows it and takes
+	// it back (as gear dropped on it there).
+	.@rec$ = modstore_get("char", "dg.c" + .@c, "");
+	getinventorylist .@c;
+	.@cnt = getvar(@inventorylist_count, .@c);
+	for (.@j = 0; .@j < .@cnt; .@j++) {
+		.@eq = getvar(@inventorylist_equip[.@j], .@c);
+		if (!.@eq || .@eq == EQP_AMMO)
+			continue;
+		.@rec$ += (.@rec$ == "" ? "" : ";") + .@eq + "," + getvar(@inventorylist_id[.@j], .@c) + ",0";
+	}
+	if (.@rec$ != "")
+		modstore_set "char", "dg.c" + .@c, .@rec$;
+	if (.@got$ != "")
+		dispbottom "[Companions] " + @cl_nm$[.@i] + " got a starter kit: " + .@got$ + ".", 0xAADDFF;
+	return;
+
+// A gift from companion getarg(0) (index) to you (attached), getarg(1) the moment:
+// "" a quiet one, "mvp", "lvl" or "ann". At most one gift every 4 minutes, and
+// from the same companion every 30. 1 when it gave something.
+L_Gift:
+	.@i = getarg(0);
+	.@k$ = getarg(1);
+	.@aid = @cl_aid[.@i];
+	.@sec = gettimetick(2);
+	if (!.gifts || @cl_hp[.@i] <= 0 || !unitexists(.@aid))
+		return 0;
+	if (.@sec < @cl_gall || .@sec < getd("@cl_gcd_" + .@aid))
+		return 0;
+	.@ar = @cl_ar[.@i];
+	// Rare and very rare, in tenths of a percent; better at the big moments.
+	.@rr = 120;
+	.@vr = 5;
+	if (.@k$ == "mvp") {
+		.@rr = 300;
+		.@vr = 20;
+	} else if (.@k$ != "") {
+		.@rr = 200;
+		.@vr = 10;
+	}
+	.@roll = rand(1000);
+	if (.@roll < .@vr) {
+		.@e$ = "616:1:1";	// Old Card Album
+		.@cat$ = "giftv";
+	} else {
+		.@tb$ = getd(".gc_" + .@ar + "$");
+		.@cat$ = "giftc";
+		if (.@roll < .@vr + .@rr) {
+			.@tb$ = getd(".gr_" + .@ar + "$");
+			.@cat$ = "giftr";
+		}
+		if (.@tb$ == "")
+			return 0;
+		explode(.@ent$, .@tb$, ",");
+		.@e$ = .@ent$[rand(getarraysize(.@ent$))];
+	}
+	explode(.@p$, .@e$, ":");
+	.@id = atoi(.@p$[0]);
+	.@lo = atoi(.@p$[1]);
+	.@hi = atoi(.@p$[2]);
+	.@n = .@lo;
+	if (.@hi > .@lo)
+		.@n = rand(.@lo, .@hi);
+	if (.@id == 0) {
+		if (Zeny + .@n > MAX_ZENY)
+			return 0;
+		Zeny += .@n;
+		.@what$ = .@n + " zeny";
+	} else {
+		if (!checkweight(.@id, .@n))
+			return 0;	// you can't carry it: no gift this time
+		getitem .@id, .@n;
+		.@what$ = getitemname(.@id);
+		if (.@n > 1)
+			.@what$ = .@n + " " + .@what$;
+	}
+	setd "@cl_gcd_" + .@aid, .@sec + 1800;
+	@cl_gall = .@sec + 240;
+	callsub L_GiftWalk, .@i;
+	// What it says: about the moment half the time, else about the gift.
+	.@lc$ = .@cat$;
+	if (.@k$ != "" && .@cat$ != "giftv" && rand(2))
+		.@lc$ = "gift" + .@k$;
+	.@t$ = replacestr(callsub(L_Text, callsub(L_Line, .@lc$, .@ar), .@i, ""), "{i}", .@what$);
+	.@em = ET_DELIGHT;
+	if (.@cat$ == "giftv")
+		.@em = ET_THROB;
+	else if (.@id == 0)
+		.@em = ET_MONEY;
+	.@q = getarraysize(@cl_qa);
+	@cl_qa[.@q] = .@aid;
+	@cl_qn$[.@q] = @cl_nm$[.@i];
+	@cl_qt$[.@q] = .@t$;
+	@cl_qe[.@q] = .@em;
+	dispbottom "[Companions] " + @cl_nm$[.@i] + " gave you " + .@what$ + ".", 0xFFCC66;
+	if (.mem)
+		modstore_inc("char", "m.c" + @cl_cid[.@i] + ".gifts", 1);
+	return 1;
+
+// Companion getarg(0) walks over to stand next to you (on your side facing it),
+// when it's on your map and within 12 cells.
+L_GiftWalk:
+	.@aid = @cl_aid[getarg(0)];
+	getmapxy(.@om$, .@ox, .@oy, BL_PC);
+	if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != .@om$)
+		return;
+	.@dx = .@cx - .@ox;
+	.@dy = .@cy - .@oy;
+	if (max(.@dx, -.@dx, .@dy, -.@dy) > 12 || max(.@dx, -.@dx, .@dy, -.@dy) <= 1)
+		return;
+	.@gx = .@ox + (.@dx > 0) - (.@dx < 0);
+	.@gy = .@oy + (.@dy > 0) - (.@dy < 0);
+	if (!checkcell(.@om$, .@gx, .@gy, cell_chkpass))
+		return;
+	callsub L_FaceWalk, .@aid, .@om$, .@cx, .@cy, .@gx, .@gy, .@ox, .@oy, 4000;
+	return;
+
+// Whether companion getarg(0) (an index of the tick's @cl_ arrays) roams.
+L_Roams:
+	return (inarray(@cl_rm$, @cl_nm$[getarg(0)]) >= 0);
+
+// 2.5.6: roaming companions don't sit down to rest. The engine rests a companion
+// before its strategy rules get a turn (population_engine.cpp: pop_shell_rest), so a
+// rule can't keep it up; the only switch is "@companion rest <below> <until>", which
+// is for the whole party (0 = never). While any of yours roams, the thresholds are
+// saved (char var cl_rest_saved$, the most common pair among your companions) and set
+// to never; once none roams, they're put back. Survives a server restart.
+L_RoamRest:
+	if (!.roamhelp)
+		return;
+	.@cid = getcharid(0);
+	query_sql "SELECT COUNT(*) FROM cp_companion_persistence WHERE owner_char_id = " + .@cid + " AND active = 1 AND roam = 1", .@r;
+	if (.@r[0] > 0) {
+		if (cl_rest_saved$ != "")
+			return;
+		query_sql "SELECT rest_below, rest_until, COUNT(*) AS c FROM cp_companion_persistence WHERE owner_char_id = " + .@cid
+			+ " AND active = 1 GROUP BY rest_below, rest_until ORDER BY c DESC LIMIT 1", .@b, .@u, .@cnt;
+		if (.@b[0] <= 0)
+			return;	// already never resting: nothing to give back later
+		cl_rest_saved$ = .@b[0] + "," + .@u[0];
+		atcommand "@companion rest 0 " + .@u[0];
+		return;
+	}
+	if (cl_rest_saved$ == "")
+		return;
+	explode(.@p$, cl_rest_saved$, ",");
+	cl_rest_saved$ = "";
+	atcommand "@companion rest " + .@p$[0] + " " + .@p$[1];
 	return;
 
 // The highest outfit colour offered for a class. Built on the engine's own
@@ -1865,9 +3537,12 @@ L_DgBack:
 	callsub L_ToYou, .@c, .@j, 1;
 	callsub L_DgSave, .@c, .@keep$;
 	.@msg$ = "Took back the " + getitemname(.@id) + " from " + .@nm$ + ".";
-	if (.@own > 0 && countitem(.@own, getcharid(3, .@nm$))) {
-		equip .@own, .@c;
-		.@msg$ += " It put its " + getitemname(.@own) + " back on.";
+	// (Two ifs: && reads both sides, and countitem(0) is an error.)
+	if (.@own > 0) {
+		if (countitem(.@own, getcharid(3, .@nm$))) {
+			equip .@own, .@c;
+			.@msg$ += " It put its " + getitemname(.@own) + " back on.";
+		}
 	}
 	return "OK|" + .@msg$;
 
@@ -1928,6 +3603,8 @@ L_MemSeen:
 			if (.@ms[.@k] > .@ann && @cl_hp[.@i] > 0) {
 				modstore_set "char", .@p$ + ".ann", .@ms[.@k];
 				callsub L_QueueFmt, .@i, "anniv", "", ET_CONGRATULATION, .@days, "";
+				if (rand(100) < 50)
+					callsub L_Gift, .@i, "ann";
 			}
 			break;
 		}
@@ -2177,9 +3854,10 @@ L_Conversation:
 	}
 	// How the topic is chosen (by a roll under 100): a small party mostly
 	// talks in pairs; with three or more companions the whole group joins in.
-	setarray .@th, 0, 15, 40, 65, 75, 88;	// four, three, pair, place, memory, friends
+	// 3.0.0: what's left after friends (anything, .conv$) got bigger with the new lines.
+	setarray .@th, 0, 15, 35, 52, 60, 72;	// four, three, pair, place, memory, friends
 	if (@cl_n >= 3)
-		setarray .@th, 20, 45, 60, 75, 82, 92;
+		setarray .@th, 20, 42, 55, 66, 72, 80;
 	if (.@d < 0)
 		.@th[0] = 0;
 	.@rk$ = callsub(L_PairKey, @cl_cid[.@a], @cl_cid[.@b]);
@@ -2197,6 +3875,12 @@ L_Conversation:
 		.@r = rand(100);
 		if (.@d >= 0 && .@r < .@th[0])
 			.@cat$ = "quad";
+		// 3.0.0: about one in five is an easter egg: an isekai nod, a bit of
+		// Rune-Midgard lore, or a what-if about the world and its NPCs.
+		if (.@cat$ == "" && rand(100) < 20) {
+			setarray .@eg$, "egg_isekai", "egg_lore", "egg_npc";
+			.@cat$ = .@eg$[rand(3)];
+		}
 		if (.@cat$ == "" && .@c >= 0 && .@r < .@th[1])
 			.@cat$ = "trio";
 		if (.@cat$ == "" && .@r < .@th[2]) {
@@ -2514,8 +4198,8 @@ L_Restless:
 	.@oy = getarg(2);
 	.@w = 0;
 	for (.@i = 0; .@i < @cl_n; .@i++) {
-		if (@cl_hp[.@i] <= 0 || getd("@cl_rst_" + @cl_aid[.@i]))
-			continue;	// down, or resting to get HP/SP back: leave it be
+		if (@cl_hp[.@i] <= 0 || getd("@cl_rst_" + @cl_aid[.@i]) || callsub(L_Roams, .@i))
+			continue;	// down, resting to get HP/SP back, or off roaming: leave it be
 		.@thr = 60;
 		if (@cl_ar[.@i] == 3)
 			.@thr = 180;
@@ -2528,7 +4212,9 @@ L_Restless:
 	}
 	if (!.@w)
 		return;
-	.@i = .@wc[rand(.@w)];
+	.@i = .@wc[0];
+	if (.@w > 1)
+		.@i = .@wc[rand(.@w)];	// rand(1) logs an error on this server
 	.@aid = @cl_aid[.@i];
 	if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != getarg(0))
 		return;
@@ -2536,9 +4222,14 @@ L_Restless:
 	.@f = callsub(L_Fav, .@i);
 	.@fx = .@ox;
 	.@fy = .@oy;
-	if (.@f >= 0 && getmapxy(.@fm$, .@px, .@py, BL_PC, @cl_aid[.@f]) == 0) {
-		.@fx = .@px;
-		.@fy = .@py;
+	// (Two ifs: the script's && reads both sides, and @cl_aid[-1] when the
+	// favourite is you stopped the tick with your character still attached,
+	// which froze you: no walking, no NPCs, until a relog.)
+	if (.@f >= 0) {
+		if (getmapxy(.@fm$, .@px, .@py, BL_PC, @cl_aid[.@f]) == 0) {
+			.@fx = .@px;
+			.@fy = .@py;
+		}
 	}
 	stand @cl_nm$[.@i];
 
@@ -2611,7 +4302,9 @@ L_Restless:
 	} else if (.@r < 80 && @cl_n > 1) {
 		.@j = .@f;
 		if (.@j < 0 || .@j == .@i) {
-			.@j = rand(@cl_n - 1);
+			.@j = 0;
+			if (@cl_n > 2)
+				.@j = rand(@cl_n - 1);	// rand(1) logs an error on this server
 			if (.@j >= .@i)
 				.@j++;
 		}
@@ -2888,4 +4581,19 @@ L_MapKind:
 	if (compare(.@m$, "_in") || compare(.@m$, "in_") || compare(.@m$, "cas0") || compare(.@m$, "pvp") || compare(.@m$, "job") || compare(.@m$, "que_") || compare(.@m$, "_vs"))
 		return "";
 	return "dungeon";
+}
+
+
+// Campfire nights (3.0.0): the bonfire. Never placed itself: L_CampStart makes a
+// copy next to you with duplicate_dynamic (only you see it), and puts it out with
+// unloadnpc. Clicking it: sit a while, or put it out. Sprite 19420 is our own id for
+// the client's bonfire (System/jobname.lub): this client has no row for 4_BONFIRE's id.
+// Putting it out only marks it (@cl_cout): unloading this NPC while its own dialog was
+// still open left you "talking" to an NPC that no longer existed, and no other NPC
+// would talk to you until a relog. The camp tick puts it out once the dialog is shut.
+-	script	CampFire	19420,{
+	mes "The fire crackles warmly. Your companions are gathered around it.";
+	if (select("Sit a while longer:Put out the fire") == 2)
+		@cl_cout = 1;
+	close;
 }

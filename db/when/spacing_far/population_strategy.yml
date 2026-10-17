@@ -67,3 +67,18 @@ Body:
             Absent: { Ally: lowest_hp }
             When: [not_self_entry_queue_apply_delay, master_distance_le6]
             Hold: true
+      # Priests (party role support or none) heal by the rules in the main plan,
+      # which come long before this Hold. They don't need the engine's own heals, so
+      # they hold whenever no monster is in sight. Waiting for everyone to be at
+      # 100 % HP walked them back and forth between their spot by you and the friend
+      # they sit with, until all had regenerated (2.3.4).
+      - Job: Priest
+        Exact: true
+        Rules:
+          - Name: ct_idle_hold_priest
+            Priority: 12
+            Requires: { Role: [support, none] }
+            Count: { Enemy: any, Range: 14, Below: 1 }
+            When: [not_self_entry_queue_apply_delay, master_distance_le6]
+            Hold: true
+

@@ -14,6 +14,11 @@
 #   trap                   a Hunter snares what you fight
 #   take a break / sit down   everyone sits and recovers, until
 #   on your feet / let's go   ...this, or ten minutes
+#   go hunt / go roam / spread out     companions roam the map (app setting
+#   come back / regroup / fall back /  Companion roaming), or follow you again;
+#     follow me                        a name in the line = only that one.
+#     These two are not rules here: client/index.js hears the line and the
+#     script's @clroam runs "@companion roam" (rules can't run a command).
 #
 # The engine's own party-chat words (a companion's name + support / attacker / tank /
 # passive / defensive, "<name> trace") still work as before.

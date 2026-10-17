@@ -93,15 +93,15 @@ const $ = id => document.getElementById(id);
 // 'spacing' is the four-way choice drawn over the three spacing_* switches.
 const CARDS = [
   { cls: 'party', title: 'Party behaviour', blurb: 'How they stand, wander and rest between fights.',
-    rows: ['spacing', 'look_around', 'scout_patrol', 'idle_sit', 'sit_with_favourite', 'restless_sitting'] },
+    rows: ['spacing', 'look_around', 'idle_sit', 'campfire'] },
   { cls: 'battle', title: 'In battle', blurb: 'Each class in its part, your orders, and your items.',
-    rows: ['everyday_roles', 'chat_orders', 'use_items', 'town_calm'] },
+    rows: ['party_roles', 'roam_together', 'chat_orders', 'use_items', 'town_calm'] },
   { cls: 'talk', title: 'Talk & personality', blurb: 'What they say, to you and to each other.',
-    rows: ['titles', 'greetings', 'world_reactions', 'combat_callouts', 'chat_replies', 'daily_life', 'emotes', 'banter_minutes'] },
-  { cls: 'purse', title: 'Bag & purse', blurb: 'The party purse: a shared fund for gearing your companions.',
-    rows: ['purse_per_level', 'purse_talk'] },
-  { cls: 'care', title: 'Memories & care', blurb: 'What they remember, and how they are looked after.',
-    rows: ['memories', 'companion_growth', 'growth_announce', 'companion_return', 'return_announce'] },
+    rows: ['titles', 'everyday_chatter', 'combat_callouts', 'chat_replies', 'banter_minutes'] },
+  { cls: 'purse', title: 'Bag & purse', blurb: 'Gearing your companions: a starter kit, and the party purse.',
+    rows: ['gifts', 'starter_kit', 'purse_per_level'] },
+  { cls: 'care', title: 'Growth & care', blurb: 'How they grow, what they remember, and how they are looked after.',
+    rows: ['companion_growth', 'memories', 'companion_return', 'companion_announce'] },
   { cls: 'general', title: 'Window', rows: ['window_button'] },
 ];
 const SPACING = [
@@ -110,14 +110,17 @@ const SPACING = [
   { id: 'normal', label: 'Normal', hint: 'They stand within 4 cells of you, and follow once you are 5 away.' },
   { id: 'far', label: 'Far', hint: 'They stand within 6 cells of you, and follow once you are 7 away.' },
 ];
+const SEGS = {
+  spacing: { label: 'Party spacing', hint: 'How far from you they stand between fights.' },
+};
 const UNITS = { banter_minutes: 'min', purse_per_level: 'zeny' };
 // The app hands the page values but not defaults; keep these in step with mod.json.
 const DEFAULTS = {
-  spacing_close: false, spacing_normal: true, spacing_far: false, look_around: true, scout_patrol: true, idle_sit: true, sit_with_favourite: true,
-  restless_sitting: true, everyday_roles: true, chat_orders: true, use_items: true, town_calm: true,
-  titles: 'Boss,Captain,Leader', greetings: true, world_reactions: true, combat_callouts: true, chat_replies: true,
-  daily_life: true, emotes: true, banter_minutes: 4, purse_per_level: 2, purse_talk: true,
-  memories: true, companion_growth: true, growth_announce: false, companion_return: true, return_announce: true,
+  spacing_close: false, spacing_normal: true, spacing_far: false, look_around: true, idle_sit: true, campfire: true,
+  party_roles: true, roam_together: true, chat_orders: true, use_items: true, town_calm: true,
+  titles: 'Boss,Captain,Leader', everyday_chatter: true, combat_callouts: true, chat_replies: true,
+  banter_minutes: 4, purse_per_level: 2, gifts: true, starter_kit: true,
+  memories: true, companion_growth: true, companion_return: true, companion_announce: true,
   window_button: true,
 };
 
@@ -134,26 +137,28 @@ function textBlock(label, hint) {
   return t;
 }
 
-function spacingRow() {
+// A segmented choice drawn over boolean switches named <name>_<option id>; 'off' has no switch.
+function segRow(name, opts, store) {
+  const g = SEGS[name];
   const r = document.createElement('div');
   r.className = 'row';
-  const t = textBlock('Party spacing', 'How far from you they stand between fights.');
+  const t = textBlock(g.label, g.hint);
   const p = document.createElement('div');
   p.className = 'preview';
-  p.id = 'pv_spacing';
+  p.id = 'pv_' + name;
   t.append(p);
   const seg = document.createElement('div');
   seg.className = 'seg';
-  const now = byKey.spacing_close?.value ? 'close' : byKey.spacing_far?.value ? 'far'
-    : byKey.spacing_normal?.value ? 'normal' : 'off';
-  for (const o of SPACING) {
+  const on = opts.find(o => o.id !== 'off' && byKey[name + '_' + o.id]?.value);
+  const now = on ? on.id : 'off';
+  for (const o of opts) {
     const l = document.createElement('label');
     const i = document.createElement('input');
     i.type = 'radio';
-    i.name = 'spacing';
+    i.name = name;
     i.value = o.id;
     i.checked = o.id === now;
-    spacingInputs[o.id] = i;
+    store[o.id] = i;
     l.append(i, o.label);
     seg.append(l);
   }
@@ -162,7 +167,7 @@ function spacingRow() {
 }
 
 function row(key) {
-  if (key === 'spacing') return spacingRow();
+  if (key === 'spacing') return segRow('spacing', SPACING, spacingInputs);
   const s = byKey[key];
   if (!s) return null;
   const r = document.createElement('div');
@@ -268,11 +273,7 @@ function refresh() {
     : `A level 40 monster with 3 companions adds ${(v.purse_per_level * 40 * 3).toLocaleString('en-US')} zeny.`);
   // Options that only matter with another one on.
   const dim = (key, on) => { const r = $('row_' + key); if (r) r.classList.toggle('off', !on); };
-  dim('sit_with_favourite', v.idle_sit);
-  dim('restless_sitting', v.idle_sit);
-  dim('growth_announce', v.companion_growth);
-  dim('return_announce', v.companion_return);
-  dim('purse_talk', v.purse_per_level > 0);
+  dim('companion_announce', v.companion_growth || v.companion_return);
   const dirty = JSON.stringify(v) !== baseline;
   const st = $('status');
   if (!st.dataset.busy) {

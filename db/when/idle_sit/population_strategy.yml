@@ -1,7 +1,9 @@
 # companion-party-overhaul: companions sit down when you've stood around a while (setting "idle_sit").
 # No monster within 14 cells and you within 7 cells (any spacing) for a minute: they sit, like
 # players waiting on a friend. They get up when a monster comes into sight or you
-# walk off more than 7 cells (the engine also stands a sitter up while you walk).
+# walk off more than 7 cells. The engine stands a sitter up whenever you take a step;
+# 3.0.0: they then wait (Reuse_Limit_H marker from the script) until you've stood still
+# about 8 s, instead of sitting back down after every step.
 # Below their rest marks (Companions window, Battle tab) the engine's own resting
 # comes first, as before; "take a break" in party chat still works the same.
 
@@ -51,7 +53,7 @@ Body:
               # (restless_sitting): the same Entry_Queue_Apply_Delay marker as the strolls.
               - Name: ct_lounge_sit
                 Priority: 21
-                When: not_self_entry_queue_apply_delay
+                When: [not_self_entry_queue_apply_delay, not_self_reuse_limit_h]
                 Sit: true
 
       # Archers, Hunters, Bards, Dancers, Gunslingers: scouts. They keep checking
@@ -95,5 +97,6 @@ Body:
                 Switch: up
               - Name: ct_scout_sit
                 Priority: 21
-                When: not_self_entry_queue_apply_delay
+                When: [not_self_entry_queue_apply_delay, not_self_reuse_limit_h]
                 Sit: true
+

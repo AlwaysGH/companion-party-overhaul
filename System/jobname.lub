@@ -1,0 +1,6 @@
+-- companion-party-overhaul: the campfire (CampFire NPC, npc/companion_life.txt) draws the
+-- client's own bonfire sprite under a mod id, since this client has no row for the stock
+-- 4_BONFIRE id. Only these rows; the app merges them into the client's own table by id.
+JobNameTable = {
+	[19420] = "4_BONFIRE",
+}

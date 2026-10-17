@@ -1,9 +1,9 @@
 {
   "name": "companion-party-overhaul",
-  "version": "2.3.3",
+  "version": "3.0.0",
   "author": "Always",
-  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, at bosses and in every fight, with orders in party chat and the items you give them. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags, the gear you gave, their colours and the party purse. Options are grouped in the Settings window.",
-  "requires": { "app": ">=1.5.9", "era": "any" },
+  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags, the gear you gave, their colours and the party purse. Options are grouped in the Settings window.",
+  "requires": { "app": ">=1.6.0", "era": "any" },
   "tags": ["companions", "population", "combat", "dialogue", "immersion"],
   "settingsPage": "settings/index.html",
   "settings": [
@@ -33,56 +33,42 @@
       "type": "boolean",
       "default": true,
       "label": "They look around while you wait",
-      "description": "While you stand still and nothing is fighting, every 12-30 seconds one companion strolls a few steps to another spot near you, as people do. Scouts (archers, gunslingers) do it twice as often and check a little further out, unless they walk their patrol."
-    },
-    {
-      "key": "scout_patrol",
-      "type": "boolean",
-      "default": true,
-      "label": "Scouts patrol around the party",
-      "description": "While you stand still and all is quiet, archers, hunters, bards, dancers and gunslingers walk a lap around the party, waypoint to waypoint just outside the others, rest 15-30 seconds, look about, and go round again (sometimes the other way). They stop when you move on, a fight starts, or it's time to sit."
+      "description": "While you stand still and nothing is fighting, every 12-30 seconds one companion strolls a few steps to another spot near you, as people do. Archers, hunters, bards, dancers and gunslingers walk a patrol lap around the party instead, rest, and go round again."
     },
     {
       "key": "idle_sit",
       "type": "boolean",
       "default": true,
       "label": "Sit down when you wait",
-      "description": "After a minute with no monster in sight (three for the scouts), companions sit down. They get up when you walk off or a monster shows up. Changing this restarts the server."
+      "description": "After a minute with no monster in sight (three for the scouts), each walks over to the one it's most comfortable with (you, or a friend) and sits facing them. Once they've sat a while, one now and then gets up to look around or shift spot. They get up when a monster shows up or you walk off, and sit again once you've stood still a few seconds. Changing this restarts the server."
     },
     {
-      "key": "sit_with_favourite",
+      "key": "campfire",
       "type": "boolean",
       "default": true,
-      "label": "They sit with their favourite person",
-      "description": "Before they sit down, each walks over to the one it's most comfortable with: you, or a companion it has talked with a lot, with a heart or a smile. Guardians and Rookies lean to you, Healers to whoever got hurt, Rogues sometimes sit apart, scouts patrol first, Merchants befriend faster. They sit down facing the one they came to."
+      "label": "Campfire nights",
+      "description": "Say \"make camp\" in party chat, or yes when a companion offers after you've stood still a while. A bonfire, everyone round it, campfire talks, a meal cooked from food in your bags (a 30-minute party buff), and Well Rested (+10% base EXP, faster regen) once you leave after 5+ minutes. \"time to go\" puts it out. Needs Orders in party chat. Changing this restarts the server."
     },
     {
-      "key": "restless_sitting",
+      "key": "party_roles",
       "type": "boolean",
       "default": true,
-      "label": "They shift and look around while sitting",
-      "description": "Once they've sat a while, every few minutes one gets up: it turns to look at you, at whoever just spoke, at a friend or out at the surroundings, or moves to a new spot by its favourite person, then sits again. Rogues keep their spot, Healers stay put while someone's hurt. Needs \"Sit down when you wait\"."
-    },
-    {
-      "key": "everyday_roles",
-      "type": "boolean",
-      "default": true,
-      "label": "Party roles in every fight",
-      "description": "Not only at bosses: the front line protects you and the back line keeps its distance in ordinary fights too, casters keep area spells for groups, Sages endow weapons. Off: companions fight their own way except at bosses. Changing this restarts the server."
+      "label": "Party roles",
+      "description": "Fights played like players: auto-attacks normally, SP saved for bad moments (3+ monsters, the back line hit, someone under 50%, a boss). Melee kite 3+ round the Priest, archers step back and burst, casters freeze and burst. Healers: full Heal under 50% first, Kyrie the tank, then under 80%. The back line is protected first. Changing this restarts the server."
     },
     {
       "key": "chat_orders",
       "type": "boolean",
       "default": true,
       "label": "Orders in party chat",
-      "description": "Type in party chat: \"assist me\"/\"focus\" and \"free fight\", \"regroup\"/\"fall back\", \"heal me\", \"buff me\", \"kyrie me\", \"wall me\", \"land protector\" (Sage), \"aoe\" (Wizard), \"trap\" (Hunter), \"take a break\"/\"sit down\" and \"on your feet\"/\"let's go\". Changing this restarts the server."
+      "description": "Type in party chat: \"assist me\"/\"focus\", \"free fight\", \"regroup\", \"heal me\", \"buff me\", \"kyrie me\", \"wall me\", \"land protector\", \"aoe\", \"trap\", \"take a break\", \"let's go\", \"go hunt\" and \"come back\" (roaming needs the app's Companion roaming; add a name for just that one). Changing this restarts the server."
     },
     {
       "key": "use_items",
       "type": "boolean",
       "default": true,
       "label": "Use the items you give them",
-      "description": "Needs Settings > Population > Companion inventory on. They cure poison, silence, blind, curse and confusion (Green Herb, Green Potion, Holy Water, Panacea, Royal Jelly), use Yggdrasil Seed or Berry under 20% HP while hit, and drink their class's speed potion near a boss. Cheapest first. Changing this restarts the server."
+      "description": "Needs Settings > Population > Companion inventory on. They cure poison, silence, blind, curse and confusion (Green Herb, Green Potion, Holy Water, Panacea, Royal Jelly), use Yggdrasil Seed or Berry under 20% HP while hit, revive the fallen (you too) with Yggdrasil Leaves when no Priest can, and drink their class's speed potion near a boss. Cheapest first. Changing this restarts the server."
     },
     {
       "key": "town_calm",
@@ -90,6 +76,13 @@
       "default": true,
       "label": "No buffing in town",
       "description": "With no monster in sight (towns, inns) companions don't cast buffs, songs or stances. Once a monster is in sight they buff as usual. Say \"buff\" in party chat to have them buff you anyway. Heals and revives always work. Changing this restarts the server."
+    },
+    {
+      "key": "roam_together",
+      "type": "boolean",
+      "default": true,
+      "label": "Roam as a group",
+      "description": "When you send them hunting (\"go hunt\"), the whole party sticks to the tank and roams as one group: no resting on the way, 3+ on one and it calls for help, the hurt kite round the Priest, and they gather at a fallen one for the revive. Off: each roams on its own, the way the game does it. Changing this restarts the server."
     },
     {
       "key": "titles",
@@ -100,25 +93,18 @@
       "description": "One or more titles, separated by commas. Each companion keeps one of them, so some call you Boss and others Captain."
     },
     {
-      "key": "greetings",
+      "key": "everyday_chatter",
       "type": "boolean",
       "default": true,
-      "label": "Greetings",
-      "description": "When you log in, companions greet you depending on how long you were away (a few minutes, a nap, days). A newly hired companion introduces itself."
-    },
-    {
-      "key": "world_reactions",
-      "type": "boolean",
-      "default": true,
-      "label": "Reactions to the world",
-      "description": "Companions comment when you enter a town, field or dungeon, and when you level up."
+      "label": "Everyday chatter",
+      "description": "They greet you at login by how long you were away, comment when you enter a town, field or dungeon and when you level up, cheer their own level-ups and job changes, say when they rest and are ready again, notice when you go quiet, talk about the late night or early morning, suggest a break after two hours, and mention what went into the party purse."
     },
     {
       "key": "combat_callouts",
       "type": "boolean",
       "default": true,
-      "label": "Combat callouts",
-      "description": "Battle cries, calls for heals, low SP, big hits, a fallen ally, you in danger, spotting and beating a boss, the undead, bad statuses (poison, stun, freeze...), thanks for Blessing and Agi Up, broken gear. Only while things are happening, each with its own cooldown. Changing this restarts the server."
+      "label": "Combat callouts and emotes",
+      "description": "Battle cries, calls for heals, low SP, big hits, a fallen ally, you in danger, spotting and beating a boss, the undead, bad statuses, thanks for Blessing and Agi Up, broken gear, with RO emotes (HP!, SP!, sweat, tears; at most one every 12 seconds each). Changing this restarts the server."
     },
     {
       "key": "chat_replies",
@@ -126,20 +112,6 @@
       "default": true,
       "label": "They answer you in party chat",
       "description": "Say something in party chat and your companions answer in character: hello, good morning, good night, thanks, good job, let's go, how are you, lol, brb, I'm back, sorry, love you, take a break, who are you, hungry. Changing this restarts the server."
-    },
-    {
-      "key": "daily_life",
-      "type": "boolean",
-      "default": true,
-      "label": "Daily life",
-      "description": "Companions cheer when they level up or change job (and the others congratulate them), say so when they sit down to rest and when they're ready again, notice when you've gone quiet for 5 minutes and when you're back, talk about the late night or early morning on your clock, and suggest a break after two hours out."
-    },
-    {
-      "key": "emotes",
-      "type": "boolean",
-      "default": true,
-      "label": "Emotes",
-      "description": "RO emotes with their lines and callouts: HP! when hurt, SP! when out of mana, sweat when scared, tears when someone falls. At most one every 12 seconds per companion."
     },
     {
       "key": "banter_minutes",
@@ -160,11 +132,18 @@
       "description": "Every monster you beat puts this much zeny per monster level into the party purse, for each living companion with you (2 = a level 40 monster with 3 companions adds 240 zeny). The monster's drops still go to you, so this is on top. Take it out (or put zeny in) in the Companions window's Bag tab. 0 turns the purse off."
     },
     {
-      "key": "purse_talk",
+      "key": "gifts",
       "type": "boolean",
       "default": true,
-      "label": "Companions mention the purse",
-      "description": "Every 15 minutes or so, once at least 1,000 zeny went in, a companion (a Merchant first) says they sold the scraps and how much went into the purse."
+      "label": "Gifts from companions",
+      "description": "Now and then a companion walks over and gives you something that suits it: potions, gemstones, arrows, Holy Water, a bit of zeny, rarely an Oridecon, a Yggdrasil Leaf or an Old Blue Box, very rarely an Old Card Album. Closer companions give more often; a bigger party, more gifts. Also sometimes after an MVP, a level-up or an anniversary."
+    },
+    {
+      "key": "starter_kit",
+      "type": "boolean",
+      "default": true,
+      "label": "Starter kit for unequipped companions",
+      "description": "A companion drafted with the app's Companions start unequipped (Settings > Population) gets NPC-shop gear for its class and level, once: weapon (with arrows or bullets), hat, armor, shield, garment, shoes. It's yours, like anything you give it: take it back, swap it or sell it. Nothing is ever replaced on its own."
     },
     {
       "key": "memories",
@@ -177,15 +156,8 @@
       "key": "companion_growth",
       "type": "boolean",
       "default": true,
-      "label": "Companions spend their stat points",
-      "description": "As a companion levels up it earns stat points like you do, but the game only spends them for some kinds of companion. This spends the rest, one at a time at the real cost, on a build that suits its job."
-    },
-    {
-      "key": "growth_announce",
-      "type": "boolean",
-      "default": false,
-      "label": "Tell me when a companion spends points",
-      "description": "A line in your chat box with the companion's stats before and after."
+      "label": "Companions grow like players",
+      "description": "Stats like a real player of their class (an Assassin AGI and STR, a Wizard INT and DEX). Worn gear refined as they level: +4 at 40, +5 at 55, +6 at 70, +7 at 85, more past 99 (gear you gave comes back refined). Transcendent when you are, level kept. Broken gear repaired and put back on."
     },
     {
       "key": "companion_return",
@@ -195,11 +167,11 @@
       "description": "While you stay on the map, a fallen companion stays down until a Priest or a Yggdrasil Leaf brings it back. Once you leave (go back to town, warp, or respawn at your save point), it gets back up with full HP and SP and rejoins you. Fixes the game's bug where it stayed dead until you relogged."
     },
     {
-      "key": "return_announce",
+      "key": "companion_announce",
       "type": "boolean",
       "default": true,
-      "label": "Tell me when a fallen companion returns",
-      "description": "A line in your chat box when a companion you left behind gets back up and comes after you."
+      "label": "Tell me how they grow",
+      "description": "A line in your chat box when a companion trains its stats (before and after), gets its gear refined, is reborn, has broken gear repaired, and when one you left behind gets back up and comes after you."
     },
     {
       "key": "window_button",

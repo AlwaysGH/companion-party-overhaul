@@ -1,0 +1,383 @@
+# companion-party-overhaul: roaming as one group (setting "roam_together"). 3.0.0.
+# Made by tools/make_roam.ps1: edit that, not this file.
+#
+# "go hunt" in party chat (client/index.js) sends them roaming; "come back" calls them back.
+# The whole party sticks to the tank (else the next melee in line) and roams as one group.
+#
+# Trouble, while roaming (the roaming marker, see make_roam.ps1):
+#   3+ monsters on one     asks for help in party chat (ct.help); those in sight come
+#   no sitting to rest     the script sets the rest marks to never while any roams
+#   under 40% HP           kites round the Priest (else the nearest companion)
+#   under 60%, nothing on it  waits beside the Priest for heals
+#   caster/healer dry      under 15% SP with something on it: runs it round the front
+#   someone goes down      within 30 s, as soon as nothing is attacking it, every roamer says
+#                          so, walks to the body and guards it within 6 cells; the Priest
+#                          revives (base table), else whoever carries a Yggdrasil Leaf
+#                          (use_items). Grouping waits meanwhile. Back to roaming 20 s after
+#                          no body is in sight, or once it's back with you.
+# Companions that follow you are never moved by these rules.
+
+Header:
+  Type: POPULATION_STRATEGY_DB
+  Version: 1
+
+Body:
+  - Mob: All
+    Jobs:
+      - Job: All
+        Build: ct_roam
+        Start: roam
+        Rules:
+          - Name: ct_rh_hurt_priest
+            Priority: 68
+            When: [self_hp_pct_lt40, self_entry_queue_notify_admission_time_out]
+            Target: { Ally: nearest, Job: Priest, NotSelf: true, NotOwner: true, Range: 30 }
+            Kite: { Away: 3, Within: 5, Gap: 2 }
+          - Name: ct_rh_hurt
+            Priority: 67
+            When: [self_hp_pct_lt40, self_entry_queue_notify_admission_time_out]
+            Target: { Ally: nearest, NotSelf: true, NotOwner: true, Range: 30 }
+            Kite: { Away: 3, Within: 5, Gap: 2 }
+          - Name: ct_rh_await_heal
+            Priority: 64
+            When: [self_hp_pct_lt60, self_entry_queue_notify_admission_time_out]
+            Absent: { Enemy: attacking, Who: self }
+            Target: { Ally: nearest, Job: Priest, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 3 }
+          - Name: ct_rh_swarmed
+            Priority: 66
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Who: self, Range: 5, AtLeast: 3 }
+            Signal: ct.help
+            Say: "Too many on me, help!"
+            Channel: party
+            Cooldown: 8000
+          - Name: ct_rh_help
+            Priority: 65
+            On: { Event: signal, Name: ct.help, Within: 6000 }
+            When: self_entry_queue_notify_admission_time_out
+            MoveTo: event
+        Strategies:
+          - Name: roam
+            Rules:
+              # 2.5.2: a companion busy fighting when someone fell went once nothing was on it.
+              - Name: ct_rh_to_rally
+                Priority: 70
+                On: { Event: party_member_died, Within: 30000 }
+                Target: event
+                When: self_entry_queue_notify_admission_time_out
+                Absent: { Enemy: attacking, Who: self }
+                MoveTo: event
+                Switch: rally
+                Say: "{ally} is down, on my way!"
+                Channel: party
+          - Name: rally
+            Disable: [ct_rb_tog_heal_any, ct_rb_tog_heal_merchant, ct_rb_tog_heal_monk,
+              ct_rb_tog_heal_star_gladiator, ct_rb_tog_heal_stay, ct_rb_tog_heal_swordman,
+              ct_rb_tog_heal_thief, ct_rb_tog_mage_any, ct_rb_tog_mage_merchant, ct_rb_tog_mage_monk,
+              ct_rb_tog_mage_star_gladiator, ct_rb_tog_mage_stay, ct_rb_tog_mage_swordman,
+              ct_rb_tog_mage_thief, ct_rb_tog_merchant_stay, ct_rb_tog_merchant_swordman,
+              ct_rb_tog_monk_merchant, ct_rb_tog_monk_stay, ct_rb_tog_monk_swordman,
+              ct_rb_tog_monk_thief, ct_rb_tog_other_any, ct_rb_tog_other_merchant,
+              ct_rb_tog_other_monk, ct_rb_tog_other_star_gladiator, ct_rb_tog_other_stay,
+              ct_rb_tog_other_swordman, ct_rb_tog_other_thief, ct_rb_tog_rng_any,
+              ct_rb_tog_rng_merchant, ct_rb_tog_rng_monk, ct_rb_tog_rng_star_gladiator,
+              ct_rb_tog_rng_stay, ct_rb_tog_rng_swordman, ct_rb_tog_rng_thief,
+              ct_rb_tog_star_gladiator_merchant, ct_rb_tog_star_gladiator_monk,
+              ct_rb_tog_star_gladiator_stay, ct_rb_tog_star_gladiator_swordman,
+              ct_rb_tog_star_gladiator_thief, ct_rb_tog_thief_merchant, ct_rb_tog_thief_stay,
+              ct_rb_tog_thief_swordman]
+            Rules:
+              - Name: ct_rh_with_you
+                When: not_self_entry_queue_notify_admission_time_out
+                Switch: roam
+              - Name: ct_rh_rally_done
+                InStrategy: { AtLeast: 20000 }
+                Absent: { Ally: dead, Range: 30 }
+                Switch: roam
+              - Name: ct_rh_guard_body
+                Priority: 68
+                Target: { Ally: dead, NotSelf: true, Range: 30 }
+                KeepDistance: { Min: 1, Max: 6 }
+
+      # Casters and healers out of SP can't hit back (Attack: false): with something on
+      # them they run it round the group's front for the others to take.
+      - Job: [Priest, Mage]
+        Build: ct_roam_low_sp
+        Rules:
+          - Name: ct_rh_dry_kite
+            Priority: 66
+            When: [self_sp_pct_lt15, self_entry_queue_notify_admission_time_out]
+            Present: { Enemy: attacking, Who: self }
+            Target: { Ally: nearest, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            Kite: { Away: 3, Within: 5, Gap: 2 }
+
+      - Job: Priest
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_heal_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_heal_merchant
+            Priority: 62
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Merchant, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_heal_thief
+            Priority: 61
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Thief, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_heal_monk
+            Priority: 60
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Monk, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_heal_star_gladiator
+            Priority: 59
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Star_Gladiator, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_heal_any
+            Priority: 57
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_heal_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true
+      - Job: Mage
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_mage_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_mage_merchant
+            Priority: 62
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Merchant, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_mage_thief
+            Priority: 61
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Thief, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_mage_monk
+            Priority: 60
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Monk, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_mage_star_gladiator
+            Priority: 59
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Star_Gladiator, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_mage_any
+            Priority: 57
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_mage_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true
+      - Job: [Archer, Ninja, Gunslinger]
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_rng_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_rng_merchant
+            Priority: 62
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Merchant, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_rng_thief
+            Priority: 61
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Thief, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_rng_monk
+            Priority: 60
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Monk, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_rng_star_gladiator
+            Priority: 59
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Star_Gladiator, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_rng_any
+            Priority: 57
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_rng_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true
+      - Job: [Taekwon, Soul_Linker, Super_Novice]
+        Exact: true
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_other_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_other_merchant
+            Priority: 62
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Merchant, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_other_thief
+            Priority: 61
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Thief, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_other_monk
+            Priority: 60
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Monk, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_other_star_gladiator
+            Priority: 59
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Star_Gladiator, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_other_any
+            Priority: 57
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_other_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk, Star_Gladiator], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true
+      - Job: Merchant
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_merchant_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_merchant_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true
+      - Job: Thief
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_thief_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_thief_merchant
+            Priority: 62
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Merchant, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_thief_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman, Merchant], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true
+      - Job: Monk
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_monk_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_monk_merchant
+            Priority: 62
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Merchant, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_monk_thief
+            Priority: 61
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Thief, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_monk_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman, Merchant, Thief], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true
+      - Job: Star_Gladiator
+        Build: ct_group
+        Rules:
+          - Name: ct_rb_tog_star_gladiator_swordman
+            Priority: 63
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Swordman, NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_star_gladiator_merchant
+            Priority: 62
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Merchant, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_star_gladiator_thief
+            Priority: 61
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Thief, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_star_gladiator_monk
+            Priority: 60
+            When: self_entry_queue_notify_admission_time_out
+            Target: { Ally: nearest, Job: Monk, NotSelf: true, NotOwner: true, Range: 30 }
+            Absent: { Ally: nearest, Job: [Swordman, Merchant, Thief], NotSelf: true, NotOwner: true, Range: 30 }
+            KeepDistance: { Min: 1, Max: 5 }
+          - Name: ct_rb_tog_star_gladiator_stay
+            Priority: 30
+            When: self_entry_queue_notify_admission_time_out
+            Count: { Enemy: attacking, Range: 12, Below: 1 }
+            Present: { Ally: nearest, Job: [Swordman, Merchant, Thief, Monk], NotSelf: true, NotOwner: true, Range: 30 }
+            Hold: true

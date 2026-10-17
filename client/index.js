@@ -288,6 +288,7 @@ export default function init(parameters, api) {
 
     let win = null, body = null, tab = 'status', list = [], timer = null, busy = false;
     let bag = null, bagAt = 0, bagMsg = null;   // the Bag tab: last answer, when, last action's result
+    let showMsg = false;                        // scroll up to that result on the next draw
     let sel = null;                             // the picked square: "<cid>:<index>" or "<cid>:w<slots>"
     let giving = null;                          // a stack dropped on a companion: { cid, idx, id, max, name, n }
     let takeN = { key: null, n: 0 };            // how many to take of the picked stack (kept through the refresh)
@@ -353,7 +354,7 @@ export default function init(parameters, api) {
             out.push('<div class="note">Companion inventory is off (Settings &gt; Population), so their potions and arrows are free and refill by themselves. '
                 + 'Turn it on to have them carry only what you give them; then you can take things back here.</div>');
         } else {
-            out.push('<div class="note">Drag an item from your inventory onto a companion to give it (gear it can wear goes on at once), or trade it. Click an item to look at it, double-click to take it back.</div>');
+            out.push('<div class="note">Drag in to give · Double-click to take back</div>');
         }
         if (!bag.comps.length) out.push('<div class="empty">No companions in your party.</div>');
         const label = it => (it.refine ? `+${it.refine} ` : '') + it.name;
@@ -439,7 +440,7 @@ export default function init(parameters, api) {
             }
             out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span></div>`
                 + (dyes ? `<div class="dyes">${dyes}</div>` : '')
-                + (worn ? `<div class="sub">Wearing (from you)</div><div class="grid">${worn}</div>` : '')
+                + (worn ? `<div class="sub">Equipped</div><div class="grid">${worn}</div>` : '')
                 + `<div class="sub">Bag</div>${rows}${det}</div>`);
         }
         return out.join('');
@@ -455,6 +456,8 @@ export default function init(parameters, api) {
         const keep = pane.scrollTop;
         pane.innerHTML = tab === 'status' ? renderStatus() : tab === 'bag' ? renderBag() : renderMemories();
         pane.scrollTop = keep;
+        // An action's answer is the top line: scroll up once so it's seen.
+        if (showMsg) { showMsg = false; pane.scrollTop = 0; }
         if (tab === 'bag') fillIcons(pane);
         if (button) button.classList.toggle('hurt', list.some(c => c.state === 'dead' || (c.mhp && c.hp * 100 / c.mhp < 30)));
     }
@@ -497,6 +500,7 @@ export default function init(parameters, api) {
             bagMsg = quiet && ok ? null : { ok, text: cut >= 0 ? reply.slice(cut + 1) : reply };
         } catch { bagMsg = { ok: false, text: 'No answer from the server. Try again in a moment.' }; }
         finally { busy = false; }
+        showMsg = Boolean(bagMsg);
         bagAt = 0;
         await refresh();
     }
@@ -519,6 +523,83 @@ export default function init(parameters, api) {
         timer = setInterval(() => { if (win?.isOpen()) refresh(); else stopTimer(); }, 1000);
     }
     api.cleanup(stopTimer);
+
+    // "How many?" for a stack dropped on a companion, in the game's own amount box
+    // (the one you get dropping a stack on the ground): the client's InputBox
+    // markup and style, its OK button pictures, the same place on screen. Mods
+    // can't open the real one, so this is a copy. Enter or OK gives, Esc or a
+    // click outside cancels. Resolves with the amount, or 0.
+    const OKPIC = {};
+    ['btn_ok.bmp', 'btn_ok_b.bmp', 'btn_ok_a.bmp'].forEach(f => {
+        Promise.resolve(api.screens?.image?.('basic_interface/' + f)).then(url => { if (url) OKPIC[f] = url; }).catch(() => {});
+    });
+    const ASK_STYLE = `
+* { cursor: inherit !important; }
+.ov { position: fixed; inset: 0; z-index: 9100; }
+#inputbox { position: fixed; z-index: 9101; width: 174px; height: 44px; border-radius: 5px; background-color: white;
+  padding: 2px; font: 12px 'SCDream', Arial, 'Liberation Sans', Arimo, sans-serif; color: #000; box-sizing: content-box; }
+#inputbox .border { border-radius: 5px; border: 1px solid #c1c6c2; width: 162px; height: 37px; padding-top: 5px;
+  padding-left: 10px; box-sizing: content-box; }
+#inputbox .text { width: 160px; height: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#inputbox .text i { font-style: normal; color: #6a7a92; }
+#inputbox input { border: 0; background-color: #efefef; width: 103px; height: 16px; margin-top: 3px; padding: 0 2px;
+  font: inherit; outline: none; }
+#inputbox .ok { width: 42px; height: 20px; position: absolute; bottom: 13px; right: 10px; border: 0; padding: 0;
+  background: center / 100% 100% no-repeat; font: bold 11px Arial, sans-serif; color: #333; }
+#inputbox .ok.pic { color: transparent; }
+`;
+    let asking = null;
+    function askAmount({ id, max, who }) {
+        asking?.cancel();
+        return new Promise(resolve => {
+            const host = document.createElement('div');
+            const root = host.attachShadow({ mode: 'open' });
+            const item = api.items?.get?.(id)?.name || `Item #${id}`;
+            root.innerHTML = `<style>${ASK_STYLE}</style><div class="ov"></div>`
+                + `<div id="inputbox"><div class="border"><div class="text" title="${esc(item)} → ${esc(who)}">${esc(item)} <i>→ ${esc(who)}</i></div>`
+                + `<input type="text" inputmode="numeric" value="${max}"><button class="ok">OK</button></div></div>`;
+            const box = root.getElementById('inputbox'), input = root.querySelector('input'), ok = root.querySelector('.ok');
+            // Where the game puts its own: centred, a little above the middle.
+            box.style.left = `${Math.round((innerWidth - 280) / 2 + 1)}px`;
+            box.style.top = `${Math.round((innerHeight - 120) / 1.5 - 49)}px`;
+            const pic = state => { const u = OKPIC[state]; if (u) { ok.classList.add('pic'); ok.style.backgroundImage = `url("${u}")`; } };
+            pic('btn_ok.bmp');
+            ok.addEventListener('mouseenter', () => pic('btn_ok_b.bmp'));
+            ok.addEventListener('mouseleave', () => pic('btn_ok.bmp'));
+            ok.addEventListener('mousedown', () => pic('btn_ok_a.bmp'));
+            const done = n => {
+                host.remove();
+                if (asking?.host === host) asking = null;
+                resolve(n);
+            };
+            const submit = () => {
+                const n = parseInt(input.value, 10) | 0;
+                done(n > 0 ? Math.min(n, max) : 0);
+            };
+            ok.addEventListener('click', submit);
+            // A click outside cancels, as in the game; the press and release don't
+            // reach the game behind it (no walking off).
+            const ov = root.querySelector('.ov');
+            ov.addEventListener('mousedown', event => event.stopPropagation());
+            ov.addEventListener('mouseup', event => event.stopPropagation());
+            ov.addEventListener('click', event => { event.stopPropagation(); done(0); });
+            // Typing stays in the box (not the chat, not hotkeys); digits only.
+            host.addEventListener('keydown', event => {
+                event.stopPropagation();
+                if (event.key === 'Enter') { event.preventDefault(); submit(); }
+                else if (event.key === 'Escape') { event.preventDefault(); done(0); }
+            });
+            host.addEventListener('keyup', event => event.stopPropagation());
+            host.addEventListener('keypress', event => event.stopPropagation());
+            input.addEventListener('input', () => { const v = input.value.replace(/\D+/g, ''); if (v !== input.value) input.value = v; });
+            box.addEventListener('mousedown', event => event.stopPropagation());
+            box.addEventListener('mouseup', event => event.stopPropagation());
+            document.body.appendChild(host);
+            asking = { host, cancel: () => done(0) };
+            setTimeout(() => { input.focus(); input.select(); }, 0);
+        });
+    }
+    api.cleanup(() => asking?.cancel());
 
     // A how-many box changed: its button's number, and the choice kept so the
     // next refresh draws it the same.
@@ -639,7 +720,14 @@ export default function init(parameters, api) {
             if (!id || idx < 0) return;
             if (item.WearState) { bagMsg = { ok: false, text: 'Take it off first, then drag it over.' }; render(); return; }
             const name = api.items?.get?.(id)?.name || `Item #${id}`;
-            if (max > 1) { giving = { cid: c.dataset.cid, idx, id, max, name, n: max }; bagMsg = null; render(); return; }
+            if (max > 1) {
+                // Test build (2.3.5): the game-style amount box instead of the row in the Bag tab.
+                const cid = c.dataset.cid;
+                const who = bag?.comps.find(x => x.cid === cid)?.name || 'companion';
+                giving = null;
+                askAmount({ id, max, who }).then(n => { if (n > 0) bagAction(`give ${cid} ${idx} ${id} ${n}`); });
+                return;
+            }
             bagAction(`give ${c.dataset.cid} ${idx} ${id} 1`);
         });
         // Typing in the purse box: keep the keys away from the game (chat, hotkeys).
@@ -728,6 +816,7 @@ export default function init(parameters, api) {
         api.cleanup(() => host.remove());
         api.on('map:enter', () => { host.style.display = ''; });
         api.on('exit', () => { host.style.display = 'none'; });
+        api.on('map:leave', ({ reason } = {}) => { if (reason === 'disconnected') host.style.display = 'none'; });
     }
 
     // The game skips its own shortcuts (Alt+E, Alt+Q...) while a box of ours has
@@ -743,6 +832,13 @@ export default function init(parameters, api) {
     api.cleanup(() => removeEventListener('mousedown', letGo, true));
 
     api.on('exit', () => { if (win?.isOpen()) win.hide(); stopTimer(); });
+    // 'exit' is only a chosen leave; a server restart or a lost connection drops
+    // you at the login screen without it, and the window stayed up there.
+    api.on('map:leave', ({ reason } = {}) => {
+        if (reason !== 'disconnected') return;
+        if (win?.isOpen()) win.hide();
+        stopTimer();
+    });
     // Open again where you left it, if it was open.
     let reopened = false;
     api.on('map:enter', () => {
@@ -754,4 +850,60 @@ export default function init(parameters, api) {
     api.on('server:event', ({ command, text }) => {
         if (command === 'clwin' && text === 'open') open();
     });
+
+    // Roaming orders in party chat (setting chat_orders, with Settings → Population →
+    // Companion roaming on): "go hunt" sends companions roaming the map, "come back"
+    // has them follow again. Strategy rules hear party chat but can't run a command,
+    // so this watches the chat box for your own party lines and hands the order to
+    // the server script (@clroam), which runs "@companion roam" and has the companion
+    // answer. Party lines are drawn in rgb(230, 215, 200) as "Name : text".
+    const chatOrders = parameters?.chat_orders !== false && parameters?.chat_orders !== 0;
+    // 3.0.0: one roam style (Roam as a group), so the "roam in ..." style lines went.
+    const ROAM_ON = ['go hunt', 'go roam', 'spread out', 'roam together'];
+    const ROAM_OFF = ['come back', 'regroup', 'fall back', 'follow me'];
+    const CAMP_ON = ['make camp', 'campfire', 'camp fire', 'set up camp', "let's rest", 'lets rest', "let's camp", 'lets camp'];
+    const CAMP_OFF = ['time to go', "let's go", 'lets go', 'put out the fire', 'pack up', 'break camp'];
+    const CAMP_YES = /^(yes|yeah|yep|yup|sure|ok|okay|do it|light it|please|yes please|sure thing|go ahead)[.! ]*$/;
+    if (chatOrders && typeof MutationObserver === 'function') {
+        let watched = null, observer = null, since = 0;
+        const seen = new Map();   // the same line lands once in every chat tab
+        const onLine = div => {
+            if (!(div instanceof HTMLElement) || div.tagName !== 'DIV') return;
+            if (div.style.color.replace(/\s/g, '') !== 'rgb(230,215,200)') return;
+            const me = api.snapshot()?.player?.name;
+            const text = (div.textContent || '').trim();
+            if (!me || !text.startsWith(me + ' : ')) return;
+            const said = text.slice(me.length + 3).toLowerCase().replace(/\s+/g, ' ');
+            const now = Date.now();
+            if (now - (seen.get(said) || 0) < 2000) return;
+            // 3.0.0: campfire nights (setting campfire): light, put out, or say yes when
+            // a companion offers to light one. The server ignores a yes nobody asked for.
+            const camp = CAMP_ON.some(w => said.includes(w)) ? 'on'
+                : CAMP_OFF.some(w => said.includes(w)) ? 'off'
+                : CAMP_YES.test(said) ? 'yes' : '';
+            const on = ROAM_ON.some(w => said.includes(w));
+            const off = !on && ROAM_OFF.some(w => said.includes(w));
+            if (!on && !off && !camp) return;
+            seen.set(said, now);
+            if (camp) Promise.resolve(api.server.request('clcamp', camp, { timeout: 4000 })).catch(() => {});
+            if (on || off) Promise.resolve(api.server.request('clroam', `${on ? 'on' : 'off'} ${said}`, { timeout: 4000 })).catch(() => {});
+        };
+        const watch = component => {
+            const root = component?.root;
+            if (component?.name !== 'ChatBox' || !root || root === watched) return;
+            observer?.disconnect();
+            watched = root;
+            since = Date.now() + 1000;   // lines put back when the box is drawn again aren't new
+            observer = new MutationObserver(records => {
+                if (Date.now() < since) return;
+                for (const r of records) r.addedNodes.forEach(onLine);
+            });
+            observer.observe(root, { childList: true, subtree: true });
+        };
+        api.on('ui:append', watch, { replay: true });
+        api.on('ui:remove', component => {
+            if (component?.name === 'ChatBox') { observer?.disconnect(); observer = null; watched = null; }
+        });
+        api.cleanup(() => observer?.disconnect());
+    }
 }

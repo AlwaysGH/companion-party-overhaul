@@ -7,6 +7,9 @@
 #   silenced or blinded      Green Potion, Panacea or Royal Jelly
 #   confused, cursed, hallucinating   Panacea or Royal Jelly; cursed: Holy Water too
 #   under 20% HP and being hit       Yggdrasil Seed, then Yggdrasil Berry
+#   someone down within 9 cells      Yggdrasil Leaf (you too), but only when no
+#                            living Priest is in the party to do it for free; a
+#                            Priest uses one itself when it lacks the SP (60)
 #   a boss nearby            its speed potion: Berserk, Awakening or Concentration
 #                            (each class can only drink the ones it's allowed)
 #
@@ -47,6 +50,30 @@ Body:
             When: self_hp_pct_lt20
             Present: { Enemy: attacking, Who: self }
             Cooldown: 10000
+          # Yggdrasil Leaf (610): Resurrection Lv1 on whoever fell, you included.
+          # Not while a living Priest is with you (its Resurrection costs only SP);
+          # OnePerParty keeps two companions from spending two leaves on one body.
+          - Name: ct_item_leaf
+            Priority: 103
+            UseItem: 610
+            Target: dead_ally
+            Present: { Ally: dead, Range: 9 }
+            Absent: { Ally: nearest, Job: Priest }
+            OnePerParty: true
+            Cooldown: 3000
+      # A Priest revives with its own Resurrection (main plan, priority 106). With
+      # too little SP for it, a leaf instead, if it carries one.
+      - Job: Priest
+        Disable: [ct_item_leaf]
+        Rules:
+          - Name: ct_item_leaf_priest
+            Priority: 105
+            UseItem: 610
+            Target: dead_ally
+            Present: { Ally: dead, Range: 9 }
+            When: self_sp_lt60
+            OnePerParty: true
+            Cooldown: 3000
 
   - Mob: Boss
     Jobs:
