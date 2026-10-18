@@ -4,11 +4,14 @@
 //   resting, fallen or on another map, refreshed every second while open.
 //   Memories tab: how long you've been together, where you met, monsters and
 //   MVPs beaten together, places seen, falls.
-//   Bag tab: the party purse (take zeny out, put zeny in) and each companion's
-//   own bag as a grid of item icons, like the game's inventory: click a square
-//   for its details and Take, double-click to take it all back. Every 3 s while open.
+//   Bag tab: each companion's own bag as a grid of item icons, like the game's
+//   inventory: click a square for its details and Take, double-click to take it
+//   all back; drag from your inventory to give. A weight bar, and a Restock row:
+//   drag a shop item onto it and they keep that many, bought in town (3.1.0).
+//   Loot tab (3.1.0): the party purse (take zeny out, put zeny in) and the party
+//   bag, what they find on party kills: click, then Take or Sell. Every 3 s while open.
 //   It asks @clstat (npc/companion_life.txt, OnCmdStat) for the first two and
-//   @clbag (OnCmdBag) for the bag.
+//   @clbag (OnCmdBag) for the bag and the loot.
 //   Drag the button to move it; it and the window remember where they were.
 
 const BTN_STYLE = `
@@ -27,12 +30,15 @@ const BTN_STYLE = `
 const WIN_STYLE = `
 * { cursor: inherit !important; }
 .cw { height: 100%; display: flex; flex-direction: column; font: 11px Tahoma, "Segoe UI", sans-serif;
-  color: #2b2b2b; background: #f7f8fb; }
+  color: #2b2b2b; background: #f7f8fb; overflow: hidden; }
+/* The tabs share the width, so the four always fit and a narrow window never
+   gets a sideways scrollbar (the Loot tab was cut off at 245 px). */
 .tabs { display: flex; gap: 3px; padding: 5px 6px 0; border-bottom: 1px solid #b9c7de; background: #e9eef7; }
-.tabs button { font: bold 11px Tahoma, sans-serif; color: #4a5f80; background: #dde5f2; border: 1px solid #b9c7de;
-  border-bottom: none; border-radius: 3px 3px 0 0; padding: 3px 10px; cursor: pointer; }
+.tabs button { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: bold 11px Tahoma, sans-serif; color: #4a5f80; background: #dde5f2; border: 1px solid #b9c7de;
+  border-bottom: none; border-radius: 3px 3px 0 0; padding: 3px 4px; cursor: pointer; }
 .tabs button.on { color: #1f3f73; background: #f7f8fb; }
-.pane { flex: 1; overflow: auto; padding: 5px 6px; }
+.pane { flex: 1; overflow-x: hidden; overflow-y: auto; padding: 5px 6px; }
 .row { padding: 4px 5px 5px; border: 1px solid #d6deeb; border-radius: 3px; background: #fff; margin-bottom: 4px; }
 .row.dead { background: #f3e9e9; }
 .row.away, .row.off { opacity: .6; }
@@ -60,7 +66,8 @@ const WIN_STYLE = `
   border-radius: 3px; padding: 1px 6px; cursor: pointer; }
 .cw button.act:hover { background: #d3def2; }
 .note { padding: 4px 6px; margin-bottom: 5px; color: #6a5a2a; background: #fbf3dc; border: 1px solid #eadbb0; border-radius: 3px; line-height: 1.4; }
-.msg { padding: 3px 6px; margin-bottom: 5px; border-radius: 3px; }
+.msgpin { position: sticky; top: 0; height: 0; z-index: 3; }   /* takes no room: the line floats over the bags */
+.msg { padding: 3px 6px; margin-bottom: 5px; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 .msg.ok { color: #22602f; background: #e5f4e8; } .msg.err { color: #8a2219; background: #f8e5e3; }
 .bag { padding: 4px 5px; border: 1px solid #d6deeb; border-radius: 3px; background: #fff; margin-bottom: 5px; }
 .am { color: #6a7a92; }
@@ -104,6 +111,34 @@ const WIN_STYLE = `
 .dy b { min-width: 34px; text-align: center; font-size: 10px; color: #1f3f73; }
 .dy .act { padding: 0 4px; }
 .bag .sub { margin-top: 3px; font-size: 10px; font-weight: bold; color: #6a7a92; }
+/* 3.1.0: weight on the name line (green under half: from 50% RO stops natural regen). */
+.wt { flex: none; position: relative; width: 46px; height: 7px; border: 1px solid #9fb0c8; border-radius: 2px; background: #e4e8ef; overflow: hidden; align-self: center; }
+.wt i { position: absolute; left: 0; top: 0; bottom: 0; background: #3fae4f; }
+.wt i.mid { background: #e0961e; } .wt i.hi { background: #d23b2b; }
+.wn { flex: none; font-size: 10px; color: #6a7a92; }
+.wn.hi { color: #b0301f; font-weight: bold; }
+/* Restock row: a drop zone with a chip per item. */
+.rs { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-top: 4px; padding: 2px 3px; border: 1px dashed #c9d3e3; border-radius: 3px; min-height: 18px; }
+.rs .lb { font-size: 10px; font-weight: bold; color: #6a7a92; margin-right: 2px; }
+.rs .hint { font-size: 10px; color: #9aa7ba; }
+.rs.over { border-color: #3c6fc0; border-style: solid; background: #eef4ff; }
+.chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 1px; border: 1px solid #c9d3e3; border-radius: 3px; background: #fff; cursor: pointer; font-size: 10px; }
+.chip:hover { border-color: #6d8fc2; }
+.chip img { width: 16px; height: 16px; image-rendering: pixelated; pointer-events: none; }
+.chip img:not([src]) { visibility: hidden; }
+.chip b { font-weight: normal; color: #3b4658; pointer-events: none; }
+.chip.low b { color: #b0301f; font-weight: bold; }
+.chip .x { color: #9aa7ba; padding: 0 1px; }
+.chip .x:hover { color: #b0301f; }
+/* Loot tab. */
+.lh { display: flex; align-items: baseline; gap: 6px; margin: 2px 0 1px; }
+.lh .nm { flex: 1; }
+.sl.new { border-color: #4caf6a; background: linear-gradient(#ffffff, #e7f6ea); }
+.sl .nw { position: absolute; left: 1px; top: 0; font: bold 8px Tahoma, sans-serif; color: #2e8b46; text-shadow: 0 0 2px #fff, 0 0 2px #fff; pointer-events: none; }
+.lact { display: flex; gap: 4px; margin-top: 4px; }
+.lact .act { flex: 1; padding: 2px 6px; }
+.cw button.act.sell { color: #7a5a0c; background: #fbf1d4; border-color: #d8c88e; }
+.cw button.act.sell:hover { background: #f6e6b8; }
 .cw * { scrollbar-width: thin; }
 `;
 
@@ -242,19 +277,24 @@ function parse(text) {
     return out;
 }
 
-// @clbag list: P|purse|inventory on|zeny per level, C|cid|name|job,
+// @clbag list: P|purse|inventory on|zeny per level|in town, C|cid|name|job|
+// colours...|weight|max weight, R|cid|item id|keep|name,
 // I|cid|index|item id|amount|worn|refine|cards|options|bound|rental|name.
 function parseBag(text) {
-    const bag = { purse: 0, inv: false, rate: 0, comps: [] };
+    const bag = { purse: 0, inv: false, rate: 0, town: false, comps: [] };
     const byCid = {};
     for (const rec of String(text || '').split('~')) {
         const f = rec.split('|');
-        if (f[0] === 'P') { bag.purse = +f[1] || 0; bag.inv = f[2] === '1'; bag.rate = +f[3] || 0; }
+        if (f[0] === 'P') { bag.purse = +f[1] || 0; bag.inv = f[2] === '1'; bag.rate = +f[3] || 0; bag.town = f[4] === '1'; }
         else if (f[0] === 'C') {
-            byCid[f[1]] = { cid: f[1], name: f[2], job: f[3], items: [],
+            byCid[f[1]] = { cid: f[1], name: f[2], job: f[3], items: [], restock: [],
                 cloth: +f[4] || 0, clothMin: +f[5] || 0, clothMax: +f[6] || 0,
-                hair: +f[7] || 0, hairMin: +f[8] || 0, hairMax: +f[9] || 0 };
+                hair: +f[7] || 0, hairMin: +f[8] || 0, hairMax: +f[9] || 0,
+                weight: +f[10] || 0, maxWeight: +f[11] || 0 };
             bag.comps.push(byCid[f[1]]);
+        }
+        else if (f[0] === 'R' && byCid[f[1]]) {
+            byCid[f[1]].restock.push({ id: +f[2] || 0, keep: +f[3] || 0, name: f.slice(4).join('|') });
         }
         else if (f[0] === 'I' && byCid[f[1]]) {
             byCid[f[1]].items.push({ idx: f[2], id: +f[3] || 0, amount: +f[4] || 0, worn: +f[5] || 0,
@@ -264,6 +304,19 @@ function parseBag(text) {
         }
     }
     return bag;
+}
+
+// @clbag lootlist: P|purse|trip start|Overcharge %|finds on, then
+// L|item id|amount|found at|sell price each|name. Newest finds first.
+function parseLoot(text) {
+    const loot = { purse: 0, trip: 0, oc: 0, on: true, items: [] };
+    for (const rec of String(text || '').split('~')) {
+        const f = rec.split('|');
+        if (f[0] === 'P') { loot.purse = +f[1] || 0; loot.trip = +f[2] || 0; loot.oc = +f[3] || 0; loot.on = f[4] !== '0'; }
+        else if (f[0] === 'L') loot.items.push({ id: +f[1] || 0, amount: +f[2] || 0, at: +f[3] || 0, sell: +f[4] || 0, name: f.slice(5).join('|') });
+    }
+    loot.items.sort((a, b) => b.at - a.at || a.name.localeCompare(b.name));
+    return loot;
 }
 
 // rAthena equip positions (EQP_*), for the Wearing list.
@@ -288,7 +341,8 @@ export default function init(parameters, api) {
 
     let win = null, body = null, tab = 'status', list = [], timer = null, busy = false;
     let bag = null, bagAt = 0, bagMsg = null;   // the Bag tab: last answer, when, last action's result
-    let showMsg = false;                        // scroll up to that result on the next draw
+    let loot = null, lootAt = 0;                // the Loot tab: last answer, when
+    let msgTimer = null;                        // { msg, id }: the answer line clears itself after a few seconds
     let sel = null;                             // the picked square: "<cid>:<index>" or "<cid>:w<slots>"
     let giving = null;                          // a stack dropped on a companion: { cid, idx, id, max, name, n }
     let takeN = { key: null, n: 0 };            // how many to take of the picked stack (kept through the refresh)
@@ -340,21 +394,69 @@ export default function init(parameters, api) {
         }).join('');
     }
 
+    // An action's answer, floating over the top of the tab (it takes no room).
+    const msgLine = () => `<div class="msgpin"><div class="msg ${bagMsg.ok ? 'ok' : 'err'}">${esc(bagMsg.text)}</div></div>`;
+
+    // 3.1.0: the Loot tab. The party purse, then the party bag: everything the
+    // party found on its kills, newest first; what this trip found is marked new.
+    // Click a square, then Take (to you) or Sell (zeny into the purse).
+    function renderLoot() {
+        if (!loot) return '<div class="empty">Opening the party bag...</div>';
+        const out = [];
+        if (bagMsg) out.push(msgLine());
+        out.push(`<div class="purse"><span class="z">Party purse: ${num(loot.purse)} z</span>`
+            + `<input type="number" min="1" step="1" placeholder="zeny" data-purse>`
+            + `<button class="act" data-act="withdraw" title="Into your wallet">Take out</button>`
+            + `<button class="act" data-act="deposit" title="From your wallet">Put in</button></div>`);
+        const worth = loot.items.reduce((z, it) => z + it.sell * it.amount, 0);
+        const fresh = loot.items.filter(it => loot.trip && it.at >= loot.trip).length;
+        out.push(`<div class="bag"><div class="lh"><span class="nm">Party bag</span>`
+            + `<span class="am">${loot.items.length ? `${num(loot.items.length)} kind${loot.items.length === 1 ? '' : 's'}${fresh ? ` · ${fresh} new` : ''} · sells for ${num(worth)} z` : ''}</span></div>`);
+        if (!loot.items.length) {
+            out.push(`<div class="am" style="padding:4px 0">${loot.on
+                ? 'Empty. Things the party finds on its kills land here: from the monster\'s own drops, on top of the normal ones.'
+                : 'Empty. Loot finds are off (Settings &gt; Mods &gt; this mod &gt; Loot finds).'}</div></div>`);
+            return out.join('');
+        }
+        const cells = loot.items.map(it => {
+            const key = 'loot:' + it.id, src = iconUrl.get(it.id), isNew = loot.trip && it.at >= loot.trip;
+            const tip = `${it.name}${it.amount > 1 ? ' x' + num(it.amount) : ''}\nSells for ${num(it.sell)} z${it.amount > 1 ? ' each' : ''}${isNew ? '\nFound this trip' : ''}`;
+            return `<div class="sl${isNew ? ' new' : ''}${sel === key ? ' on' : ''}" data-sel="${esc(key)}" draggable="true" title="${esc(tip)}">`
+                + `<img data-icon="${it.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
+                + (isNew ? '<span class="nw">new</span>' : '')
+                + (it.amount > 1 ? `<span class="q">${it.amount > 9999 ? '9k+' : it.amount}</span>` : '') + '</div>';
+        }).join('');
+        out.push(`<div class="grid">${cells}</div>`);
+        const it = sel && sel.startsWith('loot:') ? loot.items.find(x => 'loot:' + x.id === sel) : null;
+        if (it) {
+            const src = iconUrl.get(it.id);
+            const n = takeN.key === sel && takeN.n > 0 ? Math.min(takeN.n, it.amount) : it.amount;
+            const desc = String(api.items?.get?.(it.id)?.description || '').trim();
+            const count = it.amount > 1 ? `<div class="cnt">`
+                + `<button class="act st" data-act="step" data-d="-1" title="One less">&minus;</button>`
+                + `<input type="number" min="1" max="${it.amount}" value="${n}" data-n>`
+                + `<button class="act st" data-act="step" data-d="1" title="One more">+</button>`
+                + `<button class="act st" data-act="step" data-d="all" title="All ${num(it.amount)}">All</button></div>` : '';
+            out.push(`<div class="det"><div class="hd"><img data-icon="${it.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
+                + `<div class="tx"><b title="${esc(it.name)}">${esc(it.name)}</b><span>${it.amount > 1 ? 'x' + num(it.amount) + ' · ' : ''}sells for ${num(it.sell)} z${it.amount > 1 ? ' each' : ''}`
+                + `${loot.oc ? ` (Overcharge +${loot.oc}%)` : ''}</span></div></div>`
+                + count
+                + `<div class="lact"><button class="act" data-act="ltake" data-id="${it.id}" title="Into your inventory">Take <b class="lt">${num(n)}</b></button>`
+                + `<button class="act sell" data-act="lsell" data-id="${it.id}" data-each="${it.sell}" title="Zeny into the party purse">Sell for <b class="ls">${num(n * it.sell)}</b> z</button></div>`
+                + (desc ? `<div class="more"><div class="ds">${esc(desc)}</div></div>` : '') + '</div>');
+        }
+        out.push('</div>');
+        return out.join('');
+    }
+
     function renderBag() {
         if (!bag) return '<div class="empty">Looking in the bags...</div>';
         const out = [];
-        if (bagMsg) out.push(`<div class="msg ${bagMsg.ok ? 'ok' : 'err'}">${esc(bagMsg.text)}</div>`);
-        if (bag.rate > 0 || bag.purse > 0) {
-            out.push(`<div class="purse"><span class="z">Party purse: ${num(bag.purse)} z</span>`
-                + `<input type="number" min="1" step="1" placeholder="zeny" data-purse>`
-                + `<button class="act" data-act="withdraw" title="Into your wallet">Take out</button>`
-                + `<button class="act" data-act="deposit" title="From your wallet">Put in</button></div>`);
-        }
+        if (bagMsg) out.push(msgLine());
+        // 3.1.0: the purse moved to the Loot tab; the "drag in / double-click" hint is gone.
         if (!bag.inv) {
             out.push('<div class="note">Companion inventory is off (Settings &gt; Population), so their potions and arrows are free and refill by themselves. '
                 + 'Turn it on to have them carry only what you give them; then you can take things back here.</div>');
-        } else {
-            out.push('<div class="note">Drag in to give · Double-click to take back</div>');
         }
         if (!bag.comps.length) out.push('<div class="empty">No companions in your party.</div>');
         const label = it => (it.refine ? `+${it.refine} ` : '') + it.name;
@@ -377,7 +479,7 @@ export default function init(parameters, api) {
             const pips = (it.cardIds.length ? '<i class="pc"></i>' : '') + (it.opts.length ? '<i class="po"></i>' : '') + (it.bound || it.rental ? '<i class="pb"></i>' : '');
             const tip = [label(it), facts(it), ...it.opts.map(optText), ...it.cardIds.map(cardName)].filter(Boolean).join('\n');
             const src = iconUrl.get(it.id);
-            return `<div class="sl ${cls}${sel === key ? ' on' : ''}" data-sel="${esc(key)}" title="${esc(tip)}">`
+            return `<div class="sl ${cls}${sel === key ? ' on' : ''}" data-sel="${esc(key)}" draggable="true" title="${esc(tip)}">`
                 + `<img data-icon="${it.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
                 + (it.refine ? `<span class="r">+${it.refine}</span>` : '')
                 + (it.amount > 1 ? `<span class="q">${it.amount > 9999 ? '9k+' : it.amount}</span>` : '')
@@ -438,10 +540,35 @@ export default function init(parameters, api) {
                     + `<button class="act" data-act="nogive" title="Cancel">&#10005;</button></div>`
                     + amountRow(giving.n, giving.max, 'data-act="give"', 'Give') + '</div>';
             }
-            out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span></div>`
+            // Weight, in the game's units (the server counts tenths). From half, RO
+            // stops natural HP/SP regen; from 90% no attacking or skills.
+            let wt = '';
+            if (c.maxWeight > 0) {
+                const p = pct(c.weight, c.maxWeight);
+                const cls = p >= 90 ? 'hi' : p >= 50 ? 'mid' : '';
+                const tip = `Weight ${num(Math.floor(c.weight / 10))} / ${num(Math.floor(c.maxWeight / 10))} (${p}%)`
+                    + (p >= 90 ? '\nOver 90%: can\'t attack or use skills.' : p >= 50 ? '\nOver 50%: no natural HP/SP regen.' : '');
+                wt = `<span class="wt" title="${esc(tip)}"><i class="${cls}" style="width:${p}%"></i></span>`
+                    + `<span class="wn${cls === 'hi' ? ' hi' : ''}" title="${esc(tip)}">${num(Math.floor(c.weight / 10))}/${num(Math.floor(c.maxWeight / 10))}</span>`;
+            }
+            // Restock: what it keeps, bought in town; drop a shop item here to add it.
+            let rs = '';
+            if (bag.inv) {
+                const have = id => c.items.reduce((n, x) => n + (x.id === id ? x.amount : 0), 0);
+                const chips = c.restock.map(r => {
+                    const h = have(r.id), src = iconUrl.get(r.id);
+                    return `<span class="chip${h < r.keep ? ' low' : ''}" data-act="rsedit" data-cid="${esc(c.cid)}" data-id="${r.id}" data-keep="${r.keep}" `
+                        + `title="${esc(r.name)}: has ${num(h)}, keeps ${num(r.keep)}. Click to change.">`
+                        + `<img data-icon="${r.id}"${src ? ` src="${esc(src)}"` : ''} alt=""><b>${num(h)}/${num(r.keep)}</b>`
+                        + `<span class="x" data-act="rsdel" title="Take it off the list">&#10005;</span></span>`;
+                }).join('');
+                rs = `<div class="rs" data-cid="${esc(c.cid)}" title="Bought from the party purse whenever you reach a town">`
+                    + `<span class="lb">Restock</span>${chips || '<span class="hint">drag potions, gems, arrows here</span>'}</div>`;
+            }
+            out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span>${wt}</div>`
                 + (dyes ? `<div class="dyes">${dyes}</div>` : '')
                 + (worn ? `<div class="sub">Equipped</div><div class="grid">${worn}</div>` : '')
-                + `<div class="sub">Bag</div>${rows}${det}</div>`);
+                + `<div class="sub">Bag</div>${rows}${det}${rs}</div>`);
         }
         return out.join('');
     }
@@ -452,13 +579,18 @@ export default function init(parameters, api) {
         const pane = body.querySelector('.pane');
         // Don't wipe the purse box while you type in it.
         const active = pane.getRootNode().activeElement || document.activeElement;
-        if (tab === 'bag' && active && pane.contains(active) && active.matches('input')) return;
+        if ((tab === 'bag' || tab === 'loot') && active && pane.contains(active) && active.matches('input')) return;
         const keep = pane.scrollTop;
-        pane.innerHTML = tab === 'status' ? renderStatus() : tab === 'bag' ? renderBag() : renderMemories();
+        pane.innerHTML = tab === 'status' ? renderStatus() : tab === 'bag' ? renderBag() : tab === 'loot' ? renderLoot() : renderMemories();
+        // The answer line is sticky, so it shows wherever you are scrolled,
+        // and it goes away by itself: "done" after 4 s, a problem after 8 s.
         pane.scrollTop = keep;
-        // An action's answer is the top line: scroll up once so it's seen.
-        if (showMsg) { showMsg = false; pane.scrollTop = 0; }
-        if (tab === 'bag') fillIcons(pane);
+        if (bagMsg && msgTimer?.msg !== bagMsg) {
+            clearTimeout(msgTimer?.id);
+            const shown = bagMsg;
+            msgTimer = { msg: shown, id: setTimeout(() => { if (bagMsg === shown) { bagMsg = null; render(); } }, shown.ok ? 4000 : 8000) };
+        }
+        if (tab === 'bag' || tab === 'loot') fillIcons(pane);
         if (button) button.classList.toggle('hurt', list.some(c => c.state === 'dead' || (c.mhp && c.hp * 100 / c.mhp < 30)));
     }
 
@@ -479,6 +611,10 @@ export default function init(parameters, api) {
                 if (Date.now() - bagAt < 3000) return;
                 bag = parseBag(await api.server.request('clbag', 'list', { timeout: 4000 }));
                 bagAt = Date.now();
+            } else if (tab === 'loot') {
+                if (Date.now() - lootAt < 3000) return;
+                loot = parseLoot(await api.server.request('clbag', 'lootlist', { timeout: 4000 }));
+                lootAt = Date.now();
             } else {
                 list = parse(await api.server.request('clstat', 'list', { timeout: 4000 }));
             }
@@ -500,14 +636,41 @@ export default function init(parameters, api) {
             bagMsg = quiet && ok ? null : { ok, text: cut >= 0 ? reply.slice(cut + 1) : reply };
         } catch { bagMsg = { ok: false, text: 'No answer from the server. Try again in a moment.' }; }
         finally { busy = false; }
-        showMsg = Boolean(bagMsg);
         bagAt = 0;
+        lootAt = 0;
         await refresh();
+    }
+
+    // A square dragged onto your inventory (3.1.2): worn gear back, a single item at
+    // once, a stack after "how many" (the game-style box, the whole stack filled in).
+    function takeOut(key) {
+        if (key.startsWith('loot:')) {
+            const it = loot?.items.find(x => 'loot:' + x.id === key);
+            if (!it) return;
+            if (it.amount > 1) askAmount({ id: it.id, max: it.amount, who: 'you' }).then(n => { if (n > 0) bagAction(`ltake ${it.id} ${n}`); });
+            else bagAction(`ltake ${it.id} 1`);
+            return;
+        }
+        if (!bag) return;
+        const cut = key.indexOf(':'), cid = key.slice(0, cut), k = key.slice(cut + 1);
+        const c = bag.comps.find(x => x.cid === cid);
+        if (!c) return;
+        if (k[0] === 'w') { bagAction(`gearback ${cid} ${k.slice(1)}`); return; }
+        const it = c.items.find(x => x.idx === k);
+        if (!it || !bag.inv) return;
+        if (it.worn) { bagMsg = { ok: false, text: `${c.name} is using those. They come off with the gear they're for.` }; render(); return; }
+        if (it.amount > 1) askAmount({ id: it.id, max: it.amount, who: 'you' }).then(n => { if (n > 0) bagAction(`take ${cid} ${it.idx} ${n}`); });
+        else bagAction(`take ${cid} ${it.idx} 1`);
     }
 
     // A double-click on a square: worn gear back, or the whole stack.
     let lastClick = { key: null, at: 0 };
     function takeAll(key) {
+        if (key.startsWith('loot:')) {
+            const it = loot?.items.find(x => 'loot:' + x.id === key);
+            if (it) bagAction(`ltake ${it.id} ${it.amount}`);
+            return;
+        }
         if (!bag) return;
         const cut = key.indexOf(':'), cid = key.slice(0, cut), k = key.slice(cut + 1);
         const c = bag.comps.find(x => x.cid === cid);
@@ -549,7 +712,7 @@ export default function init(parameters, api) {
 #inputbox .ok.pic { color: transparent; }
 `;
     let asking = null;
-    function askAmount({ id, max, who }) {
+    function askAmount({ id, max, who, value = max }) {
         asking?.cancel();
         return new Promise(resolve => {
             const host = document.createElement('div');
@@ -557,7 +720,7 @@ export default function init(parameters, api) {
             const item = api.items?.get?.(id)?.name || `Item #${id}`;
             root.innerHTML = `<style>${ASK_STYLE}</style><div class="ov"></div>`
                 + `<div id="inputbox"><div class="border"><div class="text" title="${esc(item)} → ${esc(who)}">${esc(item)} <i>→ ${esc(who)}</i></div>`
-                + `<input type="text" inputmode="numeric" value="${max}"><button class="ok">OK</button></div></div>`;
+                + `<input type="text" inputmode="numeric" value="${value}"><button class="ok">OK</button></div></div>`;
             const box = root.getElementById('inputbox'), input = root.querySelector('input'), ok = root.querySelector('.ok');
             // Where the game puts its own: centred, a little above the middle.
             box.style.left = `${Math.round((innerWidth - 280) / 2 + 1)}px`;
@@ -607,15 +770,20 @@ export default function init(parameters, api) {
         if (write) box.value = v;
         const b = box.parentElement.querySelector('.go b');
         if (b) b.textContent = num(v);
+        // The Loot tab's Take / Sell buttons say the number and the zeny.
+        const det = box.closest('.det');
+        const lt = det?.querySelector('.lt'), ls = det?.querySelector('.ls'), sell = det?.querySelector('[data-each]');
+        if (lt) lt.textContent = num(v);
+        if (ls && sell) ls.textContent = num(v * (Number(sell.dataset.each) || 0));
         if (giving && box.closest('.det.give')) giving.n = v;
         else takeN = { key: sel, n: v };
     }
 
     function ensureWindow() {
         if (win) return win;
-        win = api.ui.window({ id: 'companions', title: 'Companions', width: 300, height: 340, resizable: true });
+        win = api.ui.window({ id: 'companions', title: 'Companions', width: 320, height: 360, resizable: true });
         win.body.innerHTML = `<style>${WIN_STYLE}</style><div class="cw"><div class="tabs">`
-            + `<button data-tab="status">Status</button><button data-tab="memories">Memories</button><button data-tab="bag">Bag</button></div>`
+            + `<button data-tab="status">Status</button><button data-tab="memories">Memories</button><button data-tab="bag">Bag</button><button data-tab="loot">Loot</button></div>`
             + `<div class="pane"></div></div>`;
         body = win.body;
         body.addEventListener('click', event => {
@@ -647,9 +815,17 @@ export default function init(parameters, api) {
                     giving = null;
                     bagAction(`give ${g.cid} ${g.idx} ${g.id} ${Math.min(n, g.max)}`);
                 }
+                else if (a.dataset.act === 'ltake' || a.dataset.act === 'lsell') {
+                    const box = a.closest('.det')?.querySelector('input[data-n]');
+                    const it = loot?.items.find(x => x.id === Number(a.dataset.id));
+                    const n = box ? Math.floor(Number(box.value || 0)) : (it?.amount || 1);
+                    if (!(n > 0)) { bagMsg = { ok: false, text: 'Type how many first.' }; box?.blur(); render(); return; }
+                    box?.blur();
+                    takeN = { key: null, n: 0 };
+                    bagAction(`${a.dataset.act} ${a.dataset.id} ${n}`);
+                }
                 else if (a.dataset.act === 'nogive') { giving = null; render(); }
-                else if (a.dataset.act === 'gearback') bagAction(`gearback ${a.dataset.cid} ${a.dataset.eq}`);
-                else if (a.dataset.act === 'dye') bagAction(`dye ${a.dataset.cid} ${a.dataset.kind} ${a.dataset.val}`, true);
+                else if (a.dataset.act === 'gearback') bagAction(`gearback ${a.dataset.cid} ${a.dataset.eq}`);                else if (a.dataset.act === 'dye') bagAction(`dye ${a.dataset.cid} ${a.dataset.kind} ${a.dataset.val}`, true);
                 else if (a.dataset.act === 'withdraw' || a.dataset.act === 'deposit') {
                     const box = body.querySelector('input[data-purse]');
                     const z = Math.floor(Number(box?.value || 0));
@@ -657,6 +833,16 @@ export default function init(parameters, api) {
                     if (box) { box.value = ''; box.blur(); }
                     bagAction(`${a.dataset.act} ${z}`);
                 }
+                return;
+            }
+            // 3.1.0: a restock chip: its x takes it off the list, a click changes how many.
+            const chip = event.target.closest('.chip[data-act="rsedit"]');
+            if (chip) {
+                const { cid, id } = chip.dataset;
+                if (event.target.closest('[data-act="rsdel"]')) { bagAction(`rsset ${cid} ${id} 0`); return; }
+                const who = bag?.comps.find(x => x.cid === cid)?.name || 'companion';
+                askAmount({ id: Number(id), max: 30000, value: Number(chip.dataset.keep) || 1, who: `${who} keeps` })
+                    .then(n => { if (n > 0) bagAction(`rsset ${cid} ${id} ${n}`); });
                 return;
             }
             // A square: pick it, and its details show below the bag. A second click
@@ -683,6 +869,7 @@ export default function init(parameters, api) {
             bagMsg = null;
             giving = null;
             bagAt = 0;
+            lootAt = 0;
             render();
             refresh();
         });
@@ -695,7 +882,8 @@ export default function init(parameters, api) {
             if (!d) { try { d = JSON.parse(event.dataTransfer?.getData('Text') || 'null'); } catch { d = null; } }
             return d && d.type === 'item' && d.from === 'Inventory' && d.data ? d.data : null;
         };
-        const card = event => (tab === 'bag' && bag?.inv ? event.target.closest?.('.bag[data-cid]') : null);
+        // 3.1.0: the Restock row inside a card is its own drop zone (add to the list).
+        const card = event => (tab === 'bag' && bag?.inv ? event.target.closest?.('.rs[data-cid]') || event.target.closest?.('.bag[data-cid]') : null);
         let overCard = null;
         const unmark = () => { overCard?.classList.remove('over'); overCard = null; };
         body.addEventListener('dragover', event => {
@@ -718,6 +906,15 @@ export default function init(parameters, api) {
             event.stopImmediatePropagation();
             const id = Number(item.ITID) || 0, idx = (Number(item.index) || 0) - 2, max = Number(item.count) || 1;
             if (!id || idx < 0) return;
+            if (c.classList.contains('rs')) {
+                // Onto the Restock row: how many to keep (the server checks it's a shop item).
+                const cid = c.dataset.cid;
+                const comp = bag?.comps.find(x => x.cid === cid);
+                const now = comp?.restock.find(r => r.id === id)?.keep;
+                askAmount({ id, max: 30000, value: now || Math.min(Math.max(max, 1), 100), who: `${comp?.name || 'companion'} keeps` })
+                    .then(n => { if (n > 0) bagAction(`rsset ${cid} ${id} ${n} ${idx}`); });   // 3.1.1: your stack goes in first
+                return;
+            }
             if (item.WearState) { bagMsg = { ok: false, text: 'Take it off first, then drag it over.' }; render(); return; }
             const name = api.items?.get?.(id)?.name || `Item #${id}`;
             if (max > 1) {
@@ -730,6 +927,39 @@ export default function init(parameters, api) {
             }
             bagAction(`give ${c.dataset.cid} ${idx} ${id} 1`);
         });
+        // 3.1.2: the other way: a square dragged out of a companion's bag (or the Loot
+        // tab) onto your game inventory window takes it, like a double-click. A stack
+        // asks how many first. The game's inventory is a host element with id
+        // InventoryV0..V3; this listens on the window in the capture phase, so the drop
+        // is ours before the game's own handlers (storage, cart, ground) see it.
+        let outDrag = null;
+        const overInv = event => event.composedPath().some(el => typeof el.id === 'string' && /^Inventory/.test(el.id));
+        body.addEventListener('dragstart', event => {
+            const s = event.target.closest?.('.sl[data-sel]');
+            if (!s || (tab !== 'bag' && tab !== 'loot')) return;
+            outDrag = s.dataset.sel;
+            event.dataTransfer?.setData('text/plain', 'companion-item');
+            if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+        });
+        body.addEventListener('dragend', () => { outDrag = null; });
+        const onOutOver = event => {
+            if (!outDrag || !overInv(event)) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        };
+        const onOutDrop = event => {
+            if (!outDrag) return;
+            const key = outDrag;
+            outDrag = null;
+            if (!overInv(event)) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            takeOut(key);
+        };
+        addEventListener('dragover', onOutOver, true);
+        addEventListener('drop', onOutDrop, true);
+        api.cleanup(() => { removeEventListener('dragover', onOutOver, true); removeEventListener('drop', onOutDrop, true); });
         // Typing in the purse box: keep the keys away from the game (chat, hotkeys).
         // Enter or Escape leaves the box.
         // In a how-many box Enter presses its Give / Take button.
@@ -864,11 +1094,28 @@ export default function init(parameters, api) {
     const CAMP_ON = ['make camp', 'campfire', 'camp fire', 'set up camp', "let's rest", 'lets rest', "let's camp", 'lets camp'];
     const CAMP_OFF = ['time to go', "let's go", 'lets go', 'put out the fire', 'pack up', 'break camp'];
     const CAMP_YES = /^(yes|yeah|yep|yup|sure|ok|okay|do it|light it|please|yes please|sure thing|go ahead)[.! ]*$/;
-    if (chatOrders && typeof MutationObserver === 'function') {
+    // 3.0.1: companions' lines in their own colour (setting chat_colour, 0 = white as
+    // before), everyday talk (public chat) and battle callouts (party chat) alike. The
+    // server sends their names as "@@event clnames A|B|" whenever they change. The words
+    // over their heads are drawn by the game itself and stay white.
+    const CHAT_COLOURS = ['', '#8fd3ff', '#8ef0b4', '#ffd76a', '#ffa8d8', '#c8b0ff'];
+    const chatColour = CHAT_COLOURS[Math.round(Number(parameters?.chat_colour ?? 1))] ?? CHAT_COLOURS[1];
+    let compNames = [];
+    api.on('server:event', ({ command, text }) => {
+        if (command === 'clnames') compNames = String(text || '').split('|').filter(Boolean);
+    });
+    const colourLine = div => {
+        if (!chatColour || !compNames.length) return;
+        const text = div.textContent || '';
+        if (compNames.some(n => text.startsWith(n + ' : '))) div.style.color = chatColour;
+    };
+
+    if ((chatOrders || chatColour) && typeof MutationObserver === 'function') {
         let watched = null, observer = null, since = 0;
         const seen = new Map();   // the same line lands once in every chat tab
         const onLine = div => {
             if (!(div instanceof HTMLElement) || div.tagName !== 'DIV') return;
+            if (!chatOrders) return;
             if (div.style.color.replace(/\s/g, '') !== 'rgb(230,215,200)') return;
             const me = api.snapshot()?.player?.name;
             const text = (div.textContent || '').trim();
@@ -895,6 +1142,8 @@ export default function init(parameters, api) {
             watched = root;
             since = Date.now() + 1000;   // lines put back when the box is drawn again aren't new
             observer = new MutationObserver(records => {
+                // Colour every line, the ones put back on a redraw too; orders only new ones.
+                for (const r of records) r.addedNodes.forEach(n => { if (n instanceof HTMLElement && n.tagName === 'DIV') colourLine(n); });
                 if (Date.now() < since) return;
                 for (const r of records) r.addedNodes.forEach(onLine);
             });

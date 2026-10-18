@@ -1,8 +1,8 @@
 {
   "name": "companion-party-overhaul",
-  "version": "3.0.0",
+  "version": "3.1.2",
   "author": "Always",
-  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags, the gear you gave, their colours and the party purse. Options are grouped in the Settings window.",
+  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. Options are grouped in the Settings window.",
   "requires": { "app": ">=1.6.0", "era": "any" },
   "tags": ["companions", "population", "combat", "dialogue", "immersion"],
   "settingsPage": "settings/index.html",
@@ -54,7 +54,7 @@
       "type": "boolean",
       "default": true,
       "label": "Party roles",
-      "description": "Fights played like players: auto-attacks normally, SP saved for bad moments (3+ monsters, the back line hit, someone under 50%, a boss). Melee kite 3+ round the Priest, archers step back and burst, casters freeze and burst. Healers: full Heal under 50% first, Kyrie the tank, then under 80%. The back line is protected first. Changing this restarts the server."
+      "description": "Fights played like players: auto-attacks normally, SP saved for bad moments (3+ monsters, the back line hit, someone under 50%, a boss). Melee kite 3+ round the Priest, archers step back and burst, hunters trap only to guard, casters freeze and burst. Healers: full Heal under 50%, Kyrie the tank, then under 80%. The back line comes first. Changing this restarts the server."
     },
     {
       "key": "chat_orders",
@@ -123,13 +123,31 @@
       "description": "Roughly how often companions talk with each other when nothing is going on (or muse to you, if there is only one), varying by 30%. With three or more companions they talk 40% more often, mostly as a group. Topics depend on who's talking, where you are, the hour, a boss just beaten and their memories. 0 turns it off."
     },
     {
+      "key": "chat_colour",
+      "type": "number",
+      "default": 1,
+      "min": 0,
+      "max": 5,
+      "label": "Companion chat colour",
+      "description": "The colour of your companions' lines in the chat box, so they stand out from other players: 0 white (as before), 1 sky blue, 2 mint, 3 gold, 4 pink, 5 lavender. The words over their heads stay white."
+    },
+    {
       "key": "purse_per_level",
       "type": "number",
       "default": 2,
       "min": 0,
       "max": 50,
       "label": "Party purse: zeny per monster level, per companion",
-      "description": "Every monster you beat puts this much zeny per monster level into the party purse, for each living companion with you (2 = a level 40 monster with 3 companions adds 240 zeny). The monster's drops still go to you, so this is on top. Take it out (or put zeny in) in the Companions window's Bag tab. 0 turns the purse off."
+      "description": "Every monster you beat puts this much zeny per monster level into the party purse, for each living companion with you (2 = a level 40 monster with 3 companions adds 240 zeny). The monster's drops still go to you, so this is on top. Take it out (or put zeny in) in the Companions window's Loot tab. It also pays for restocking in town. 0 turns the purse off."
+    },
+    {
+      "key": "loot_finds",
+      "type": "number",
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "label": "Loot finds",
+      "description": "A monster the party beats (yours or a companion's) can also turn up one thing from its own drop list, into the party bag (Loot tab, no weight limit): Take it or Sell it into the purse. 0 off, 1 Low (a tenth of its drop rate), 2 Normal (a quarter), 3 Generous (half)."
     },
     {
       "key": "gifts",
@@ -178,7 +196,7 @@
       "type": "boolean",
       "default": true,
       "label": "Companions button",
-      "description": "A small Companions button on screen (drag it anywhere) that opens the Companions window: everyone's HP, SP, level and state, a Memories tab, and a Bag tab (each companion's bag, gear you gave, outfit and hair colour, and the party purse). Alt+N opens it too, with or without the button."
+      "description": "A small Companions button on screen (drag it anywhere) that opens the Companions window: everyone's HP, SP, level and state, a Memories tab, a Bag tab (each companion's bag, weight, gear you gave, restock list, outfit and hair colour) and a Loot tab (the party purse and the party bag). Alt+N opens it too, with or without the button."
     }
   ]
 }

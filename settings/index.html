@@ -52,6 +52,9 @@
   .seg label:first-child { border-left: none; }
   .seg input { display: none; }
   .seg label:has(input:checked) { background: var(--c); color: #fff; font-weight: 600; }
+  .seg.swatch label { padding: 5px 8px; line-height: 0; }
+  .seg.swatch span { display: inline-block; width: 16px; height: 16px; border-radius: 50%;
+                     border: 1px solid #0003; }
   /* Switch */
   .sw { position: relative; width: 38px; height: 22px; flex: none; }
   .sw input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
@@ -97,9 +100,9 @@ const CARDS = [
   { cls: 'battle', title: 'In battle', blurb: 'Each class in its part, your orders, and your items.',
     rows: ['party_roles', 'roam_together', 'chat_orders', 'use_items', 'town_calm'] },
   { cls: 'talk', title: 'Talk & personality', blurb: 'What they say, to you and to each other.',
-    rows: ['titles', 'everyday_chatter', 'combat_callouts', 'chat_replies', 'banter_minutes'] },
-  { cls: 'purse', title: 'Bag & purse', blurb: 'Gearing your companions: a starter kit, and the party purse.',
-    rows: ['gifts', 'starter_kit', 'purse_per_level'] },
+    rows: ['titles', 'everyday_chatter', 'combat_callouts', 'chat_replies', 'banter_minutes', 'chat_colour'] },
+  { cls: 'purse', title: 'Bag, loot & purse', blurb: 'Gearing your companions, what they find, and the party purse.',
+    rows: ['gifts', 'starter_kit', 'purse_per_level', 'loot_finds'] },
   { cls: 'care', title: 'Growth & care', blurb: 'How they grow, what they remember, and how they are looked after.',
     rows: ['companion_growth', 'memories', 'companion_return', 'companion_announce'] },
   { cls: 'general', title: 'Window', rows: ['window_button'] },
@@ -114,12 +117,26 @@ const SEGS = {
   spacing: { label: 'Party spacing', hint: 'How far from you they stand between fights.' },
 };
 const UNITS = { banter_minutes: 'min', purse_per_level: 'zeny' };
+// loot_finds (a number 0-3) drawn as a four-way choice.
+const LEVELS = {
+  loot_finds: [
+    { label: 'Off', hint: 'Off: only the normal drops.' },
+    { label: 'Low', hint: 'Low: a tenth of each drop\'s rate. A 1% drop turns up about once in 1,000 party kills.' },
+    { label: 'Normal', hint: 'Normal: a quarter of each drop\'s rate. A 1% drop, about once in 400 party kills.' },
+    { label: 'Generous', hint: 'Generous: half of each drop\'s rate. A 1% drop, about once in 200 party kills.' },
+  ],
+};
+// chat_colour (a number 0-5) drawn as swatches; keep in step with client/index.js CHAT_COLOURS.
+const SWATCHES = [
+  { label: 'White', colour: '#ffffff' }, { label: 'Sky blue', colour: '#8fd3ff' }, { label: 'Mint', colour: '#8ef0b4' },
+  { label: 'Gold', colour: '#ffd76a' }, { label: 'Pink', colour: '#ffa8d8' }, { label: 'Lavender', colour: '#c8b0ff' },
+];
 // The app hands the page values but not defaults; keep these in step with mod.json.
 const DEFAULTS = {
   spacing_close: false, spacing_normal: true, spacing_far: false, look_around: true, idle_sit: true, campfire: true,
   party_roles: true, roam_together: true, chat_orders: true, use_items: true, town_calm: true,
   titles: 'Boss,Captain,Leader', everyday_chatter: true, combat_callouts: true, chat_replies: true,
-  banter_minutes: 4, purse_per_level: 2, gifts: true, starter_kit: true,
+  banter_minutes: 4, chat_colour: 1, purse_per_level: 2, loot_finds: 1, gifts: true, starter_kit: true,
   memories: true, companion_growth: true, companion_return: true, companion_announce: true,
   window_button: true,
 };
@@ -166,8 +183,81 @@ function segRow(name, opts, store) {
   return r;
 }
 
+// Colour swatches over one number setting. inputs[key] gets a stand-in with .value, so
+// values() and Reset treat it like any number box.
+function swatchRow(key) {
+  const s = byKey[key];
+  if (!s) return null;
+  const r = document.createElement('div');
+  r.className = 'row';
+  r.id = 'row_' + key;
+  const t = textBlock(s.label || key, 'Their lines in your chat box. The words over their heads stay white.');
+  const p = document.createElement('div');
+  p.className = 'preview';
+  p.id = 'pv_' + key;
+  t.append(p);
+  const seg = document.createElement('div');
+  seg.className = 'seg swatch';
+  const radios = SWATCHES.map((o, i) => {
+    const l = document.createElement('label');
+    l.title = o.label;
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = key;
+    input.value = i;
+    input.checked = i === Number(s.value);
+    const dot = document.createElement('span');
+    dot.style.background = o.colour;
+    l.append(input, dot);
+    seg.append(l);
+    return input;
+  });
+  inputs[key] = {
+    get value() { return (radios.find(x => x.checked) || radios[1]).value; },
+    set value(v) { radios.forEach(x => { x.checked = Number(x.value) === Number(v); }); },
+  };
+  r.append(t, seg);
+  return r;
+}
+
+// A number setting drawn as a segmented choice (LEVELS[key], one option per value from 0).
+// inputs[key] gets a stand-in with .value, like swatchRow.
+function levelRow(key) {
+  const s = byKey[key];
+  if (!s) return null;
+  const r = document.createElement('div');
+  r.className = 'row';
+  r.id = 'row_' + key;
+  const t = textBlock(s.label || key, s.description);
+  const p = document.createElement('div');
+  p.className = 'preview';
+  p.id = 'pv_' + key;
+  t.append(p);
+  const seg = document.createElement('div');
+  seg.className = 'seg';
+  const radios = LEVELS[key].map((o, i) => {
+    const l = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = key;
+    input.value = i;
+    input.checked = i === Number(s.value);
+    l.append(input, o.label);
+    seg.append(l);
+    return input;
+  });
+  inputs[key] = {
+    get value() { return (radios.find(x => x.checked) || radios[0]).value; },
+    set value(v) { radios.forEach(x => { x.checked = Number(x.value) === Number(v); }); },
+  };
+  r.append(t, seg);
+  return r;
+}
+
 function row(key) {
   if (key === 'spacing') return segRow('spacing', SPACING, spacingInputs);
+  if (key === 'chat_colour') return swatchRow(key);
+  if (LEVELS[key]) return levelRow(key);
   const s = byKey[key];
   if (!s) return null;
   const r = document.createElement('div');
@@ -271,6 +361,16 @@ function refresh() {
     : `About every ${v.banter_minutes} min; with 3+ companions about every ${Math.max(1, Math.round(v.banter_minutes * 0.6 * 10) / 10)} min.`);
   set('purse_per_level', v.purse_per_level === 0 ? 'The purse is off.'
     : `A level 40 monster with 3 companions adds ${(v.purse_per_level * 40 * 3).toLocaleString('en-US')} zeny.`);
+  if (byKey.loot_finds) set('loot_finds', (LEVELS.loot_finds[v.loot_finds] || LEVELS.loot_finds[1]).hint);
+  if (byKey.chat_colour) {
+    const c = SWATCHES[v.chat_colour] || SWATCHES[1];
+    const e = $('pv_chat_colour');
+    if (e) {
+      e.textContent = v.chat_colour === 0 ? 'Off: white, like everyone else.' : `${c.label}: "Companion : Watch out, Boss!"`;
+      e.style.color = v.chat_colour === 0 ? '' : c.colour;
+      e.style.textShadow = v.chat_colour === 0 ? '' : '0 0 2px #000, 0 0 2px #000';
+    }
+  }
   // Options that only matter with another one on.
   const dim = (key, on) => { const r = $('row_' + key); if (r) r.classList.toggle('off', !on); };
   dim('companion_announce', v.companion_growth || v.companion_return);

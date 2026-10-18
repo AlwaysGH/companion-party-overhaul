@@ -43,6 +43,15 @@ OnInit:
 	.mem = callfunc("F_ModSetting", .mod$, "memories", 1);
 	.purse = callfunc("F_ModSetting", .mod$, "purse_per_level", 2);
 	.purse_talk = .chatter;
+	// 3.1.0: the party loot bag (setting loot_finds: 0 off, 1 low, 2 normal, 3
+	// generous). A party kill can turn up one thing from that monster's own drop
+	// list, at this share (per thousand) of its normal rate (L_LootTrack).
+	setarray .@lsh, 0, 100, 250, 500;
+	.loot_share = .@lsh[cap_value(callfunc("F_ModSetting", .mod$, "loot_finds", 1), 0, 3)];
+	// Restock in town (L_Restock): only what NPC shops sell (pre-re shop lists,
+	// gear left out), bought at the shop price from the party purse.
+	.rs_ok$ = ",501,502,503,504,506,512,513,515,516,517,519,522,528,535,536,537,554,577,579,580,581,601,602,610,611,643,645,656,657,712,717,721,723,726,728,729,730,734,735,736,737,740,741,742,744,745,746,747,748,902,910,911,912,919,925,934,964,965,1052,1062,1065,1092,1093,1750,1751,1752,1770,1771,6094,6095,6096,6097,6098,6099,6100,6104,6108,6110,6111,6112,6113,6114,6115,7106,7140,7141,7143,7154,7170,7433,7452,7453,7454,7455,7456,7457,7482,7521,7522,7523,7524,11515,11516,13200,13201,13202,13250,13251,13252,13253,13254,";
+	.rs_max = 8;	// items on one companion's list
 	.look = callfunc("F_ModSetting", .mod$, "look_around", 1);
 	.patrol = .look;
 	.idlesit = callfunc("F_ModSetting", .mod$, "idle_sit", 1);
@@ -577,111 +586,174 @@ OnInit:
 
 	// ---- Memories (1.2.0): kept per companion in the mod store (char scope,
 	// m.c<char id>.*). {n} a number, {m} a map or a monster.
-	// Recalled in quiet moments:
-	setarray .mdays_0$, "We've been together {n} days now, {t}! Best days of my life!";
-	setarray .mkills_0$, "I've been counting! {n} monsters together, {t}!";
-	setarray .mmvps_0$, "{n} big bosses! Me! I was there for {n}!";
-	setarray .mfell_0$, "I fell {n} times... but you never left me behind, {t}.";
-	setarray .mmaps_0$, "{n} places we've been! I want to see them all!";
-	setarray .mfirst_0$, "Remember {m}? That's where we met! You were level {n}!";
-	setarray .mfmvp_0$, "I still dream about {m}. Our first big boss!";
-	setarray .msaw_0$, "You fell {n} times and got up every time, {t}. I want to be like that.";
-	// Milestones, said when they happen:
-	setarray .anniv_0$, "{t}! It's been {n} days since we met! Can we celebrate?!";
-	setarray .killms_0$, "That's {n} monsters together! {n}! Wow!";
-	setarray .mvpms_0$, "Boss number {n}! We're getting famous, {t}!";
-	setarray .mapms_0$, "That's {n} places together! I'm drawing a map of all of them!";
+	// 3.0.1: quiet moments no longer recite stats (days, kills, places, falls); the
+	// numbers live in the Memories tab. A companion's thought out loud (L_Thought) is
+	// now a "did you know" (.dyk_ lead-in + a .lore$ fact, the place you're in first),
+	// a small shared moment (.mom_, {m} = the town where you met, if it was a town), or
+	// now and then an easter egg (.segg$). Big moments are said once, when they happen:
+	// an anniversary ({m} = "A week", "A month"...) and the first boss together ({m}).
+	setarray .anniv_0$, "{m} together already, {t}! Can we have cake? Small cake. Any cake.";
+	setarray .mvpms_0$, "We beat {m}! Our first big boss! My hands are still shaking!";
+	setarray .dyk_0$, "Did you know, {t}? ", "Ooh, fun fact! ", "Someone in town told me this: ";
+	setarray .mom_0$, "I still think about {m}. Everything looked so big back then. It still does, kind of.",
+		"I'm going to buy a hat in the next town. A silly one. Don't stop me, {t}.",
+		"Do you think Porings have names? I named one Bob. He bit me.",
+		"My boots finally stopped squeaking! ...Oh. There it is again.",
+		"I practiced my stance last night. I think I'm getting better. Maybe.",
+		"Can we find a bakery next town? I keep dreaming about sweet bread.",
+		"I found a really round pebble. I'm keeping it. It's lucky now.";
 
-	setarray .mdays_1$, "{n} days at your side, {t}. My oath has never felt lighter.";
-	setarray .mkills_1$, "{n} foes have fallen before us, {t}. A worthy tally.";
-	setarray .mmvps_1$, "{n} great beasts slain together. I remember every one.";
-	setarray .mfell_1$, "I have fallen {n} times in your service. I would again.";
-	setarray .mmaps_1$, "{n} lands we've crossed together, {t}.";
-	setarray .mfirst_1$, "I remember {m}, where I swore to you. You were level {n}.";
-	setarray .mfmvp_1$, "{m}. Our first great foe. I still bear the scar.";
-	setarray .msaw_1$, "I watched you fall {n} times, {t}. Each time I swore it would be the last.";
-	setarray .anniv_1$, "{n} days since I swore my oath to you, {t}. I renew it gladly.";
-	setarray .killms_1$, "{n} foes vanquished. Well fought, {t}.";
-	setarray .mvpms_1$, "Our {n}th great beast. Songs will be sung, {t}.";
-	setarray .mapms_1$, "{n} lands under our banner now, {t}.";
+	setarray .anniv_1$, "{m} since we set out together, {t}. The road has been good to us.";
+	setarray .mvpms_1$, "{m} has fallen. Our first great foe. Well fought, all of you.";
+	setarray .dyk_1$, "Something the old soldiers say, {t}: ", "Worth knowing, {t}: ", "Did you know? ";
+	setarray .mom_1$, "{m}. I think of it sometimes. It was a quiet day, the day we met.",
+		"I oiled my shield strap this morning. Small things keep a soldier alive.",
+		"The wind's turning. Good weather for marching.",
+		"I used to stand watch alone. It's better with company.",
+		"When this is done, I'd like a quiet meal. Bread, stew, nothing fancy.",
+		"My grandfather carried a sword like this one. He'd laugh at how I hold it.",
+		"A clear sky, a straight road. Some days ask nothing of you.";
 
-	setarray .mdays_2$, "{n} days of observation, {t}. You remain my most interesting subject.";
-	setarray .mkills_2$, "My records show {n} monsters defeated together. Statistically impressive.";
-	setarray .mmvps_2$, "{n} boss-class specimens. My notes on them fill a whole book.";
-	setarray .mfell_2$, "I've died {n} times. A poor ratio. I'm working on it.";
-	setarray .mmaps_2$, "{n} locations catalogued with you, {t}.";
-	setarray .mfirst_2$, "We met in {m}. You were level {n}. I wrote it down, naturally.";
-	setarray .mfmvp_2$, "{m}, our first boss. I still have the notes.";
-	setarray .msaw_2$, "You've fallen {n} times, {t}, and always come back. Fascinating.";
-	setarray .anniv_2$, "{n} days since our contract began. I'd sign it again, {t}.";
-	setarray .killms_2$, "{n} monsters. A round number. I approve.";
-	setarray .mvpms_2$, "Boss number {n}. My thesis grows, {t}.";
-	setarray .mapms_2$, "{n} places now. My atlas is getting heavy.";
+	setarray .anniv_2$, "{m} of travelling together, {t}. Time moves strangely when it's interesting.";
+	setarray .mvpms_2$, "{m}, defeated. I'll want to write that one down properly tonight.";
+	setarray .dyk_2$, "A small fact, {t}: ", "From my notes: ", "Did you know? ";
+	setarray .mom_2$, "Do you remember {m}? I'd like to go back someday and actually read the signs.",
+		"I've started pressing flowers in my spellbook. Don't tell the academy.",
+		"The light here is good for reading. A shame we're always walking.",
+		"I've been sketching the monsters we meet. The Porings are the hardest. Too round.",
+		"I miss tea. Proper tea. Geffen tea.",
+		"Sometimes I just listen to the wind. Even scholars rest, {t}.",
+		"I tried to work out how far we've walked. Then I stopped. Some things are better unmeasured.";
 
-	setarray .mdays_3$, "{n} days on the road with you, {t}! That's a long song.";
-	setarray .mkills_3$, "{n} monsters together! I ran out of verses at 100.";
-	setarray .mmvps_3$, "{n} bosses! Each one's a chorus now.";
-	setarray .mfell_3$, "I went down {n} times. Every time, you got me back up. Thanks, {t}.";
-	setarray .mmaps_3$, "{n} places we've seen together. Not bad for a wanderer!";
-	setarray .mfirst_3$, "Remember {m}? You were level {n}. Feels like yesterday.";
-	setarray .mfmvp_3$, "{m} was our first boss. Still my favorite song.";
-	setarray .msaw_3$, "You've fallen {n} times, {t}. Every comeback's a better verse.";
-	setarray .anniv_3$, "{n} days together, {t}! Drinks tonight, on me!";
-	setarray .killms_3$, "{n} monsters! That's a whole album!";
-	setarray .mvpms_3$, "Boss {n}! The tavern's going to hear about this one!";
-	setarray .mapms_3$, "{n} places! I'm going to need a bigger songbook.";
+	setarray .anniv_3$, "{m} on the road with you, {t}! That deserves a new song.";
+	setarray .mvpms_3$, "{m}! Now THAT goes in the song. The chorus, even.";
+	setarray .dyk_3$, "Heard this in a tavern, {t}: ", "Here's one for the road: ", "Did you know? ";
+	setarray .mom_3$, "{m}... that's where this all started, isn't it? Like the first line of a song.",
+		"I've got a melody stuck in my head. Hum along if you know it.",
+		"See that hill? I bet the view's great from up there.",
+		"Lost a string again. Good thing I carry spares. And spares for the spares.",
+		"Some nights I just like watching the fire. No song needed.",
+		"If we ever pass a tavern with a good fiddler, we're stopping. That's the rule.",
+		"Smell that? Rain's coming. Or bread. Hard to say. Both good.";
 
-	setarray .mdays_4$, "{n} days together, {t}. I thank the goddess for every one.";
-	setarray .mkills_4$, "{n} monsters together, and you're still in one piece. Thank goodness.";
-	setarray .mmvps_4$, "{n} great evils defeated. The goddess must be proud of you.";
-	setarray .mfell_4$, "I've fallen {n} times. Thank you for always bringing me back.";
-	setarray .mmaps_4$, "{n} places together. I've prayed in every one of them for you.";
-	setarray .mfirst_4$, "We met in {m}. You were level {n}, and already so brave.";
-	setarray .mfmvp_4$, "I still pray for the souls from {m}. Our first boss.";
-	setarray .msaw_4$, "You've fallen {n} times, {t}. Please... be more careful.";
-	setarray .anniv_4$, "{n} days since we met, {t}. You've grown so much.";
-	setarray .killms_4$, "{n} monsters, and we're all still standing. Thank the goddess.";
-	setarray .mvpms_4$, "Our {n}th great foe. Let me check your wounds.";
-	setarray .mapms_4$, "{n} places together. I keep a little prayer for each.";
+	setarray .anniv_4$, "{m} together, {t}. Thank you for letting me walk beside you.";
+	setarray .mvpms_4$, "{m} is gone. Is everyone alright? ...Good. Then, well done.";
+	setarray .dyk_4$, "The priests taught me this, {t}: ", "Did you know? ", "Something I learned at the church: ";
+	setarray .mom_4$, "I still think about {m}, where we met. I'm glad I said yes.",
+		"Have you been drinking enough water, {t}?",
+		"I found a little flower by the road. I'm keeping it in my prayer book.",
+		"It's nice, just walking. Not every moment has to be a battle.",
+		"If you're tired, say so. Nobody's keeping score.",
+		"I lit a candle in the last church we passed. For all of us.",
+		"Listen. Birds. I always forget to listen for them.";
 
-	setarray .mdays_5$, "{n} days of training together, {t}! We're both way stronger!";
-	setarray .mkills_5$, "{n} monsters! My fists remember every one!";
-	setarray .mmvps_5$, "{n} bosses punched! Let's find a bigger one!";
-	setarray .mfell_5$, "I've gone down {n} times. Doesn't count, I got back up!";
-	setarray .mmaps_5$, "{n} places! Trained in every single one!";
-	setarray .mfirst_5$, "We met in {m}! You were level {n}! Look at you now!";
-	setarray .mfmvp_5$, "{m}! Our first boss! Best fight of my life!";
-	setarray .msaw_5$, "You fell {n} times and got back up, {t}. That's real strength!";
-	setarray .anniv_5$, "{n} days, {t}! Let's celebrate with a feast!";
-	setarray .killms_5$, "{n} monsters! HA! Next goal, double it!";
-	setarray .mvpms_5$, "Boss {n}! Who's next?!";
-	setarray .mapms_5$, "{n} places! The world's our dojo!";
+	setarray .anniv_5$, "{m} of training together, {t}! Feast tonight! Meat! Lots of meat!";
+	setarray .mvpms_5$, "{m}! Best fight of my life! So far! Let's find a bigger one!";
+	setarray .dyk_5$, "Ha! Did you know? ", "My master told me this, {t}: ", "Fun fact! ";
+	setarray .mom_5$, "Remember {m}? I punched a tree there. The tree won.",
+		"I'm starving. Is there meat? There should always be meat.",
+		"My knuckles are healing nicely. Time to bruise them again.",
+		"Morning stretches, then breakfast, then punching. The perfect day.",
+		"I tried meditating. Fell asleep. Still counts!",
+		"Race you to the next town! ...Okay. After a nap.",
+		"I counted my push-ups this morning. Then I lost count. Then I started over. Great morning.";
 
-	setarray .mdays_6$, "{n} days. Longest I've stuck with anyone, {t}.";
-	setarray .mkills_6$, "{n} marks together. Not that I'm counting. I'm counting.";
-	setarray .mmvps_6$, "{n} bosses. Good loot. Good company. Don't tell anyone I said that.";
-	setarray .mfell_6$, "Went down {n} times. You always came back for me. ...Thanks.";
-	setarray .mmaps_6$, "{n} places. I know all the back alleys now.";
-	setarray .mfirst_6$, "{m}. You were level {n}. Didn't think you'd last. You did.";
-	setarray .mfmvp_6$, "{m}. First big score. I still have the bruises.";
-	setarray .msaw_6$, "You fell {n} times. Stubborn. I like that.";
-	setarray .anniv_6$, "{n} days, {t}. ...Yeah. I'm staying.";
-	setarray .killms_6$, "{n}. Heh. Not bad.";
-	setarray .mvpms_6$, "Boss {n}. We're good at this, {t}.";
-	setarray .mapms_6$, "{n} places. I've picked locks in most of them.";
+	setarray .anniv_6$, "{m}, huh. ...Don't make it weird, {t}. I'm glad I stuck around.";
+	setarray .mvpms_6$, "{m}. Down. ...Alright, that was a little fun.";
+	setarray .dyk_6$, "Word on the street, {t}: ", "Not many know this: ", "Here's something. ";
+	setarray .mom_6$, "{m}. Wasn't planning on sticking around back then. Funny how that goes.",
+		"Found a coin on the road. It's mine now. Them's the rules.",
+		"Quiet roads make me nervous. ...This one's alright.",
+		"I could go for a warm bun. Don't tell anyone I said 'warm bun'.",
+		"Nice night for a walk. Don't get used to me being this pleasant.",
+		"I used to sleep with one eye open. Lately, both closed. Weird.",
+		"There's a cat in every town that knows me. Don't ask.";
 
-	setarray .mdays_7$, "{n} days in business together, {t}! Best partnership I ever made.";
-	setarray .mkills_7$, "{n} monsters! Think of the loot, {t}!";
-	setarray .mmvps_7$, "{n} bosses! The drop tables fear us now!";
-	setarray .mfell_7$, "I fell {n} times. Revival costs are adding up, {t}. Kidding! Thank you.";
-	setarray .mmaps_7$, "{n} places, {n} markets. Well, not all had markets.";
-	setarray .mfirst_7$, "We met in {m}! You were level {n}. Best investment I ever made.";
-	setarray .mfmvp_7$, "{m}. Our first boss. I sold the loot for a fortune.";
-	setarray .msaw_7$, "You fell {n} times, {t}. Please don't. You're my best asset.";
-	setarray .anniv_7$, "{n} days together, {t}! Anniversary discount on everything!";
-	setarray .killms_7$, "{n} monsters! Profits are through the roof!";
-	setarray .mvpms_7$, "Boss {n}! Jackpot!";
-	setarray .mapms_7$, "{n} places! New markets everywhere!";
+	setarray .anniv_7$, "{m} on the road together, {t}! I'm opening a bottle to celebrate. A cheap one, but still.";
+	setarray .mvpms_7$, "{m}! Our first boss! ...Did it drop anything? Check, check, check!";
+	setarray .dyk_7$, "Market gossip, {t}: ", "A tip, free of charge: ", "Good to know, {t}: ";
+	setarray .mom_7$, "Remember {m}? I tried to sell you something the moment we met. Old habits.",
+		"I've been rearranging my bag. Potions left, loot right. Harmony.",
+		"Next town, I'm buying something nice for myself. Something small. Maybe medium.",
+		"Hear that? A quiet road. Good for the nerves. Terrible for business.",
+		"I tried to price a cloud earlier. Fluffy, rare, sadly not for sale.",
+		"Haggling is an art. Walking is just walking. I'm good at both.",
+		"Fresh bread, a warm fire, a full bag. That's wealth, {t}. Real wealth.";
+
+	// "Did you know" facts: "<region>|<fact>". Region codes are L_LoreRegion's; "any"
+	// fits anywhere. Real Rune-Midgard lore only.
+	setarray .lore$,
+		"any|Porings pick up anything left lying on the ground. Drop something near one and it's gone.",
+		"any|Angeling looks like a Poring with wings and a halo, and it's a boss. Its dark cousin is called Deviling.",
+		"any|A Yggdrasil Leaf can bring a fallen friend back to their feet. It comes from the World Tree itself.",
+		"any|Yggdrasil, the World Tree, holds up the whole world. Its roots reach down past Umbala.",
+		"any|A Butterfly Wing takes you back to where you last saved. A Fly Wing just throws you somewhere random on the map.",
+		"any|Red Potions are brewed from Red Herbs. That's why they taste a little like grass.",
+		"any|Knights ride Peco Pecos into battle. Crusaders ride a bigger cousin, the Grand Peco.",
+		"any|Hunters train falcons. A good falcon will dive at a monster all on its own.",
+		"any|Kafra employees keep your things safe and send you between towns. The Kafra Corporation is based in Al De Baran.",
+		"any|Guilds fight over castles in the War of Emperium. Break the Emperium crystal and the castle is yours.",
+		"any|A Super Novice can learn skills from every first job. Not many have the patience.",
+		"any|Ships from Alberta's harbor reach Amatsu, Kunlun, Luoyang and Ayothaya across the sea.",
+		"any|Glast Heim was a great city once. Then something dark took it, and its knights never left.",
+		"any|The king of Rune-Midgard rules from Prontera Castle.",
+		"any|Acolytes start their training at the Prontera Church.",
+		"prt|The Golden Thief Bug lives at the very bottom of Prontera's Culvert.",
+		"prt|Baphomet, the goat-headed demon, haunts the Labyrinth Forest north of Prontera.",
+		"prt|Prontera is the capital of the Rune-Midgard Kingdom. Every road seems to lead back to its fountain.",
+		"izl|Izlude is the Swordsmen's home. Their guild trains new recruits right here.",
+		"izl|Byalan Island, off Izlude, hides a dungeon that goes deep under the sea.",
+		"gef|Geffen is the city of magic. Every Mage starts at the Geffen Tower.",
+		"gef|Doppelganger waits deep in Geffen Dungeon, under the tower.",
+		"gef|The orcs near Geffen have their own village, and their own champion: the Orc Hero.",
+		"gef|Some say an old realm called Geffenia lies sealed beneath Geffen.",
+		"pay|Eddga, the great tiger, prowls the forests around Payon.",
+		"pay|Moonlight Flower lives in the depths of Payon Cave. She's a nine-tailed fox spirit.",
+		"pay|Payon's archers learned their craft in the forests nearby. Archer Village is just outside town.",
+		"pay|Payon Cave is full of the restless dead: Zombies, Skeletons and Munaks. Bring Holy Water.",
+		"moc|Osiris sleeps deep inside the Pyramids near Morroc.",
+		"moc|Pharaoh rules the Sphinx, out in the desert near Morroc.",
+		"moc|The Thieves' Guild hides in the Pyramids, just outside Morroc.",
+		"moc|Maya, the giant ant queen, rules the deepest part of Ant Hell.",
+		"moc|A strange beast called Phreeoni roams the Sograt Desert.",
+		"alb|Alberta is a harbor town. The Merchants' Guild is here.",
+		"alb|Drake was a pirate captain. Now he haunts the Sunken Ship off Alberta.",
+		"alb|The Turtle General rules an island of his own, a boat ride from Alberta.",
+		"alde|Al De Baran's Clock Tower is full of clockwork monsters, and its basement goes even deeper.",
+		"alde|The Alchemists' Guild is in Al De Baran, along with the Kafra headquarters.",
+		"mjo|Mistress, queen of the bees, nests high on Mt. Mjolnir.",
+		"yuno|Juno is the capital of the Schwarzwald Republic. Its sages study at the academy here.",
+		"yuno|Near Juno lie the ruins of Juperos, an ancient city of machines.",
+		"cmd|Comodo is home to the Bards' and Dancers' guilds.",
+		"um|The Wootan tribe of Umbala speak their own language. You can't understand them until you learn it.",
+		"xmas|Lutie is covered in snow all year, and it's always Christmas there.",
+		"xmas|Lutie's Toy Factory is crawling with toy soldiers and cookies. Stormy Knight waits at the bottom.",
+		"nif|Niflheim is the land of the dead. You can walk in, but the locals stare.",
+		"gl|The Dark Lord rules Glast Heim's churchyard.",
+		"gl|Glast Heim's knights still patrol their castle, long after they died.",
+		"ein|Einbroch is called the City of Steel. The smog there never really clears.",
+		"ein|The Gunslingers' Guild is in Einbroch.",
+		"lhz|Lighthalzen is run by the Rekenber Corporation. Their labs hide things nobody talks about.",
+		"hu|Odin's Temple lies across the water from Hugel. The Valkyrie Randgris guards it.",
+		"ra|Rachel is the holy city of Arunafeltz. Its people worship the goddess Freyja.",
+		"ama|In Amatsu the cherry trees seem to bloom all year.";
+
+	// Easter eggs, said alone (about 1 in 20 thoughts).
+	setarray .segg$,
+		"Sometimes I feel like someone's watching us. From above. Through a little window.",
+		"I once saw a Poring wearing a tiny hat. Nobody believes me.",
+		"Why is it always Jellopy? Every monster, everywhere. Jellopy.",
+		"Do you ever hear music, {t}? Like every town has its own song playing somewhere?",
+		"There's a man in Prontera who has stood on the same spot for years. Nobody knows why.",
+		"I said 'S> Jellopy' out loud the other day. I don't know where it came from.",
+		"If you stand still long enough, people start asking if you're a statue.",
+		"Somebody told me 'just one more level' is a curse. I'm starting to believe it.",
+		"Every time someone opens a box, I hear a tiny drumroll. Is that just me?",
+		"I waved at a Prontera guard for ten minutes. Nothing. Not even a blink.",
+		"I dreamed the whole world was made of little squares. You could only walk on some of them.",
+		"Have you noticed that nobody in town ever sleeps? I checked.",
+		"I asked a Kafra where she goes after work. She just smiled. She's still smiling.",
+		"I think I just saw a Poring wink at me. I'm choosing to take it as a compliment.";
 
 	// ---- Conversations: turns split by ^, first letter A or B = speaker.
 	// {a} = the other speaker's name, {t} = the speaker's title for you.
@@ -834,8 +906,6 @@ OnInit:
 	// A memory of A's, shared ({m} a place or a monster, {n} a number).
 	setarray .cm_mvp$, "ARemember {m}, {a}?^BHow could I forget.^AOur first real boss.^BAnd not our last.";
 	setarray .cm_met$, "AI met the {t} in {m}, you know.^BReally? I thought it was somewhere grander.^AIt was perfect, {a}.";
-	setarray .cm_kills$, "AI've fought {n} monsters beside the {t}.^B{n}? You count?^AEvery single one, {a}.";
-	setarray .cm_days$, "A{n} days I've been with the {t}.^BThat long?^AFeels shorter. In a good way.";
 
 	// Three of them.
 	setarray .trio$, "AWho's cooking tonight?^BNot me.^CNot me.^A...Fine. Me again.",
@@ -1541,6 +1611,34 @@ OnInit:
 		"AThe owls are out.^BOr Owl Barons.^ALet's hope owls.",
 		"ADo you think the stars are watching us?^BIf they are, they're seeing something good.";
 
+	// 3.1.0, the loot bag. found: a rare find ({m} the item). haul: back in town
+	// after a trip ({n} how many things, {m} the best of them). restock: supplies
+	// bought in town ({n} zeny spent).
+	setarray .found_0$, "I found a {m}! Is that good? It looks good!", "Look, {t}, a {m}! My first real find... well, today's.", "{m}! I'm keeping my eyes open, just like you taught me.", "Whoa, a {m} fell right in front of me!";
+	setarray .found_1$, "A {m}. Into the party bag it goes.", "Found a {m}, {t}. I'll keep it safe.", "{m} recovered. Stay sharp, there may be more.", "That one dropped a {m}. Good work, everyone.";
+	setarray .found_2$, "A {m}! The drop tables do favour the patient.", "Fascinating, a {m}. I'll note where we found it.", "{m}. Statistically unlikely, and yet here it is.", "A {m}, {t}. I knew that one carried something.";
+	setarray .found_3$, "Ha, a {m}! The road provides.", "Picked up a {m} on the way. Lucky day.", "A {m}, {t}. Another story for the campfire.", "{m}! I'd have walked right past it if it weren't so shiny.";
+	setarray .found_4$, "Oh! A {m}. The goddess smiles on us today.", "I found a {m}, {t}. Let's put it to good use.", "A {m}... a small blessing after a hard fight.", "{m}! Thank you, Freyja.";
+	setarray .found_5$, "Punched it, and out popped a {m}! Ha!", "A {m}! Hit hard enough and they pay up.", "{m}, {t}! That's what training gets you.", "Got a {m}! Who wants to go again?";
+	setarray .found_6$, "Heh. A {m}. Nobody saw that but us.", "{m}, lifted clean. You're welcome, {t}.", "A {m}. Into the bag before anyone asks.", "Sticky fingers, {t}. A {m}.";
+	setarray .found_7$, "A {m}! Do you know what that sells for?!", "{m}, {t}! That's profit with legs.", "Ka-ching. A {m}, straight into the party bag.", "A {m}! I'm already doing the math.";
+	setarray .haul_0$, "We found {n} things out there, {t}! Even a {m}!", "Is it always like this? {n} finds, and a {m}!", "Back in town with {n} finds. I can't wait to see what they're worth!";
+	setarray .haul_1$, "We're back, {t}. {n} finds in the party bag, a {m} among them.", "A good trip. {n} things recovered, including a {m}.", "{n} finds and everyone home safe. That's what matters.";
+	setarray .haul_2$, "My count says {n} finds this trip. The {m} was the highlight.", "{n} items, {t}. I'd call the {m} our best result.", "Field report: {n} finds, notably one {m}.";
+	setarray .haul_3$, "{n} finds this trip, {t}. The {m} was my favourite.", "Not a bad road. {n} things in the bag, one of them a {m}.", "Home again, with {n} finds and a {m} to show for it.";
+	setarray .haul_4$, "We came back with {n} finds, {t}. And a {m}! Blessed indeed.", "{n} things in the party bag. Let's rest before the next trip.", "Everyone's safe, and we have {n} finds. A {m}, even.";
+	setarray .haul_5$, "{n} finds, {t}! The {m} was the best one. Again tomorrow?", "Look at that bag. {n} finds! Hungry work.", "We hit things, things gave us {n} finds. Simple!";
+	setarray .haul_6$, "{n} pieces of loot, {t}. The {m} is worth a look.", "Don't ask how, but the bag holds {n} finds now. And a {m}.", "{n} finds. Not a bad haul for a quiet walk.";
+	setarray .haul_7$, "{n} finds this trip, {t}! Check the Loot tab, the {m} alone...", "Inventory check: {n} items. Some for us, some for the shops.", "{n} finds and a {m}! This is how fortunes start.";
+	setarray .restock_0$, "I got everything on the list, {t}! I think.", "Supplies bought! Shopping is fun with the purse.";
+	setarray .restock_1$, "Supplies restocked, {t}. We're ready.", "Our packs are full again. Lead on.";
+	setarray .restock_2$, "Reagents and potions replenished, per the list.", "I've restocked everything we planned for, {t}.";
+	setarray .restock_3$, "Packs topped up. The road's waiting, {t}.", "Got our supplies. Arrows, potions, the lot.";
+	setarray .restock_4$, "I've restocked our supplies, {t}. Better prepared than sorry.", "Potions and gems, all bought. Let's be careful out there.";
+	setarray .restock_5$, "Bought the stuff! Can we go hit something now?", "Supplies done, {t}. Back to the fight!";
+	setarray .restock_6$, "Restocked. Paid full price, even. Mostly.", "Supplies are in the bags, {t}. Quietly done.";
+	setarray .restock_7$, "Restocked, and I haggled the prices down for us, {t}!", "Supplies bought, at a merchant's price. You're welcome!", "Everything on the list, below shop price. Leave the shopping to me.";
+
 	initnpctimer;	// the tick below
 	end;
 
@@ -1638,16 +1736,16 @@ OnNPCKillEvent:
 		if (@cl_hp[.@i] <= 0)
 			continue;
 		.@p$ = "m.c" + @cl_cid[.@i];
-		.@k = modstore_inc("char", .@p$ + ".kills", 1);
-		if (.@k == 100 || .@k == 1000 || .@k == 5000 || .@k == 10000 || .@k == 25000 || .@k == 50000)
-			callsub L_QueueFmt, .@i, "killms", "", ET_CONGRATULATION, .@k, "";
+		// 3.0.1: counted for the Memories tab only; no more "100 monsters!" lines.
+		modstore_inc("char", .@p$ + ".kills", 1);
 		if (!.@mvp)
 			continue;
 		.@v = modstore_inc("char", .@p$ + ".mvps", 1);
-		if (.@v == 1)
+		if (.@v == 1) {
+			// The one boss milestone left: the first, by name.
 			modstore_set "char", .@p$ + ".firstmvp", getmonsterinfo(killedrid, MOB_NAME);
-		if (.@v == 1 || .@v == 5 || .@v == 10 || .@v == 25 || .@v == 50 || .@v == 100)
-			callsub L_QueueFmt, .@i, "mvpms", "", ET_CONGRATULATION, .@v, "";
+			callsub L_QueueFmt, .@i, "mvpms", "", ET_CONGRATULATION, 1, getmonsterinfo(killedrid, MOB_NAME);
+		}
 	}
 	end;
 
@@ -1672,8 +1770,12 @@ OnTick:
 	callsub L_Gather;
 	.@map$ = strcharinfo(3);
 	if (.@map$ != @cl_map$) {
+		// Out of town: a new trip. The Loot tab marks what's found from here on as new.
+		if (callsub(L_MapKind, @cl_map$) == "town" && callsub(L_MapKind, .@map$) != "town")
+			modstore_set "char", "lttrip", .@sec;
 		@cl_map$ = .@map$;
 		@cl_mapat = .@sec + 4;	// give companions time to arrive
+		@cl_names$ = "";	// tell the client their names again (L_Gather)
 	}
 	if (@cl_greet && .@sec > @cl_login + 90)
 		@cl_greet = 0;	// nobody came back with you: no greeting later
@@ -1686,6 +1788,10 @@ OnTick:
 		@cl_dyenext = .@sec + 3;
 		callsub L_Dyes;
 	}
+
+	// The loot bag: monsters beaten round the party (L_LootTrack).
+	if (.loot_share > 0)
+		callsub L_LootTrack;
 
 	// A companion we haven't seen this session: newly hired or drafted.
 	// The ones that come back with you at login are marked quietly during
@@ -1901,6 +2007,11 @@ OnTick:
 		@cl_mapat = 0;
 		if (.mem)
 			callsub L_MemMap, .@map$;
+		// Back in town: what the trip turned up, then the shopping lists.
+		if (callsub(L_MapKind, .@map$) == "town") {
+			callsub L_LootHaul;
+			callsub L_Restock, 0;
+		}
 		if (.world && .@sec >= @cl_map_cd && rand(100) < 70) {
 			.@cat$ = callsub(L_MapKind, .@map$);
 			if (.@cat$ != "") {
@@ -1920,11 +2031,17 @@ OnTick:
 		@cl_bnext = .@sec + .banter * 60 * (70 + rand(61)) / 100;
 		if (@cl_n >= 3)
 			@cl_bnext = .@sec + .banter * 60 * (70 + rand(61)) * 60 / 10000;
-		// Late at night or early in the morning (your clock), sometimes a
-		// word about the hour instead, at most once an hour.
+		// Late at night or early in the morning, sometimes a word about the hour
+		// instead, at most once an hour. 3.0.1: the game's hour when the day-night
+		// mod runs its clock ($@dn_on, night 21-5), else your own clock.
 		.@lh = gettime(DT_HOUR);	// the server keeps your time zone (app 1.5.5)
+		.@nf = 22;
+		if ($@dn_on) {
+			.@lh = $@dn_min / 60;
+			.@nf = 21;
+		}
 		.@tod$ = "";
-		if (.@lh >= 22 || .@lh < 5)
+		if (.@lh >= .@nf || .@lh < 5)
 			.@tod$ = "night";
 		else if (.@lh >= 6 && .@lh < 10)
 			.@tod$ = "morning";
@@ -1933,8 +2050,8 @@ OnTick:
 			.@a = callsub(L_Pick, -1, -1);
 			if (.@a >= 0)
 				callsub L_QueueIdx, .@a, .@tod$, "", 0;
-		} else if (.mem && rand(100) < 30 - 15 * (@cl_n >= 3) && callsub(L_MemRecall)) {
-			// a memory, said out loud
+		} else if (.mem && rand(100) < 30 - 15 * (@cl_n >= 3) && callsub(L_Thought)) {
+			// a thought out loud: lore, a small moment, an easter egg
 		} else if (@cl_n >= 2) {
 			// Merchants are the chatty ones: one with you starts the talk more often.
 			.@a = callsub(L_Pick, -1, -1);
@@ -2510,6 +2627,8 @@ L_CampTalk:
 			.@c = .@x;
 	}
 	.@lh = gettime(DT_HOUR);
+	if ($@dn_on)
+		.@lh = $@dn_min / 60;	// the game's hour, with the day-night mod
 	.@cat$ = "camp";
 	if (.@c >= 0)
 		.@cat$ = "camp3";
@@ -2711,6 +2830,14 @@ OnCmdStat:
 //   gearback <char id> <equip slots>  worn gear you gave, back to you
 //   dye <char id> cloth|hair <colour> outfit or hair colour, kept for good
 //   withdraw <zeny> / deposit <zeny>  the party purse
+// 3.1.0: the C record ends with |weight|max weight (tenths, as the game counts),
+//   and P with |in town (1/0); per restock entry R|char id|item id|keep|name.
+//   rsset <char id> <item id> <keep>  a companion's restock list (0 = off the list);
+//                                     in town it shops at once
+//   lootlist                  P|purse|trip start|Overcharge %|finds on (1/0), then
+//                             per item L|item id|amount|found at|sell price|name
+//   ltake <item id> <amount>  out of the party bag, to you
+//   lsell <item id> <amount>  sold, the zeny into the purse
 // Actions answer OK|text or ERR|text. A companion's bag is its own (the
 // engine's companion inventory); the purse is the party's (mod store, char
 // scope, "purse"). The bag is read with getinventorylist <char id>, which
@@ -2725,14 +2852,21 @@ OnCmdBag:
 	.@act$ = .@atcmd_parameters$[1];
 	.@inv = getbattleflag("population_engine_companion_inventory");
 	if (.@act$ == "list") {
-		.@out$ = "P|" + modstore_get("char", "purse", 0) + "|" + .@inv + "|" + .purse;
+		.@out$ = "P|" + modstore_get("char", "purse", 0) + "|" + .@inv + "|" + .purse + "|" + (callsub(L_MapKind, strcharinfo(3)) == "town");
 		callsub L_BagParty;
 		for (.@i = 0; .@i < @clb_n; .@i++) {
 			.@c = @clb_cid[.@i];
 			.@cls = readparam(Class, .@c);
 			.@out$ += "~C|" + .@c + "|" + callsub(L_Clean, @clb_nm$[.@i]) + "|" + jobname(.@cls)
 				+ "|" + getlook(LOOK_CLOTHES_COLOR, .@c) + "|" + getbattleflag("min_cloth_color") + "|" + callsub(L_ClothMax, .@cls)
-				+ "|" + getlook(LOOK_HAIR_COLOR, .@c) + "|" + getbattleflag("min_hair_color") + "|" + getbattleflag("max_hair_color");
+				+ "|" + getlook(LOOK_HAIR_COLOR, .@c) + "|" + getbattleflag("min_hair_color") + "|" + getbattleflag("max_hair_color")
+				+ "|" + readparam(Weight, .@c) + "|" + readparam(MaxWeight, .@c);
+			// Its restock list.
+			.@rn = modstore_keys("char", "rs.c" + .@c, .@rids$);
+			for (.@j = 0; .@j < .@rn; .@j++) {
+				.@rid = atoi(.@rids$[.@j]);
+				.@out$ += "~R|" + .@c + "|" + .@rid + "|" + modstore_get("char", "rs.c" + .@c + "." + .@rid, 0) + "|" + callsub(L_Clean, getitemname(.@rid));
+			}
 			// The slots worn with gear you gave (the engine's given_mask); its own
 			// starting gear isn't listed, it can't be taken anyway.
 			.@gm = 0;
@@ -3085,6 +3219,133 @@ OnCmdBag:
 		callsub L_BagReply, .@req$, "OK|Asked " + @clb_nm$[.@k] + " to hand it back (see your chat).";
 		end;
 	}
+	// 3.1.0: a companion's restock list. An item dragged onto its Restock row
+	// (or a changed amount): keep this many; 0 takes it off the list.
+	if (.@act$ == "rsset") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@id = atoi(.@atcmd_parameters$[3]);
+		.@keep = cap_value(atoi(.@atcmd_parameters$[4]), 0, 30000);
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		if (.@c < 95000000 || .@k < 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't in your party.";
+			end;
+		}
+		.@nm$ = @clb_nm$[.@k];
+		.@key$ = "rs.c" + .@c + "." + .@id;
+		if (!.@keep) {
+			modstore_delete "char", .@key$;
+			callsub L_BagReply, .@req$, "OK|" + getitemname(.@id) + " is off " + .@nm$ + "'s restock list.";
+			end;
+		}
+		if (!compare(.rs_ok$, "," + .@id + ",")) {
+			callsub L_BagReply, .@req$, "ERR|" + getitemname(.@id) + " isn't sold in NPC shops, so it can't be restocked. Potions, gemstones, arrows, bullets and the like can.";
+			end;
+		}
+		if (!modstore_exists("char", .@key$) && modstore_count("char", "rs.c" + .@c) >= .rs_max) {
+			callsub L_BagReply, .@req$, "ERR|" + .@nm$ + "'s list is full (" + .rs_max + " items). Take one off first.";
+			end;
+		}
+		modstore_set "char", .@key$, .@keep;
+		.@msg$ = .@nm$ + " keeps " + .@keep + " " + getitemname(.@id) + ", restocked in town.";
+		// 3.1.1: dropped from your inventory (index getarg 5): your stack goes in first,
+		// up to the number to keep; the purse only buys what's still missing. (3.1.0
+		// only bought from the purse, so your stack stayed and it looked doubled.)
+		if (.@atcmd_numparameters > 5 && .@inv) {
+			.@from = atoi(.@atcmd_parameters$[5]);
+			.@aid = getcharid(3, .@nm$);
+			.@need = 0;
+			if (.@aid > 0)
+				.@need = .@keep - countitem(.@id, .@aid);
+			if (.@need > 0) {
+				getinventorylist;
+				.@j = -1;
+				for (.@i = 0; .@i < @inventorylist_count; .@i++) {
+					if (@inventorylist_id[.@i] != .@id || @inventorylist_equip[.@i] || @inventorylist_expire[.@i] || @inventorylist_bound[.@i])
+						continue;
+					if (@inventorylist_idx[.@i] == .@from) {
+						.@j = .@i;
+						break;
+					}
+					if (.@j < 0)
+						.@j = .@i;
+				}
+				if (.@j >= 0) {
+					.@have = @inventorylist_amount[.@j];
+					.@n = min(.@need, .@have);
+					.@iw = getiteminfo(.@id, ITEMINFO_WEIGHT);
+					if (.@iw > 0)
+						.@n = min(.@n, (readparam(MaxWeight, .@c) - readparam(Weight, .@c)) / .@iw);
+					if (.@n > 0) {
+						getitem .@id, .@n, .@aid;
+						delitemidx @inventorylist_idx[.@j], .@n;
+						.@msg$ = .@nm$ + " keeps " + .@keep + " " + getitemname(.@id) + ": " + .@n + " from you now, the rest restocked in town.";
+						if (.@n >= .@need)
+							.@msg$ = .@nm$ + " keeps " + .@keep + " " + getitemname(.@id) + ": " + .@n + " from you now, topped up in town from here on.";
+					}
+				}
+			}
+		}
+		if (callsub(L_MapKind, strcharinfo(3)) == "town" && .@inv) {
+			callsub L_Restock, .@c;
+			if (@rs_msg$ != "")
+				.@msg$ += " " + @rs_msg$;
+		}
+		callsub L_BagReply, .@req$, "OK|" + .@msg$;
+		end;
+	}
+	// 3.1.0: the Loot tab. The party bag lives in the mod store (char scope:
+	// loot.<item id> = how many, lootat.<item id> = when it was last found).
+	if (.@act$ == "lootlist") {
+		.@oc = callsub(L_Discount, 38);
+		.@out$ = "P|" + modstore_get("char", "purse", 0) + "|" + modstore_get("char", "lttrip", 0) + "|" + .@oc + "|" + (.loot_share > 0);
+		.@n = modstore_keys("char", "loot", .@ids$);
+		for (.@j = 0; .@j < .@n; .@j++) {
+			.@id = atoi(.@ids$[.@j]);
+			.@amt = modstore_get("char", "loot." + .@id, 0);
+			if (.@amt <= 0)
+				continue;
+			.@out$ += "~L|" + .@id + "|" + .@amt + "|" + modstore_get("char", "lootat." + .@id, 0)
+				+ "|" + (getiteminfo(.@id, ITEMINFO_SELL) * (100 + .@oc) / 100) + "|" + callsub(L_Clean, getitemname(.@id));
+		}
+		callsub L_BagReply, .@req$, .@out$;
+		end;
+	}
+	if (.@act$ == "ltake" || .@act$ == "lsell") {
+		.@id = atoi(.@atcmd_parameters$[2]);
+		.@have = modstore_get("char", "loot." + .@id, 0);
+		.@amt = min(max(atoi(.@atcmd_parameters$[3]), 1), .@have);
+		if (.@have <= 0) {
+			callsub L_BagReply, .@req$, "ERR|That isn't in the party bag any more.";
+			end;
+		}
+		if (.@act$ == "ltake") {
+			if (!checkweight(.@id, .@amt)) {
+				callsub L_BagReply, .@req$, "ERR|You can't carry that much.";
+				end;
+			}
+			getitem .@id, .@amt;
+			.@msg$ = "Took " + .@amt + " x " + getitemname(.@id) + " from the party bag.";
+		} else {
+			.@oc = callsub(L_Discount, 38);
+			.@z = getiteminfo(.@id, ITEMINFO_SELL) * (100 + .@oc) / 100 * .@amt;
+			if (modstore_get("char", "purse", 0) + .@z > 1000000000) {
+				callsub L_BagReply, .@req$, "ERR|The purse is full (1,000,000,000 z). Take some zeny out first.";
+				end;
+			}
+			modstore_inc("char", "purse", .@z);
+			.@msg$ = "Sold " + .@amt + " x " + getitemname(.@id) + " for " + callfunc("F_InsertComma", .@z) + " z, into the purse.";
+			if (.@oc > 0)
+				.@msg$ += " (" + @rs_who$ + "'s Overcharge +" + .@oc + "%)";
+		}
+		if (.@have - .@amt <= 0) {
+			modstore_delete "char", "loot." + .@id;
+			modstore_delete "char", "lootat." + .@id;
+		} else
+			modstore_inc("char", "loot." + .@id, -.@amt);
+		callsub L_BagReply, .@req$, "OK|" + .@msg$;
+		end;
+	}
 	if (.@act$ == "withdraw" || .@act$ == "deposit") {
 		.@z = atoi(.@atcmd_parameters$[2]);
 		.@p = modstore_get("char", "purse", 0);
@@ -3135,6 +3396,300 @@ L_BagParty:
 		@clb_n++;
 	}
 	return;
+
+// 3.1.0, the loot bag: party kills. Scripts get no event for a companion's kill
+// (the engine drops script events for its shells), so every tick this looks at the
+// monsters within 9 cells of you or a companion. One seen last tick that is now
+// gone, at 0 HP, or back at full HP far away (a map spawn keeps its id and comes
+// back elsewhere) was beaten: a party kill, whoever landed it. Slaves don't count.
+// Last tick's monsters: @lt_g (id), @lt_c (class), @lt_x/@lt_y, @lt_n of them.
+L_LootTrack:
+	getmapxy(.@m$, .@x, .@y, BL_PC);
+	if (.@m$ != @lt_map$) {
+		@lt_map$ = .@m$;
+		@lt_n = 0;
+	}
+	if (getmapflag(.@m$, MF_NOMOBLOOT)) {
+		@lt_n = 0;
+		return;
+	}
+	// Where the party stands (you first), and the box round all of you.
+	.@px[0] = .@x;
+	.@py[0] = .@y;
+	.@np = 1;
+	.@x1 = .@x - 10;
+	.@x2 = .@x + 10;
+	.@y1 = .@y - 10;
+	.@y2 = .@y + 10;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0 || getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_aid[.@i]) != 0 || .@cm$ != .@m$)
+			continue;
+		.@ddx = .@cx - .@x;
+		.@ddy = .@cy - .@y;
+		if (max(.@ddx, -.@ddx, .@ddy, -.@ddy) > 40)
+			continue;	// far off on its own
+		.@px[.@np] = .@cx;
+		.@py[.@np] = .@cy;
+		.@np++;
+		.@x1 = min(.@x1, .@cx - 10);
+		.@x2 = max(.@x2, .@cx + 10);
+		.@y1 = min(.@y1, .@cy - 10);
+		.@y2 = max(.@y2, .@cy + 10);
+	}
+	// Last tick's monsters: which were beaten?
+	for (.@k = 0; .@k < @lt_n; .@k++) {
+		.@g = @lt_g[.@k];
+		.@dead = 0;
+		if (!unitexists(.@g))
+			.@dead = 1;
+		else {
+			getunitdata .@g, .@d;
+			.@hp = .@d[UMOB_HP];
+			.@ddx = .@d[UMOB_X] - @lt_x[.@k];
+			.@ddy = .@d[UMOB_Y] - @lt_y[.@k];
+			if (.@hp <= 0)
+				.@dead = 1;
+			else if (.@hp >= .@d[UMOB_MAXHP] && max(.@ddx, -.@ddx, .@ddy, -.@ddy) > 15)
+				.@dead = 1;	// beaten, and already back somewhere else
+		}
+		if (.@dead)
+			callsub L_LootKill, @lt_c[.@k], @lt_x[.@k], @lt_y[.@k];
+	}
+	// This tick's monsters near one of you.
+	@lt_n = 0;
+	.@n = getareaunits(BL_MOB, .@m$, .@x1, .@y1, .@x2, .@y2, .@u);
+	for (.@k = 0; .@k < .@n && @lt_n < 64; .@k++) {
+		.@g = .@u[.@k];
+		getunitdata .@g, .@d;
+		if (.@d[UMOB_HP] <= 0 || .@d[UMOB_MASTERAID] > 0)
+			continue;
+		.@mx = .@d[UMOB_X];
+		.@my = .@d[UMOB_Y];
+		for (.@p = 0; .@p < .@np; .@p++) {
+			.@ddx = .@mx - .@px[.@p];
+			.@ddy = .@my - .@py[.@p];
+			if (max(.@ddx, -.@ddx, .@ddy, -.@ddy) <= 9)
+				break;
+		}
+		if (.@p >= .@np)
+			continue;
+		@lt_g[@lt_n] = .@g;
+		@lt_c[@lt_n] = .@d[UMOB_CLASS];
+		@lt_x[@lt_n] = .@mx;
+		@lt_y[@lt_n] = .@my;
+		@lt_n++;
+	}
+	return;
+
+// A party kill of monster class getarg(0) at getarg(1),getarg(2): maybe one thing
+// from its drop list into the party bag (mod store, char scope: loot.<item id> =
+// how many, lootat.<item id> = when it was last found). Each drop is tried at
+// .loot_share per thousand of its normal rate, from a random place in the list.
+// Cards, gear and drops of 1% or rarer are rare finds: a line, and the name of
+// the companion standing closest.
+L_LootKill:
+	.@cls = getarg(0);
+	if (!getmobdrops(.@cls) || $@MobDrop_count < 1)
+		return;
+	.@c = $@MobDrop_count;
+	copyarray .@it[0], $@MobDrop_item[0], .@c;
+	copyarray .@rt[0], $@MobDrop_rate[0], .@c;
+	.@s = 0;
+	if (.@c > 1)
+		.@s = rand(.@c);
+	.@id = 0;
+	for (.@k = 0; .@k < .@c; .@k++) {
+		.@j = (.@s + .@k) % .@c;
+		if (.@it[.@j] <= 0 || .@rt[.@j] <= 0)
+			continue;
+		if (rand(10000000) < .@rt[.@j] * .loot_share) {
+			.@id = .@it[.@j];
+			.@r = .@rt[.@j];
+			break;
+		}
+	}
+	if (!.@id)
+		return;
+	modstore_inc("char", "loot." + .@id, 1);
+	modstore_set "char", "lootat." + .@id, gettimetick(2);
+	@lt_found++;
+	.@type = getiteminfo(.@id, ITEMINFO_TYPE);
+	if (.@type != IT_CARD && .@type != IT_WEAPON && .@type != IT_ARMOR && .@r > 100)
+		return;	// a common find: it's in the Loot tab, nothing said
+	// The best of the trip, for the summary in town: a card over anything else.
+	if (@lt_best$ == "" || .@type == IT_CARD)
+		@lt_best$ = getitemname(.@id);
+	// Who found it: the companion standing closest to where it fell.
+	.@b = -1;
+	.@bd = 99;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0 || getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_aid[.@i]) != 0)
+			continue;
+		.@ddx = .@cx - getarg(1);
+		.@ddy = .@cy - getarg(2);
+		.@dd = max(.@ddx, -.@ddx, .@ddy, -.@ddy);
+		if (.@dd < .@bd) {
+			.@bd = .@dd;
+			.@b = .@i;
+		}
+	}
+	if (.@b < 0) {
+		dispbottom "[Loot] Found: " + getitemname(.@id) + ". It's in the party bag (Companions window, Loot tab).", 0xFFCC66;
+		return;
+	}
+	dispbottom "[Loot] " + @cl_nm$[.@b] + " found " + getitemname(.@id) + "! It's in the party bag (Loot tab).", 0xFFCC66;
+	// A word about it, at most every 15 s (a card always).
+	.@sec = gettimetick(2);
+	if (.chatter && (.@type == IT_CARD || .@sec >= @lt_saycd)) {
+		@lt_saycd = .@sec + 15;
+		.@em = ET_DELIGHT;
+		if (.@type == IT_CARD)
+			.@em = ET_THROB;
+		callsub L_QueueFmt, .@b, "found", "", .@em, 0, getitemname(.@id);
+	}
+	return;
+
+// Back in town: what the trip turned up (@lt_found finds since the last town,
+// @lt_best$ the best), told once.
+L_LootHaul:
+	if (@lt_found <= 0)
+		return;
+	.@what$ = @lt_found + " thing" + (@lt_found == 1 ? "" : "s");
+	if (@lt_best$ != "")
+		.@what$ += ", the best a " + @lt_best$;
+	dispbottom "[Loot] This trip: " + .@what$ + ". See the Loot tab in the Companions window (Alt+N).", 0xFFCC66;
+	if (.chatter && @lt_best$ != "") {
+		.@a = callsub(L_Pick, -1, -1);
+		if (.@a >= 0)
+			callsub L_QueueFmt, .@a, "haul", "", ET_MONEY, @lt_found, @lt_best$;
+	}
+	@lt_found = 0;
+	@lt_best$ = "";
+	return;
+
+// Restock in town: each companion here gets its list (mod store, char scope,
+// rs.c<char id>.<item id> = how many to keep) topped up, bought at the NPC shop
+// price from the party purse, less the party's best Discount. getarg(0): one
+// companion's char id, or 0 for all. Needs the app's Companion inventory (without
+// it their potions and arrows are free anyway). Returns the zeny spent; the
+// summary is in @rs_msg$ (and in your chat box).
+L_Restock:
+	@rs_msg$ = "";
+	if (!getbattleflag("population_engine_companion_inventory"))
+		return 0;
+	.@only = getarg(0);
+	.@map$ = strcharinfo(3);
+	callsub L_BagParty;
+	.@cn = @clb_n;
+	copyarray .@cc[0], @clb_cid[0], .@cn;
+	copyarray .@cnm$[0], @clb_nm$[0], .@cn;
+	.@disc = callsub(L_Discount, 37);
+	.@dwho$ = @rs_who$;
+	.@purse = modstore_get("char", "purse", 0);
+	.@spent = 0;
+	.@got$ = "";
+	.@short$ = "";
+	.@heavy$ = "";
+	for (.@k = 0; .@k < .@cn; .@k++) {
+		.@c = .@cc[.@k];
+		if ((.@only && .@c != .@only) || strcharinfo(3, .@c) != .@map$)
+			continue;
+		.@aid = getcharid(3, .@cnm$[.@k]);
+		if (.@aid <= 0)
+			continue;
+		.@n = modstore_keys("char", "rs.c" + .@c, .@ids$);
+		.@mine$ = "";
+		for (.@j = 0; .@j < .@n; .@j++) {
+			.@id = atoi(.@ids$[.@j]);
+			.@want = modstore_get("char", "rs.c" + .@c + "." + .@id, 0);
+			.@need = .@want - countitem(.@id, .@aid);
+			if (.@need <= 0)
+				continue;
+			.@price = max(1, getiteminfo(.@id, ITEMINFO_BUY) * (100 - .@disc) / 100);
+			.@buy = min(.@need, .@purse / .@price);
+			.@iw = getiteminfo(.@id, ITEMINFO_WEIGHT);
+			.@room = .@buy;
+			if (.@iw > 0)
+				.@room = (readparam(MaxWeight, .@c) - readparam(Weight, .@c)) / .@iw;
+			if (.@room < .@buy) {
+				.@buy = max(0, .@room);
+				if (!compare(.@heavy$ + ",", ", " + .@cnm$[.@k] + ","))
+					.@heavy$ += ", " + .@cnm$[.@k];
+			}
+			if (.@buy > 0) {
+				getitem .@id, .@buy, .@aid;
+				.@purse -= .@buy * .@price;
+				.@spent += .@buy * .@price;
+				.@mine$ += (.@mine$ == "" ? "" : ", ") + .@buy + " " + getitemname(.@id);
+			}
+			if (.@buy < .@need && .@room >= .@need)
+				.@short$ += ", " + (.@need - .@buy) + " " + getitemname(.@id);
+		}
+		if (.@mine$ != "")
+			.@got$ += (.@got$ == "" ? "" : "; ") + .@cnm$[.@k] + ": " + .@mine$;
+	}
+	if (.@spent > 0)
+		modstore_inc("char", "purse", -.@spent);
+	if (.@got$ != "") {
+		@rs_msg$ = "Restocked " + .@got$ + " for " + callfunc("F_InsertComma", .@spent) + " z";
+		if (.@disc > 0)
+			@rs_msg$ += " (" + .@dwho$ + "'s Discount -" + .@disc + "%)";
+		@rs_msg$ += ".";
+	}
+	if (.@short$ != "")
+		@rs_msg$ += (@rs_msg$ == "" ? "" : " ") + "Not enough in the purse for" + substr(.@short$, 1, getstrlen(.@short$) - 1) + ".";
+	if (.@heavy$ != "")
+		@rs_msg$ += (@rs_msg$ == "" ? "" : " ") + "Too heavy to carry it all:" + substr(.@heavy$, 1, getstrlen(.@heavy$) - 1) + ".";
+	if (@rs_msg$ != "")
+		dispbottom "[Companions] " + @rs_msg$, 0xFFCC66;
+	// A word from the one who bargained, else anyone.
+	if (.@got$ != "" && .chatter) {
+		.@a = -1;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_nm$[.@i] == .@dwho$)
+				.@a = .@i;
+		}
+		if (.@a < 0)
+			.@a = callsub(L_Pick, -1, -1);
+		if (.@a >= 0)
+			callsub L_QueueFmt, .@a, "restock", "", ET_OK, .@spent, "";
+	}
+	return .@spent;
+
+// The party's best Discount (skill getarg(0) = 37) or Overcharge (38) in percent:
+// yours, or that of a Merchant-line companion in your party (its own skill level,
+// read by attaching to it for a moment). @rs_who$ = whose it is.
+L_Discount:
+	.@sk = getarg(0);
+	.@me = getcharid(3);
+	.@best = getskilllv(.@sk);
+	@rs_who$ = "";
+	if (.@best > 0)
+		@rs_who$ = strcharinfo(0);
+	callsub L_BagParty;
+	.@cn = @clb_n;
+	copyarray .@cc[0], @clb_cid[0], .@cn;
+	copyarray .@cnm$[0], @clb_nm$[0], .@cn;
+	.@who$ = @rs_who$;
+	for (.@k = 0; .@k < .@cn; .@k++) {
+		if ((eaclass(readparam(Class, .@cc[.@k])) & EAJ_BASEMASK) != EAJ_MERCHANT)
+			continue;
+		.@aid = getcharid(3, .@cnm$[.@k]);
+		if (.@aid <= 0 || !attachrid(.@aid))
+			continue;
+		.@lv = getskilllv(.@sk);
+		attachrid(.@me);
+		if (.@lv > .@best) {
+			.@best = .@lv;
+			.@who$ = .@cnm$[.@k];
+		}
+	}
+	@rs_who$ = .@who$;
+	if (.@best <= 0)
+		return 0;
+	if (.@best >= 10)
+		return 24;
+	return 5 + 2 * .@best;	// 7% at level 1, +2% a level, 24% at 10
 
 // The names of your companions set to roam (@cl_rm$), from the engine's table;
 // none while the app's Companion roaming setting is off (they follow then).
@@ -3598,11 +4153,13 @@ L_MemSeen:
 	.@days = (gettimetick(2) - modstore_get("char", .@p$ + ".met", gettimetick(2))) / 86400;
 	.@ann = modstore_get("char", .@p$ + ".ann", 0);
 	setarray .@ms[0], 730, 365, 182, 100, 30, 7;
+	// 3.0.1: said in words ("A month together already"), not a count of days.
+	setarray .@mw$[0], "Two years", "A whole year", "Half a year", "A hundred days", "A month", "A week";
 	for (.@k = 0; .@k < 6; .@k++) {
 		if (.@days >= .@ms[.@k]) {
 			if (.@ms[.@k] > .@ann && @cl_hp[.@i] > 0) {
 				modstore_set "char", .@p$ + ".ann", .@ms[.@k];
-				callsub L_QueueFmt, .@i, "anniv", "", ET_CONGRATULATION, .@days, "";
+				callsub L_QueueFmt, .@i, "anniv", "", ET_CONGRATULATION, .@days, .@mw$[.@k];
 				if (rand(100) < 50)
 					callsub L_Gift, .@i, "ann";
 			}
@@ -3623,54 +4180,106 @@ L_MemMap:
 		.@p$ = "m.c" + @cl_cid[.@i] + ".maps";
 		if (modstore_exists("char", .@p$ + "." + .@m$))
 			continue;
-		modstore_set "char", .@p$ + "." + .@m$, 1;
-		.@c = modstore_count("char", .@p$);
-		if (.@c == 10 || .@c == 25 || .@c == 50 || .@c == 100 || .@c == 150)
-			callsub L_QueueFmt, .@i, "mapms", "", 0, .@c, "";
+		modstore_set "char", .@p$ + "." + .@m$, 1;	// counted for the Memories tab only (3.0.1)
 	}
 	return;
 
-// Memories: one companion recalls something you did together. 1 if it did.
-L_MemRecall:
+// A quiet thought out loud (3.0.1, replaces reciting stats): a "did you know" about
+// where you are (or anywhere), a small shared moment, or now and then an easter egg.
+// The last few of each aren't repeated (L_PickConv's list, @cl_rec$). 1 if one was said.
+L_Thought:
 	.@a = callsub(L_Pick, -1, -1);
 	if (.@a < 0)
 		return 0;
-	.@p$ = "m.c" + @cl_cid[.@a];
-	if (!modstore_exists("char", .@p$ + ".met"))
+	.@ar = @cl_ar[.@a];
+	.@r = rand(100);
+	if (.@r < 5) {
+		.@t$ = callsub(L_PickConv, "segg");
+	} else if (.@r < 55) {
+		.@t$ = callsub(L_PickLore, callsub(L_LoreRegion, strcharinfo(3)));
+		if (.@t$ != "")
+			.@t$ = callsub(L_Line, "dyk", .@ar) + .@t$;
+	} else {
+		// {m}: the town where you met, by name; lines that need it are passed over
+		// when you met in a field or dungeon.
+		.@m$ = callsub(L_TownName, modstore_get("char", "m.c" + @cl_cid[.@a] + ".metmap", ""));
+		.@t$ = "";
+		for (.@k = 0; .@k < 6; .@k++) {
+			.@t$ = callsub(L_PickConv, "mom_" + .@ar);
+			if (.@m$ != "" || !compare(.@t$, "{m}"))
+				break;
+		}
+		if (.@m$ == "" && compare(.@t$, "{m}"))
+			return 0;
+		.@t$ = replacestr(.@t$, "{m}", .@m$);
+	}
+	if (.@t$ == "")
 		return 0;
-	.@days = (gettimetick(2) - modstore_get("char", .@p$ + ".met", gettimetick(2))) / 86400;
-	.@kills = modstore_get("char", .@p$ + ".kills", 0);
-	.@mvps = modstore_get("char", .@p$ + ".mvps", 0);
-	.@fell = modstore_get("char", .@p$ + ".fell", 0);
-	.@saw = modstore_get("char", .@p$ + ".sawfall", 0);
-	.@maps = modstore_count("char", .@p$ + ".maps");
-	.@fmvp$ = modstore_get("char", .@p$ + ".firstmvp", "");
-	.@k = 0;
-	setarray .@kind$[.@k], "mfirst"; .@k++;
-	if (.@days >= 1) { .@kind$[.@k] = "mdays"; .@k++; }
-	if (.@kills >= 50) { .@kind$[.@k] = "mkills"; .@k++; }
-	if (.@mvps >= 1) { .@kind$[.@k] = "mmvps"; .@k++; }
-	if (.@fmvp$ != "") { .@kind$[.@k] = "mfmvp"; .@k++; }
-	if (.@fell >= 1) { .@kind$[.@k] = "mfell"; .@k++; }
-	if (.@saw >= 1) { .@kind$[.@k] = "msaw"; .@k++; }
-	if (.@maps >= 3) { .@kind$[.@k] = "mmaps"; .@k++; }
-	.@w$ = .@kind$[0];
-	if (.@k > 1)
-		.@w$ = .@kind$[rand(.@k)];
-	.@n = 0;
-	.@m$ = "";
-	if (.@w$ == "mfirst") {
-		.@n = modstore_get("char", .@p$ + ".metlv", 1);
-		.@m$ = modstore_get("char", .@p$ + ".metmap", "Prontera");
-	} else if (.@w$ == "mdays") .@n = .@days;
-	else if (.@w$ == "mkills") .@n = .@kills;
-	else if (.@w$ == "mmvps") .@n = .@mvps;
-	else if (.@w$ == "mfmvp") .@m$ = .@fmvp$;
-	else if (.@w$ == "mfell") .@n = .@fell;
-	else if (.@w$ == "msaw") .@n = .@saw;
-	else if (.@w$ == "mmaps") .@n = .@maps;
-	callsub L_QueueFmt, .@a, .@w$, "", 0, .@n, .@m$;
+	.@t$ = callsub(L_Text, .@t$, .@a, "");
+	.@q = getarraysize(@cl_qa);
+	@cl_qa[.@q] = @cl_aid[.@a];
+	@cl_qn$[.@q] = @cl_nm$[.@a];
+	@cl_qt$[.@q] = .@t$;
+	@cl_qe[.@q] = 0;
 	return 1;
+
+// A "did you know" fact for region getarg(0): one about that region 60% of the time
+// (when there is one), else one that fits anywhere. The last 20 aren't repeated.
+L_PickLore:
+	.@rg$ = getarg(0);
+	.@n = getarraysize(.lore$);
+	.@want$ = "any";
+	if (.@rg$ != "" && rand(100) < 60)
+		.@want$ = .@rg$;
+	.@k = 0;
+	for (.@pass = 0; .@pass < 3 && !.@k; .@pass++) {
+		for (.@i = 0; .@i < .@n; .@i++) {
+			if (!compare(.lore$[.@i], .@want$ + "|") || inarray(@cl_lore, .@i) >= 0)
+				continue;
+			.@c[.@k] = .@i;
+			.@k++;
+		}
+		if (!.@k) {
+			if (.@want$ != "any")
+				.@want$ = "any";	// nothing left for here: anywhere
+			else
+				deletearray @cl_lore;	// heard them all: start over
+		}
+	}
+	if (!.@k)
+		return "";
+	.@i = .@c[0];
+	if (.@k > 1)
+		.@i = .@c[rand(.@k)];
+	if (getarraysize(@cl_lore) >= 20)
+		deletearray @cl_lore[0], 1;
+	@cl_lore[getarraysize(@cl_lore)] = .@i;
+	explode(.@part$, .lore$[.@i], "|");
+	return .@part$[1];
+
+// The lore region of map getarg(0): a code .lore$ uses, or "".
+L_LoreRegion:
+	.@m$ = getarg(0);
+	setarray .@pf$, "prt_maze", "prt_sewb", "prontera", "prt_", "izlude", "iz_", "geffen", "gef_", "orcsdun", "payon", "pay_", "morocc", "moc_", "in_sphinx", "anthell",
+		"alberta", "alb", "treasure", "tur_dun", "aldebaran", "alde_", "c_tower", "mjolnir_", "mjo_", "yuno", "juperos", "jupe_", "comodo", "cmd_", "beach_dun", "umbala", "um_",
+		"xmas", "niflheim", "nif_", "glast_01", "gl_", "einbroch", "einbech", "ein_", "lighthalzen", "lhz_", "hugel", "hu_", "odin_tem", "rachel", "ra_", "amatsu", "ama_";
+	setarray .@rg$, "prt", "prt", "prt", "prt", "izl", "izl", "gef", "gef", "gef", "pay", "pay", "moc", "moc", "moc", "moc",
+		"alb", "alb", "alb", "alb", "alde", "alde", "alde", "mjo", "mjo", "yuno", "yuno", "yuno", "cmd", "cmd", "cmd", "um", "um",
+		"xmas", "nif", "nif", "gl", "gl", "ein", "ein", "ein", "lhz", "lhz", "hu", "hu", "hu", "ra", "ra", "ama", "ama";
+	for (.@i = 0; .@i < getarraysize(.@pf$); .@i++) {
+		if (compare(.@m$, .@pf$[.@i]))
+			return .@rg$[.@i];
+	}
+	return "";
+
+// A town's name for a map name, or "" if it isn't one of the towns.
+L_TownName:
+	setarray .@tm$, "prontera", "izlude", "geffen", "payon", "morocc", "alberta", "aldebaran", "yuno", "comodo", "umbala", "amatsu", "gonryun", "louyang", "ayothaya", "xmas", "niflheim", "einbroch", "einbech", "lighthalzen", "hugel", "rachel", "veins", "moscovia", "pay_arche";
+	setarray .@tn$, "Prontera", "Izlude", "Geffen", "Payon", "Morroc", "Alberta", "Al De Baran", "Juno", "Comodo", "Umbala", "Amatsu", "Kunlun", "Luoyang", "Ayothaya", "Lutie", "Niflheim", "Einbroch", "Einbech", "Lighthalzen", "Hugel", "Rachel", "Veins", "Moscovia", "Archer Village";
+	.@i = inarray(.@tm$, getarg(0));
+	if (.@i < 0)
+		return "";
+	return .@tn$[.@i];
 
 // Like L_QueueIdx, with {n} = getarg(4) and {m} = getarg(5) filled in first.
 L_QueueFmt:
@@ -3712,6 +4321,17 @@ L_Gather:
 	copyarray .@aid[0], $@partymemberaid[0], .@cnt;
 	getpartymember .@pid, 0;
 	copyarray .@nm$[0], $@partymembername$[0], .@cnt;
+	// 3.0.1: the client colours companions' lines in the chat box (setting chat_colour)
+	// and learns who they are from this, sent when the names change or after a map change.
+	.@all$ = "";
+	for (.@i = 0; .@i < .@cnt; .@i++) {
+		if (.@cid[.@i] >= 95000000)
+			.@all$ += .@nm$[.@i] + "|";
+	}
+	if (.@all$ != @cl_names$) {
+		@cl_names$ = .@all$;
+		dispbottom "@@event clnames " + .@all$;
+	}
 	.@map$ = strcharinfo(3);
 	for (.@i = 0; .@i < .@cnt; .@i++) {
 		if (.@cid[.@i] < 95000000)
@@ -3915,18 +4535,15 @@ L_Conversation:
 			.@p$ = "m.c" + @cl_cid[.@a];
 			.@nc = 0;
 			if (modstore_get("char", .@p$ + ".firstmvp", "") != "") { .@cx$[.@nc] = "cm_mvp"; .@nc++; }
-			if (modstore_get("char", .@p$ + ".metmap", "") != "") { .@cx$[.@nc] = "cm_met"; .@nc++; }
-			if (modstore_get("char", .@p$ + ".kills", 0) >= 100) { .@cx$[.@nc] = "cm_kills"; .@nc++; }
-			if (modstore_exists("char", .@p$ + ".met")
-					&& (gettimetick(2) - modstore_get("char", .@p$ + ".met", 0)) / 86400 >= 2) { .@cx$[.@nc] = "cm_days"; .@nc++; }
+			// 3.0.1: no counts (kills, days); where they met only when it was a town.
+			.@town$ = callsub(L_TownName, modstore_get("char", .@p$ + ".metmap", ""));
+			if (.@town$ != "") { .@cx$[.@nc] = "cm_met"; .@nc++; }
 			if (.@nc) {
 				.@cat$ = .@cx$[0];
 				if (.@nc > 1)
 					.@cat$ = .@cx$[rand(.@nc)];
 				if (.@cat$ == "cm_mvp") .@m$ = modstore_get("char", .@p$ + ".firstmvp", "");
-				else if (.@cat$ == "cm_met") .@m$ = modstore_get("char", .@p$ + ".metmap", "");
-				else if (.@cat$ == "cm_kills") .@n$ = "" + modstore_get("char", .@p$ + ".kills", 0);
-				else .@n$ = "" + (gettimetick(2) - modstore_get("char", .@p$ + ".met", 0)) / 86400;
+				else .@m$ = .@town$;
 			}
 		}
 		if (.@cat$ == "" && .@r < .@th[5]) {
@@ -4570,6 +5187,8 @@ L_EmoteAid:
 // town / field / dungeon / "" (indoors, castles, arenas: say nothing).
 L_MapKind:
 	.@m$ = getarg(0);
+	if (.@m$ == "")
+		return "";	// between maps (getmapflag on "" returns nothing and broke the tick, 3.1.0)
 	// Towns by name first: Morroc lacks the town flag in pre-renewal.
 	setarray .@towns$, "prontera", "izlude", "geffen", "payon", "morocc", "alberta", "aldebaran", "yuno", "comodo", "umbala", "amatsu", "gonryun", "louyang", "ayothaya", "jawaii", "xmas", "niflheim", "einbroch", "einbech", "lighthalzen", "hugel", "rachel", "veins", "moscovia", "brasilis", "manuk", "splendide", "dewata", "malangdo", "malaya", "eclage", "mora", "dicastes01";
 	if (inarray(.@towns$, .@m$) >= 0 || getmapflag(.@m$, MF_TOWN))

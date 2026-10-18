@@ -27,7 +27,8 @@
 # PROTECT THE BACK LINE (the rule of thumb for every class): whatever hits the Priest, a
 #   caster or an archer is hit first (the target ladder), and each class uses its own tool:
 #   Swordman line Provoke (Crusader: Devotion on the Priest)   Blacksmith Hammer Fall
-#   Rogue Strip Weapon   Archer line Arrow Shower knockback, Ankle Snare   Gunslinger Cracker
+#   Rogue Strip Weapon   Archer line Arrow Shower knockback   Gunslinger Cracker
+#   Hunter traps on the monster's path (Ankle Snare, Sandman; Claymore in a burst), never at random
 #   Mage line Frost Diver, Safety Wall, Ice Wall               Priest Kyrie, Safety Wall
 #
 # Rules named ct_* so they never replace the base table's. Priority bands as there:
@@ -291,15 +292,6 @@ Body:
             Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 2 }
             When: self_sp_pct_ge20
             Cooldown: 1500
-          # Hunters snare what is on the healer or a caster.
-          - Name: ct_snare_the_healers_attacker
-            Priority: 46
-            Cast: HT_ANKLESNARE
-            Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }   # Job: Acolyte also matched a Monk/Champion
-            When: not_enemy_ankle
-            Consume: true                    # a Trap, with Companion inventory on
-            Claim: { Name: ct.snare, For: 8000 }
-            Cooldown: 6000
       - Job: Gunslinger
         Build: ct_shower
         Requires: { Role: [attacker, none] }
@@ -311,6 +303,74 @@ Body:
             When: [not_enemy_stun, self_sp_pct_ge20]
             Absent: { Enemy: boss }
             Cooldown: 3000
+
+      # === Hunter and Sniper: traps with a purpose ===========================================
+      # Traps are the Hunter's Safety Wall: laid where a monster is about to walk, never at
+      # random. Every rule needs a monster on the party, so nothing is laid in town or while
+      # waiting; each costs a Trap (Companion inventory on) and has its own cooldown.
+      #   rAthena won't put a trap on a cell someone stands on, so each one is aimed a cell
+      #   off the monster (Aim): on the line it walks to reach the Hunter or the one it chases.
+      # The plan below (ct_trap_kit) keeps the engine itself from laying any: its Hunter and
+      # Sniper lists lay Skid Trap, Sandman, Flasher, Shockwave and Blast Mine at their own
+      # feet every 20-30 s as if they were buffs, and roll Claymore, Freezing Trap, Ankle
+      # Snare and Land Mine in every fight. Allow binds only what the engine picks itself, so
+      # these rules (and the "trap" order) still lay theirs. It can't sit in this plan: a
+      # plan never limits the skills its own rules cast.
+      - Job: Hunter
+        Build: ct_trapper
+        Rules:
+          # Kiting: something comes at the Hunter. Step back (ct_rng_step_back) first, then
+          # snare the cell in front of itself, which the monster has to cross.
+          - Name: ct_trap_guard_self
+            Priority: 56
+            Cast: HT_ANKLESNARE
+            Target: { Enemy: attacking, Who: self, Range: 5 }
+            Aim: { Cells: 1, From: self }
+            When: not_enemy_ankle
+            Absent: { Enemy: boss }
+            Consume: true
+            Claim: { Name: ct.snare, For: 8000 }
+            Cooldown: 5000
+          # The back line: snare what is on (or after) the Priest or a caster, a cell in front
+          # of it. The melee kite monsters round the Priest, so they walk into it.
+          - Name: ct_trap_guard_back
+            Priority: 55
+            Cast: HT_ANKLESNARE
+            Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }   # Job: Acolyte also matched a Monk/Champion
+            Aim: { Cells: 1, From: target }
+            When: not_enemy_ankle
+            Absent: { Enemy: boss }
+            Consume: true
+            Claim: { Name: ct.snare, For: 8000 }
+            Cooldown: 6000
+          # Two or more on the back line: Sandman puts the pack to sleep (5x5) when one steps in.
+          - Name: ct_trap_sleep_the_pack
+            Priority: 54
+            Cast: HT_SANDMAN
+            Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }
+            Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 2 }
+            Aim: { Cells: 1, From: target }
+            When: [not_enemy_sleep, self_sp_pct_ge20]
+            Absent: { Enemy: boss }
+            Consume: true
+            Claim: { Name: ct.sandman, For: 10000 }
+            Cooldown: 10000
+          # Burst: 3+ bunched up. Claymore (fire, 5x5) beside the pack to bring the numbers
+          # down, the Hunter's share of the burst; bosses too.
+          - Name: ct_trap_claymore_the_pack
+            Priority: 45
+            Cast: HT_CLAYMORETRAP
+            Target: { Enemy: attacking }
+            Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 3 }
+            Aim: { Cells: 1, From: target }
+            When: self_sp_pct_ge30
+            Consume: true
+            Claim: { Name: ct.claymore, For: 6000 }
+            Cooldown: 4000
+      - Job: Hunter
+        Build: ct_trap_kit
+        Allow: [AC_DOUBLE, AC_SHOWER, AC_CHARGEARROW, AC_CONCENTRATION, HT_BLITZBEAT, HT_DETECTING,
+                SN_SHARPSHOOTING, SN_FALCONASSAULT, SN_WINDWALK, SN_SIGHT]
 
       # === Healers ===========================================================================
       - Job: [Acolyte, Priest]
