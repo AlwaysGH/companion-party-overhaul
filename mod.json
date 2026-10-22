@@ -1,6 +1,6 @@
 {
   "name": "companion-party-overhaul",
-  "version": "3.6.0",
+  "version": "3.6.1",
   "author": "Always",
   "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
   "requires": { "app": ">=1.6.0", "era": "any" },
