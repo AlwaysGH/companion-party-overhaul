@@ -90,6 +90,34 @@ Body:
                 When: self_sp_pct_ge50
                 Switch: steady
 
+      # === Maximize Power: on for a fight, off after it (3.4.0) ===============================
+      # The engine keeps Maximize Power up like any self-buff (its row: "cast when not on"),
+      # in town and between fights, and never turns it off, though it drains SP and stops SP
+      # regen while on. Here it may only go on while monsters attack and SP is 40%+; the
+      # script (companion_life.txt, L_MaxPow) turns it off once no monster is near or nobody
+      # was hit for 20 s, or under 25% SP. No rule here casts it on purpose: a plan's own rules
+      # lift its Ban for the engine too (plans_allow), so the engine's row casts it, in fights only.
+      - Job: Blacksmith
+        Build: ct_maxpow
+        Start: idle
+        Strategies:
+          - Name: idle
+            Ban: [BS_MAXIMIZE]
+            Rules:
+              - Name: ct_mp_fight
+                Count: { Enemy: attacking, Range: 9, AtLeast: 1 }
+                When: self_sp_pct_ge40
+                Switch: fight
+          - Name: fight
+            Rules:
+              - Name: ct_mp_over
+                InStrategy: { AtLeast: 3000 }
+                Count: { Enemy: any, Range: 9, Below: 1 }
+                Switch: idle
+              - Name: ct_mp_low
+                When: self_sp_pct_lt25
+                Switch: idle
+
       # === Who to hit: the back line first ===================================================
       # The first rung that finds a monster wins (strategy.cpp: a SetTarget rule has nothing
       # left to do once a higher one picked). Rungs 1-3 claim their monster, so two companions

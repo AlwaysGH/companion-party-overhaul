@@ -98,9 +98,12 @@ const CARDS = [
   { cls: 'party', title: 'Party behaviour', blurb: 'How they stand, wander and rest between fights.',
     rows: ['spacing', 'look_around', 'idle_sit', 'campfire'] },
   { cls: 'battle', title: 'In battle', blurb: 'Each class in its part, your orders, and your items.',
-    rows: ['party_roles', 'roam_together', 'chat_orders', 'use_items', 'town_calm'] },
+    rows: ['party_roles', 'roam_together', 'chat_orders', 'warp_gem', 'use_items', 'town_calm'] },
   { cls: 'talk', title: 'Talk & personality', blurb: 'What they say, to you and to each other.',
     rows: ['titles', 'everyday_chatter', 'combat_callouts', 'chat_replies', 'banter_minutes', 'chat_colour'] },
+  // 3.2.0: portraits.
+  { cls: 'talk', title: 'Portraits', blurb: 'Their class portrait and a speech bubble at the bottom right when they talk.',
+    rows: ['portraits', 'portrait_small_talk', 'portrait_speed', 'portrait_size'] },
   { cls: 'purse', title: 'Bag, loot & purse', blurb: 'Gearing your companions, what they find, and the party purse.',
     rows: ['gifts', 'starter_kit', 'purse_per_level', 'loot_finds'] },
   { cls: 'care', title: 'Growth & care', blurb: 'How they grow, what they remember, and how they are looked after.',
@@ -116,7 +119,7 @@ const SPACING = [
 const SEGS = {
   spacing: { label: 'Party spacing', hint: 'How far from you they stand between fights.' },
 };
-const UNITS = { banter_minutes: 'min', purse_per_level: 'zeny' };
+const UNITS = { banter_minutes: 'min', purse_per_level: 'zeny', portrait_size: '%' };
 // loot_finds (a number 0-3) drawn as a four-way choice.
 const LEVELS = {
   loot_finds: [
@@ -124,6 +127,11 @@ const LEVELS = {
     { label: 'Low', hint: 'Low: a tenth of each drop\'s rate. A 1% drop turns up about once in 1,000 party kills.' },
     { label: 'Normal', hint: 'Normal: a quarter of each drop\'s rate. A 1% drop, about once in 400 party kills.' },
     { label: 'Generous', hint: 'Generous: half of each drop\'s rate. A 1% drop, about once in 200 party kills.' },
+  ],
+  portrait_speed: [
+    { label: 'Slow', hint: 'Slow: each line stays up about a third longer.' },
+    { label: 'Normal', hint: 'Normal: 2.5 to 6 seconds a line, by its length.' },
+    { label: 'Fast', hint: 'Fast: each line stays up about a third shorter.' },
   ],
 };
 // chat_colour (a number 0-5) drawn as swatches; keep in step with client/index.js CHAT_COLOURS.
@@ -134,11 +142,12 @@ const SWATCHES = [
 // The app hands the page values but not defaults; keep these in step with mod.json.
 const DEFAULTS = {
   spacing_close: false, spacing_normal: true, spacing_far: false, look_around: true, idle_sit: true, campfire: true,
-  party_roles: true, roam_together: true, chat_orders: true, use_items: true, town_calm: true,
+  party_roles: true, roam_together: true, chat_orders: true, warp_gem: true, use_items: true, town_calm: true,
   titles: 'Boss,Captain,Leader', everyday_chatter: true, combat_callouts: true, chat_replies: true,
   banter_minutes: 4, chat_colour: 1, purse_per_level: 2, loot_finds: 1, gifts: true, starter_kit: true,
   memories: true, companion_growth: true, companion_return: true, companion_announce: true,
   window_button: true,
+  portraits: true, portrait_small_talk: true, portrait_speed: 1, portrait_size: 100,
 };
 
 let byKey = {};
@@ -362,6 +371,7 @@ function refresh() {
   set('purse_per_level', v.purse_per_level === 0 ? 'The purse is off.'
     : `A level 40 monster with 3 companions adds ${(v.purse_per_level * 40 * 3).toLocaleString('en-US')} zeny.`);
   if (byKey.loot_finds) set('loot_finds', (LEVELS.loot_finds[v.loot_finds] || LEVELS.loot_finds[1]).hint);
+  if (byKey.portrait_speed) set('portrait_speed', (LEVELS.portrait_speed[v.portrait_speed] || LEVELS.portrait_speed[1]).hint);
   if (byKey.chat_colour) {
     const c = SWATCHES[v.chat_colour] || SWATCHES[1];
     const e = $('pv_chat_colour');
@@ -374,6 +384,7 @@ function refresh() {
   // Options that only matter with another one on.
   const dim = (key, on) => { const r = $('row_' + key); if (r) r.classList.toggle('off', !on); };
   dim('companion_announce', v.companion_growth || v.companion_return);
+  for (const k of ['portrait_small_talk', 'portrait_speed', 'portrait_size']) dim(k, v.portraits);
   const dirty = JSON.stringify(v) !== baseline;
   const st = $('status');
   if (!st.dataset.busy) {

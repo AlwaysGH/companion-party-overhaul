@@ -1,8 +1,8 @@
 {
   "name": "companion-party-overhaul",
-  "version": "3.1.2",
+  "version": "3.6.0",
   "author": "Always",
-  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. Options are grouped in the Settings window.",
+  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
   "requires": { "app": ">=1.6.0", "era": "any" },
   "tags": ["companions", "population", "combat", "dialogue", "immersion"],
   "settingsPage": "settings/index.html",
@@ -61,7 +61,14 @@
       "type": "boolean",
       "default": true,
       "label": "Orders in party chat",
-      "description": "Type in party chat: \"assist me\"/\"focus\", \"free fight\", \"regroup\", \"heal me\", \"buff me\", \"kyrie me\", \"wall me\", \"land protector\", \"aoe\", \"trap\", \"take a break\", \"let's go\", \"go hunt\" and \"come back\" (roaming needs the app's Companion roaming; add a name for just that one). Changing this restarts the server."
+      "description": "Type in party chat: \"assist me\"/\"focus\", \"free fight\", \"regroup\", \"heal me\", \"buff me\", \"kyrie me\", \"wall me\", \"land protector\", \"aoe\", \"trap\", \"take a break\", \"let's go\", \"go hunt\" and \"come back\" (roaming needs the app's Companion roaming; add a name for just that one), and \"take us back\" (Warp Portal: home from the hunt, and back again from town). Changing this restarts the server."
+    },
+    {
+      "key": "warp_gem",
+      "type": "boolean",
+      "default": true,
+      "label": "Warp Portal costs a Blue Gemstone",
+      "description": "\"take us back\" in party chat: an Acolyte-line companion opens a Warp Portal home and remembers the spot; in town, the same words go back there. One Blue Gemstone a portal (their bags, then yours). Off: free. Needs Orders in party chat. Changing this restarts the server."
     },
     {
       "key": "use_items",
@@ -130,6 +137,38 @@
       "max": 5,
       "label": "Companion chat colour",
       "description": "The colour of your companions' lines in the chat box, so they stand out from other players: 0 white (as before), 1 sky blue, 2 mint, 3 gold, 4 pink, 5 lavender. The words over their heads stay white."
+    },
+    {
+      "key": "portraits",
+      "type": "boolean",
+      "default": true,
+      "label": "Portraits when they talk",
+      "description": "When a companion says something, its class portrait slides in at the bottom right with the line in a speech bubble. The next one to speak steps in front and the one before steps back; lines take turns so you can read them, and battle callouts go first. Hidden while an NPC talks to you. Click the bubble to dismiss. Only for classes with a picture."
+    },
+    {
+      "key": "portrait_small_talk",
+      "type": "boolean",
+      "default": true,
+      "label": "Portraits for small talk too",
+      "description": "Off: portraits only for battle callouts and calls for help (their party-chat lines), not for everyday talk."
+    },
+    {
+      "key": "portrait_speed",
+      "type": "number",
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "label": "Portrait reading speed",
+      "description": "How long each line stays up: 0 Slow, 1 Normal, 2 Fast."
+    },
+    {
+      "key": "portrait_size",
+      "type": "number",
+      "default": 100,
+      "min": 50,
+      "max": 100,
+      "label": "Portrait size",
+      "description": "In percent of the game's own NPC portraits (320 x 480)."
     },
     {
       "key": "purse_per_level",

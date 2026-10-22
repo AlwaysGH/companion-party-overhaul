@@ -1449,6 +1449,7 @@ OnInit:
 	// personality: .gc_<p>$ common and .gr_<p>$ rare, "item id:min:max" (id 0 =
 	// zeny); very rare (any personality): an Old Card Album. {i} = what it gave.
 	.gifts = callfunc("F_ModSetting", .mod$, "gifts", 1);
+	.portraits = callfunc("F_ModSetting", .mod$, "portraits", 1);	// 3.2.0: L_Gather tells the client who's who
 	.gc_0$ = "512:1:3,909:1:3,712:1:1,513:2:4,501:2:5";	// Rookie: apples, Jellopy, a flower
 	.gr_0$ = "706:1:1,644:1:1";
 	.gc_1$ = "501:5:10,502:3:6,601:3:5";	// Guardian: potions, Fly Wings
@@ -1639,6 +1640,39 @@ OnInit:
 	setarray .restock_6$, "Restocked. Paid full price, even. Mostly.", "Supplies are in the bags, {t}. Quietly done.";
 	setarray .restock_7$, "Restocked, and I haggled the prices down for us, {t}!", "Supplies bought, at a merchant's price. You're welcome!", "Everything on the list, below shop price. Leave the shopping to me.";
 
+	// ---- Warp Portal (3.3.0, part of chat_orders): "take us back" in party chat. Out
+	// hunting, an Acolyte-line companion opens a portal to your save point and remembers
+	// the spot (any map: the user chose the exact spot over the memo rule); in town, the
+	// same words open one back there. Real costs: a Blue Gemstone (setting warp_gem) and
+	// 35/32/29/26 SP; blocked only on nowarp maps, like the skill. Caster lines are for
+	// personalities 4 (Healer) and 5 (Brawler): only the Acolyte line casts it.
+	.warp_gem = callfunc("F_ModSetting", .mod$, "warp_gem", 1);
+	// Maximize Power off after a fight (3.4.0, L_MaxPow): only with party_roles, whose
+	// ct_maxpow plan keeps the engine from casting it straight back on.
+	.maxpow = callfunc("F_ModSetting", .mod$, "party_roles", 1);
+	bindatcmd "clwarp", strnpcinfo(3) + "::OnCmdWarp", 0, 99;
+	setarray .warpgo_4$, "Back to town, {t}. The portal is open, step in.", "Blessed be the road home. In you go, {t}.", "Enough for today. The portal will take us home.";
+	setarray .warpgo_5$, "Home. Portal's open, {t}. In you go.", "Done for today. Step in, {t}, I'm right behind you.", "Good hunt. Portal's up, let's get some rest.";
+	setarray .warpback_4$, "Back to where we left off. The portal is ready, {t}.", "I remembered the spot. Step in when you're ready, {t}.", "May the hunt go well. The portal is open.";
+	setarray .warpback_5$, "Back to the hunt! Portal's up, {t}.", "Same spot as before. Let's finish what we started.", "Rested enough. In you go, {t}, they're waiting for us.";
+	setarray .warpgem_4$, "I'm out of Blue Gemstones, {t}. No gem, no portal.", "None of our bags has a Blue Gemstone, {t}. A Tool Dealer sells them.";
+	setarray .warpgem_5$, "No Blue Gemstone. Can't open it without one.", "Out of gems, {t}. We walk, or we buy some.";
+	setarray .warpsp_4$, "My SP is too low for a portal, {t}. Give me a moment.", "Not enough SP yet. Let me catch my breath.";
+	setarray .warpsp_5$, "Out of SP. Give me a minute.", "Can't yet, {t}. I need more SP first.";
+	setarray .warpno_4$, "Something here blocks the portal, {t}. It won't open.", "This place won't let a Warp Portal open. We'll have to walk out.";
+	setarray .warpno_5$, "The portal won't take here. We walk.", "Can't open one in this place, {t}. Feet it is.";
+	setarray .warpnowhere_4$, "I have nowhere to take us back to yet, {t}.", "We haven't left a hunt by portal yet, {t}. Nowhere to go back to.";
+	setarray .warpnowhere_5$, "Back where? We haven't left anywhere yet.", "No spot remembered, {t}. Let's go hunt first.";
+	// Nobody in the party knows Warp Portal (anyone may say it).
+	setarray .warpnone_0$, "None of us knows Warp Portal... A Butterfly Wing? Or we walk. A lot.", "I wish I could open a portal, {t}. Butterfly Wing, or our feet.";
+	setarray .warpnone_1$, "None of us can open a portal, {t}. Best we find a Butterfly Wing, or worst we march back.", "No Acolyte with us, {t}. We march.";
+	setarray .warpnone_2$, "Warp Portal is an Acolyte's art, and none of us has it. A Butterfly Wing, or our feet.", "None of us studied the portal, {t}. Butterfly Wing, or a long walk.";
+	setarray .warpnone_3$, "No portal-opener among us, {t}. Butterfly Wing if we're lucky, a long walk if we're not.", "No Warp Portal here. Good thing I know the roads.";
+	setarray .warpnone_4$, "None of us knows Warp Portal, {t}. Best we find a Butterfly Wing, or worst we walk back.";
+	setarray .warpnone_5$, "No Warp Portal here, {t}. Butterfly Wing, or we run back. I vote run!", "Portal? None of us can. Race you back, {t}!";
+	setarray .warpnone_6$, "None of us knows Warp Portal. Best we find us a Butterfly Wing, or worst we walk back.", "No portals in this crew, {t}. Wing or walk.";
+	setarray .warpnone_7$, "Nobody here knows Warp Portal, {t}. Butterfly Wings are cheap, you know. Walking is free, though.", "No portal, {t}. I'd sell you a Butterfly Wing if I had one.";
+
 	initnpctimer;	// the tick below
 	end;
 
@@ -1673,6 +1707,8 @@ OnPCLogoutEvent:
 	CL_LAST = gettimetick(2);
 	if (@cl_fire$ != "")
 		unloadnpc @cl_fire$;	// the campfire goes out with you
+	if (@cl_wp$ != "")
+		unloadnpc @cl_wp$;	// and an open Warp Portal closes
 	end;
 
 OnPCBaseLvUpEvent:
@@ -1776,7 +1812,15 @@ OnTick:
 		@cl_map$ = .@map$;
 		@cl_mapat = .@sec + 4;	// give companions time to arrive
 		@cl_names$ = "";	// tell the client their names again (L_Gather)
+		@cl_cast$ = "";	// and the portraits who's who
 	}
+	// Warp Portal (3.3.0): it opens once the caster has had time to cast, and closes
+	// when its time is up or you've gone through (a dynamic NPC stays on the old map
+	// after you leave it, so it's always taken away here).
+	if (@cl_wpat && .@now >= @cl_wpat)
+		callsub L_WarpOpen;
+	if (@cl_wp$ != "" && .@now >= @cl_wpend)
+		callsub L_WarpClose;
 	if (@cl_greet && .@sec > @cl_login + 90)
 		@cl_greet = 0;	// nobody came back with you: no greeting later
 	if (!@cl_n)
@@ -2001,6 +2045,9 @@ OnTick:
 				callsub L_SpeakNow, .@a, "win", "", ET_OK;
 		}
 	}
+
+	if (.maxpow)
+		callsub L_MaxPow, .@sec;
 
 	// Arriving somewhere.
 	if (@cl_mapat && .@sec >= @cl_mapat && !@cl_incombat) {
@@ -2353,6 +2400,222 @@ OnCmdCamp:
 	}
 	callsub L_BagReply, .@req$, "OK|" + @cl_camp;
 	end;
+
+// Warp Portal (3.3.0): "@clwarp <request>" from your party-chat line "take us back"
+// (client/index.js). In a field or dungeon: a portal to your save point, and this spot
+// is remembered (CL_WPM$/CL_WPX/CL_WPY). Anywhere else (towns, indoors): a portal back
+// to that spot. The caster walks over and casts; the portal itself opens in the tick
+// (L_WarpOpen), which is also when the gem and SP are paid.
+OnCmdWarp:
+	.@req$ = .@atcmd_parameters$[0];
+	if (!.orders) {
+		callsub L_BagReply, .@req$, "ERR|chat orders off";
+		end;
+	}
+	callsub L_Gather;
+	if (!@cl_n) {
+		dispbottom "[Companions] There's nobody here to open a portal.", 0xFFCC66;
+		callsub L_BagReply, .@req$, "ERR|nobody";
+		end;
+	}
+	if (@cl_wpat || @cl_wp$ != "") {
+		dispbottom "[Companions] The portal is already open. Step in!", 0xFFCC66;
+		callsub L_BagReply, .@req$, "ERR|open";
+		end;
+	}
+	getmapxy(.@m$, .@x, .@y, BL_PC);
+	.@kind$ = callsub(L_MapKind, .@m$);
+	.@home = (.@kind$ == "field" || .@kind$ == "dungeon");
+	// The caster: a living Acolyte-line companion who knows the skill, the one with the
+	// most SP. (The engine grants a companion its whole job tree, so every Acolyte,
+	// Priest and Monk has Warp Portal Lv 4.) Skill names aren't constants: 27 = AL_WARP.
+	.@me = getcharid(3);
+	.@ix = -1;
+	.@lv = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		if ((eaclass(@cl_cls[.@i]) & EAJ_BASEMASK) != EAJ_ACOLYTE)
+			continue;
+		.@aid = @cl_aid[.@i];
+		if (!attachrid(.@aid))
+			continue;
+		.@k = getskilllv(27);
+		attachrid(.@me);
+		if (.@k < 1)
+			continue;
+		if (.@ix >= 0) {
+			if (@cl_sp[.@i] <= @cl_sp[.@ix])
+				continue;
+		}
+		.@ix = .@i;
+		.@lv = .@k;
+	}
+	if (.@ix < 0) {
+		.@a = callsub(L_Pick, -1, -1);
+		if (.@a >= 0)
+			callsub L_SpeakNow, .@a, "warpnone", "", ET_SWEAT;
+		callsub L_BagReply, .@req$, "ERR|no caster";
+		end;
+	}
+	if (.@home) {
+		.@dm$ = getsavepoint(0);
+		.@dx = getsavepoint(1);
+		.@dy = getsavepoint(2);
+	} else {
+		// Lv 1 only reaches the save point; a memo point needs Lv 2.
+		if (CL_WPM$ == "" || .@lv < 2) {
+			callsub L_SpeakNow, .@ix, "warpnowhere", "", ET_QUESTION;
+			callsub L_BagReply, .@req$, "ERR|nowhere";
+			end;
+		}
+		.@dm$ = CL_WPM$;
+		.@dx = CL_WPX;
+		.@dy = CL_WPY;
+	}
+	if (getmapflag(.@m$, MF_NOWARP)) {
+		callsub L_SpeakNow, .@ix, "warpno", "", ET_SWEAT;
+		callsub L_BagReply, .@req$, "ERR|nowarp";
+		end;
+	}
+	if (@cl_sp[.@ix] < 38 - 3 * .@lv) {
+		callsub L_SpeakNow, .@ix, "warpsp", "", ET_SWEAT;
+		callsub L_BagReply, .@req$, "ERR|sp";
+		end;
+	}
+	if (.warp_gem) {
+		if (callsub(L_CampFind, "717") == "") {
+			callsub L_SpeakNow, .@ix, "warpgem", "", ET_SWEAT;
+			callsub L_BagReply, .@req$, "ERR|gem";
+			end;
+		}
+	}
+	@cl_wpc = @cl_aid[.@ix];
+	@cl_wpcn$ = @cl_nm$[.@ix];
+	@cl_wplv = .@lv;
+	@cl_wphome = .@home;
+	@cl_wpfm$ = .@m$;
+	@cl_wpfx = .@x;
+	@cl_wpfy = .@y;
+	@cl_wpdm$ = .@dm$;
+	@cl_wpdx = .@dx;
+	@cl_wpdy = .@dy;
+	@cl_wpat = gettimetick(0) + 1500;	// a walk over and the 1 s cast
+	stand @cl_nm$[.@ix];	// a sitter can't walk (campfire lesson)
+	callsub L_GiftWalk, .@ix;
+	if (.@home)
+		callsub L_SpeakNow, .@ix, "warpgo", "", ET_GO;
+	else
+		callsub L_SpeakNow, .@ix, "warpback", "", ET_GO;
+	callsub L_BagReply, .@req$, "OK|" + @cl_wpcn$;
+	end;
+
+// The portal opens: checked again (you may have left, the caster may have fallen or
+// spent the SP), paid, and placed next to you (CpoWarpPortal, below; only you see it).
+L_WarpOpen:
+	@cl_wpat = 0;
+	if (strcharinfo(3) != @cl_wpfm$)
+		return;	// you left before it opened
+	.@ix = inarray(@cl_aid[0], @cl_wpc);
+	if (.@ix < 0) {
+		dispbottom "[Companions] The portal fizzled: " + @cl_wpcn$ + " couldn't finish the cast.", 0xFFCC66;
+		return;
+	}
+	if (@cl_hp[.@ix] <= 0) {
+		dispbottom "[Companions] The portal fizzled: " + @cl_wpcn$ + " couldn't finish the cast.", 0xFFCC66;
+		return;
+	}
+	.@cost = 38 - 3 * @cl_wplv;	// 35/32/29/26 SP at Lv 1-4
+	if (@cl_sp[.@ix] < .@cost) {
+		callsub L_SpeakNow, .@ix, "warpsp", "", ET_SWEAT;
+		return;
+	}
+	.@gem$ = "";
+	if (.warp_gem) {
+		.@gem$ = callsub(L_CampFind, "717");
+		if (.@gem$ == "") {
+			callsub L_SpeakNow, .@ix, "warpgem", "", ET_SWEAT;
+			return;
+		}
+	}
+	@cl_wp$ = duplicate_dynamic("CpoWarpPortal");
+	if (@cl_wp$ == "") {
+		dispbottom "[Companions] There's no room for a portal here.", 0xFFCC66;
+		return;
+	}
+	// A floating source NPC is the invisible JT_FAKENPC, and so is its copy (never sent
+	// to the client). 111 = the hidden NPC: the client knows it but draws no body, so
+	// it carries the skill's own look, EF_PORTAL2 (what the client draws for a real
+	// UNT_WARPPORTAL: a turning blue ring, looping, and light columns for 25 s). Both
+	// are attached to the NPC and go with it when the tick unloads it. 3.3.1: was 45,
+	// the map's ordinary portal.
+	setnpcdisplay @cl_wp$, "Warp Portal", 111;
+	specialeffect EF_PORTAL2, AREA, @cl_wp$;
+	if (.@gem$ != "")
+		callsub L_CampUse, .@gem$;
+	heal 0, -.@cost, @cl_cid[.@ix];
+	@cl_wpend = gettimetick(0) + @cl_wplv * 5000;	// 5/10/15/20 s, as the skill
+	if (@cl_wphome) {
+		CL_WPM$ = @cl_wpfm$;
+		CL_WPX = @cl_wpfx;
+		CL_WPY = @cl_wpfy;
+		.@to$ = callsub(L_TownName, @cl_wpdm$);
+		if (.@to$ == "")
+			.@to$ = "your save point";
+	} else
+		.@to$ = "where you left off";
+	.@paid$ = "";
+	if (.@gem$ != "")
+		.@paid$ = ", one Blue Gemstone";
+	dispbottom "[Companions] " + @cl_wpcn$ + " opened a Warp Portal to " + .@to$ + " (" + .@cost + " SP" + .@paid$ + "). Step in within " + (@cl_wplv * 5) + " seconds.", 0xFFCC66;
+	return;
+
+L_WarpClose:
+	if (@cl_wp$ != "")
+		unloadnpc @cl_wp$;
+	@cl_wp$ = "";
+	@cl_wpend = 0;
+	return;
+
+// Maximize Power (3.4.0): the engine turns it on but never off, and it drains SP and stops
+// SP regen while on. Off once no monster is within 9 cells of the smith for two ticks
+// (about 3 s), or nobody in the party was hit for 20 s (a fight's @cl_combat_until is
+// the last hit + 10; not in the first 20 s after it went on, before the first hit), or
+// under 25% SP. party_roles' ct_maxpow plan bans the engine's recast until monsters
+// attack again and SP is back to 40%. getarg(0) = now (s). @cl_mpon_<aid> = when seen on.
+L_MaxPow:
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@aid = @cl_aid[.@i];
+		if (@cl_hp[.@i] <= 0 || !getstatus(SC_MAXIMIZEPOWER, 0, @cl_cid[.@i])) {
+			setd "@cl_mpq_" + .@aid, 0;
+			setd "@cl_mpon_" + .@aid, 0;
+			continue;
+		}
+		.@on = getd("@cl_mpon_" + .@aid);
+		if (!.@on) {
+			.@on = getarg(0);
+			setd "@cl_mpon_" + .@aid, .@on;
+		}
+		.@off = (@cl_msp[.@i] > 0 && @cl_sp[.@i] * 100 < @cl_msp[.@i] * 25);
+		if (!.@off && getarg(0) - .@on >= 20 && getarg(0) > @cl_combat_until + 10)
+			.@off = 1;
+		if (!.@off) {
+			if (getmapxy(.@m$, .@x, .@y, BL_PC, .@aid) != 0)
+				continue;
+			if (getareaunits(BL_MOB, .@m$, .@x - 9, .@y - 9, .@x + 9, .@y + 9) > 0) {
+				setd "@cl_mpq_" + .@aid, 0;
+				continue;
+			}
+			.@q = getd("@cl_mpq_" + .@aid) + 1;
+			setd "@cl_mpq_" + .@aid, .@q;
+			if (.@q < 2)
+				continue;
+		}
+		sc_end SC_MAXIMIZEPOWER, .@aid;
+		setd "@cl_mpq_" + .@aid, 0;
+		setd "@cl_mpon_" + .@aid, 0;
+	}
+	return;
 
 // Light the fire: a bonfire next to you (a dynamic NPC: only you see it, and it
 // goes when you leave the map), roamers called back, everyone to a seat round it.
@@ -2857,18 +3120,32 @@ OnCmdBag:
 		for (.@i = 0; .@i < @clb_n; .@i++) {
 			.@c = @clb_cid[.@i];
 			.@cls = readparam(Class, .@c);
+			.@fx = 0;
+			if (checkriding(.@c))
+				.@fx += 32;
+			if (checkfalcon(.@c))
+				.@fx += 16;
 			.@out$ += "~C|" + .@c + "|" + callsub(L_Clean, @clb_nm$[.@i]) + "|" + jobname(.@cls)
 				+ "|" + getlook(LOOK_CLOTHES_COLOR, .@c) + "|" + getbattleflag("min_cloth_color") + "|" + callsub(L_ClothMax, .@cls)
 				+ "|" + getlook(LOOK_HAIR_COLOR, .@c) + "|" + getbattleflag("min_hair_color") + "|" + getbattleflag("max_hair_color")
-				+ "|" + readparam(Weight, .@c) + "|" + readparam(MaxWeight, .@c);
+				+ "|" + readparam(Weight, .@c) + "|" + readparam(MaxWeight, .@c)
+				// 3.5.0: the look, for the Bag tab's character (the client's api.screens.stage):
+				// class, sex, hair style, then the view ids the game itself sends: weapon,
+				// shield, lower/top/middle headgear, garment; and the mount/falcon bits
+				// (OPTION_RIDING 0x20, OPTION_FALCON 0x10).
+				+ "|" + .@cls + "|" + readparam(Sex, .@c) + "|" + getlook(LOOK_HAIR, .@c)
+				+ "|" + getlook(LOOK_WEAPON, .@c) + "|" + getlook(LOOK_SHIELD, .@c)
+				+ "|" + getlook(LOOK_HEAD_BOTTOM, .@c) + "|" + getlook(LOOK_HEAD_TOP, .@c) + "|" + getlook(LOOK_HEAD_MID, .@c)
+				+ "|" + getlook(LOOK_ROBE, .@c) + "|" + .@fx;
 			// Its restock list.
 			.@rn = modstore_keys("char", "rs.c" + .@c, .@rids$);
 			for (.@j = 0; .@j < .@rn; .@j++) {
 				.@rid = atoi(.@rids$[.@j]);
 				.@out$ += "~R|" + .@c + "|" + .@rid + "|" + modstore_get("char", "rs.c" + .@c + "." + .@rid, 0) + "|" + callsub(L_Clean, getitemname(.@rid));
 			}
-			// The slots worn with gear you gave (the engine's given_mask); its own
-			// starting gear isn't listed, it can't be taken anyway.
+			// The slots worn with gear you gave (the engine's given_mask). 3.5.0: its own
+			// starting gear is listed too, marked own (the Bag tab draws every slot like the
+			// Equip window); it can't be taken.
 			.@gm = 0;
 			if (query_sql("SELECT given_mask FROM cp_companion_persistence WHERE owner_char_id = " + getcharid(0)
 					+ " AND name = '" + escape_sql(@clb_nm$[.@i]) + "' LIMIT 1", .@gmv) > 0)
@@ -2881,8 +3158,9 @@ OnCmdBag:
 			.@cnt = getvar(@inventorylist_count, .@c);
 			for (.@j = 0; .@j < .@cnt; .@j++) {
 				.@eq = getvar(@inventorylist_equip[.@j], .@c);
+				.@mine = 0;
 				if (.@eq && .@eq != EQP_AMMO && !(.@eq & .@gm))
-					continue;	// its own gear
+					.@mine = 1;	// its own gear
 				.@id = getvar(@inventorylist_id[.@j], .@c);
 				if (!.@eq && compare(.@own$, "," + .@id + ","))
 					continue;	// its own piece, waiting to go back on
@@ -2914,7 +3192,7 @@ OnCmdBag:
 					+ "|" + getvar(@inventorylist_amount[.@j], .@c) + "|" + .@eq
 					+ "|" + getvar(@inventorylist_refine[.@j], .@c) + "|" + .@cards$ + "|" + .@opts$
 					+ "|" + (getvar(@inventorylist_bound[.@j], .@c) > 0) + "|" + (getvar(@inventorylist_expire[.@j], .@c) > 0)
-					+ "|" + callsub(L_Clean, getitemname(.@id));
+					+ "|" + .@mine + "|" + callsub(L_Clean, getitemname(.@id));
 			}
 		}
 		callsub L_BagReply, .@req$, .@out$;
@@ -4353,6 +4631,17 @@ L_Gather:
 		@cl_ar[@cl_n] = callsub(L_Arch, @cl_cls[@cl_n]);
 		@cl_n++;
 	}
+	// 3.2.0: the client's portraits (client/portraits.js) need each
+	// one's class and sex, "Name:class:sex|" (sex 0 female, 1 male).
+	if (.portraits) {
+		.@cast$ = "";
+		for (.@i = 0; .@i < @cl_n; .@i++)
+			.@cast$ += @cl_nm$[.@i] + ":" + @cl_cls[.@i] + ":" + readparam(Sex, @cl_cid[.@i]) + "|";
+		if (.@cast$ != @cl_cast$) {
+			@cl_cast$ = .@cast$;
+			dispbottom "@@event clcast " + .@cast$;
+		}
+	}
 	return;
 
 // Personality from the class family.
@@ -5215,4 +5504,28 @@ L_MapKind:
 	if (select("Sit a while longer:Put out the fire") == 2)
 		@cl_cout = 1;
 	close;
+}
+
+// Warp Portal (3.3.0): never placed itself: L_WarpOpen makes a copy next to you with
+// duplicate_dynamic (only you see it). The copy keeps this header's touch area: 0,0 =
+// its own cell, like the real skill. Clicking it is a "talk", which runs this script
+// from the top from anywhere on screen: then you're walked onto the cell instead
+// (3.3.3: before, a click warped you from where you stood), and the step takes you
+// through. The talk cursor over it is the client's for every NPC (roBrowser TYPE_NPC);
+// a mod can't change it. Companions are
+// players too, so they can touch it: only the one whose @cl_wp$ names this copy goes.
+// It never unloads itself (rAthena refuses a self-unload): the tick closes it.
+-	script	CpoWarpPortal	111,0,0,{
+OnTouch:
+	if (@cl_wp$ != strnpcinfo(3) || @cl_wpdm$ == "")
+		end;
+	getmapxy(.@pm$, .@px, .@py, BL_PC);
+	getmapxy(.@nm$, .@nx, .@ny, BL_NPC);
+	if (.@px != .@nx || .@py != .@ny) {
+		unitwalk getcharid(3), .@nx, .@ny;	// a click from afar: walk in
+		end;
+	}
+	@cl_wpend = 0;	// the tick closes it after you
+	warp @cl_wpdm$, @cl_wpdx, @cl_wpdy;
+	end;
 }

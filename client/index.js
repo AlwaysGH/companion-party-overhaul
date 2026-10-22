@@ -4,15 +4,19 @@
 //   resting, fallen or on another map, refreshed every second while open.
 //   Memories tab: how long you've been together, where you met, monsters and
 //   MVPs beaten together, places seen, falls.
-//   Bag tab: each companion's own bag as a grid of item icons, like the game's
-//   inventory: click a square for its details and Take, double-click to take it
-//   all back; drag from your inventory to give. A weight bar, and a Restock row:
-//   drag a shop item onto it and they keep that many, bought in town (3.1.0).
+//   Bag tab (3.5.0): one companion at a time, picked by its name tab, laid out like
+//   the game's Equip window: its gear round it and the companion drawn in the middle,
+//   then its bag as a grid of item icons. Hover a square for its details, double-click
+//   to take it (a stack asks how many); drag from your inventory to give. A weight bar,
+//   and a Restock row: drag a shop item onto it and they keep that many, bought in
+//   town (3.1.0).
 //   Loot tab (3.1.0): the party purse (take zeny out, put zeny in) and the party
 //   bag, what they find on party kills: click, then Take or Sell. Every 3 s while open.
 //   It asks @clstat (npc/companion_life.txt, OnCmdStat) for the first two and
 //   @clbag (OnCmdBag) for the bag and the loot.
 //   Drag the button to move it; it and the window remember where they were.
+//   3.2.0: companion portraits, in portraits.js (loaded on its own, so the
+//   window still works if it's missing).
 
 const BTN_STYLE = `
 .cb { position: fixed; z-index: 8999; font: bold 11px Tahoma, sans-serif; padding: 4px 9px;
@@ -140,6 +144,50 @@ const WIN_STYLE = `
 .cw button.act.sell { color: #7a5a0c; background: #fbf1d4; border-color: #d8c88e; }
 .cw button.act.sell:hover { background: #f6e6b8; }
 .cw * { scrollbar-width: thin; }
+/* 3.5.0: the Bag tab like the game's Equip window. A name tab per companion (one shown
+   at a time; past five they wrap), Outfit and Hair on one row, the gear round the
+   companion, then the bag and the restock row. */
+.party { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 5px; }
+.pk { font: bold 10px Tahoma, sans-serif; color: #4a5f80; background: #dde5f2; border: 1px solid #b9c7de;
+  border-radius: 9px; padding: 1px 7px; cursor: pointer; white-space: nowrap; }
+.pk:hover { border-color: #6d8fc2; }
+.pk.on { color: #fff; background: #3c6fc0; border-color: #3c6fc0; }
+.pk.over { box-shadow: 0 0 0 2px #9fbbe8; }
+.dyes.one { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
+.dyes.one .act { padding: 0 3px; font-size: 8px; line-height: 12px; }
+.dyes.one b { min-width: 26px; }
+.doll { display: grid; grid-template-columns: 30px 1fr 30px; gap: 4px; margin: 4px 0 2px; padding: 4px;
+  border: 1px solid #d6deeb; border-radius: 3px; background: linear-gradient(#ffffff, #eef2f8); }
+.doll .col { display: grid; gap: 3px; align-content: start; }
+.stg { display: flex; align-items: flex-end; justify-content: center; min-height: 150px; min-width: 0; }
+.stg canvas { width: 110px; height: 150px; image-rendering: pixelated; }
+.stg .fb { align-self: center; display: grid; justify-items: center; gap: 3px; color: #9aa7ba; font-size: 10px; text-align: center; }
+.stg .fb img { image-rendering: pixelated; }
+.sl.own { border-color: #b9c4d4; background: linear-gradient(#ffffff, #eef1f6); cursor: default; }
+.sl.ghost { opacity: .45; }
+.sl.nil .lb { font-size: 7px; color: #b0bccb; pointer-events: none; }
+.cost { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-top: 2px; }
+.cost .lb { font-size: 10px; font-weight: bold; color: #6a7a92; margin-right: 3px; }
+`;
+
+// 3.5.0: the Bag tab's hover details, drawn over the game (not inside the window, so
+// they can reach past its edge).
+const TIP_STYLE = `
+* { cursor: inherit !important; }
+.tip { position: fixed; z-index: 9050; max-width: 230px; padding: 5px 7px; font: 11px Tahoma, "Segoe UI", sans-serif;
+  color: #2b2b2b; background: #fdfdfe; border: 1px solid #8fa3bc; border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35); pointer-events: none; line-height: 1.35; }
+.tip[hidden] { display: none; }
+.hd { display: flex; gap: 5px; align-items: center; }
+.hd img { width: 24px; height: 24px; image-rendering: pixelated; flex: none; }
+.hd img:not([src]) { visibility: hidden; }
+.hd b { display: block; color: #1f3f73; }
+.hd span { font-size: 10px; color: #6a7a92; }
+.op { color: #b0650c; font-weight: bold; }
+.cd { color: #7a45c4; }
+.ds { margin-top: 3px; padding-top: 3px; border-top: 1px dotted #d6deeb; white-space: pre-line; color: #3b4658;
+  max-height: 150px; overflow: hidden; }
+.hint { margin-top: 3px; font-size: 10px; color: #3c6fc0; }
 `;
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -278,8 +326,10 @@ function parse(text) {
 }
 
 // @clbag list: P|purse|inventory on|zeny per level|in town, C|cid|name|job|
-// colours...|weight|max weight, R|cid|item id|keep|name,
-// I|cid|index|item id|amount|worn|refine|cards|options|bound|rental|name.
+// colours...|weight|max weight|class|sex|hair style|weapon|shield|head low|head top|
+// head mid|garment|mount bits (3.5.0: the look), R|cid|item id|keep|name,
+// I|cid|index|item id|amount|worn|refine|cards|options|bound|rental|own|name
+// (own, 3.5.0: its own starting gear, listed for the Equip layout, not takeable).
 function parseBag(text) {
     const bag = { purse: 0, inv: false, rate: 0, town: false, comps: [] };
     const byCid = {};
@@ -290,7 +340,10 @@ function parseBag(text) {
             byCid[f[1]] = { cid: f[1], name: f[2], job: f[3], items: [], restock: [],
                 cloth: +f[4] || 0, clothMin: +f[5] || 0, clothMax: +f[6] || 0,
                 hair: +f[7] || 0, hairMin: +f[8] || 0, hairMax: +f[9] || 0,
-                weight: +f[10] || 0, maxWeight: +f[11] || 0 };
+                weight: +f[10] || 0, maxWeight: +f[11] || 0,
+                look: f.length > 12 ? { job: +f[12] || 0, sex: +f[13] || 0, head: +f[14] || 0, headpalette: +f[7] || 0,
+                    bodypalette: +f[4] || 0, weapon: +f[15] || 0, shield: +f[16] || 0, accessory: +f[17] || 0,
+                    accessory2: +f[18] || 0, accessory3: +f[19] || 0, robe: +f[20] || 0, effectState: +f[21] || 0 } : null };
             bag.comps.push(byCid[f[1]]);
         }
         else if (f[0] === 'R' && byCid[f[1]]) {
@@ -300,7 +353,9 @@ function parseBag(text) {
             byCid[f[1]].items.push({ idx: f[2], id: +f[3] || 0, amount: +f[4] || 0, worn: +f[5] || 0,
                 refine: +f[6] || 0, cardIds: (f[7] || '').split(',').map(Number).filter(Boolean),
                 opts: (f[8] || '').split(',').filter(Boolean).map(o => o.split(':').map(Number)),
-                bound: f[9] === '1', rental: f[10] === '1', name: f.slice(11).join('|') });
+                // Before 3.5.0 the server sent no own field (its own gear wasn't listed).
+                ...(byCid[f[1]].look ? { own: f[11] === '1', name: f.slice(12).join('|') } : { own: false, name: f.slice(11).join('|') }),
+                bound: f[9] === '1', rental: f[10] === '1' });
         }
     }
     return bag;
@@ -338,6 +393,8 @@ export default function init(parameters, api) {
     if (api?.version !== 1) throw new Error('This mod requires client API 1');
     if (typeof api.ui?.window !== 'function' || typeof api.server?.request !== 'function') return;
     const showButton = parameters?.window_button !== false && parameters?.window_button !== 0;
+    import('./portraits.js').then(m => m.default(parameters, api))
+        .catch(e => console.error('[companion-party-overhaul] portraits:', e));
 
     let win = null, body = null, tab = 'status', list = [], timer = null, busy = false;
     let bag = null, bagAt = 0, bagMsg = null;   // the Bag tab: last answer, when, last action's result
@@ -449,128 +506,208 @@ export default function init(parameters, api) {
         return out.join('');
     }
 
+    // 3.5.0: the Bag tab, one companion at a time (a name tab each; past five they
+    // wrap), laid out like the game's Equip window: its gear round it, the companion
+    // in the middle (drawn by the game, api.screens.stage), then the bag and the
+    // restock row. Hover a square for its details (showTip); a click takes it.
+    // Equip window order: left top / mid / weapon / garment / accessory, right lower /
+    // armour / shield / shoes / accessory (EQP_* bits; EQP_ACC_L 128, EQP_ACC_R 8).
+    const DOLL_L = [[0x100, 'top'], [0x200, 'mid'], [0x002, 'weapon'], [0x004, 'robe'], [0x080, 'acc']];
+    const DOLL_R = [[0x001, 'lower'], [0x010, 'armor'], [0x020, 'shield'], [0x040, 'shoes'], [0x008, 'acc']];
+    const DOLL_ORDER = [...DOLL_L, ...DOLL_R].map(([bit]) => bit);
+    const COSTUME = 0x3C00;
+    // The companion picked in the Bag tab (its char id); the first one when it's gone.
+    let pickCid = null;
+    const picked = () => bag?.comps.find(x => x.cid === pickCid) || bag?.comps[0] || null;
+    const itemKey = (c, it) => `${c.cid}:${it.own ? 'o' + it.idx : it.worn && it.worn !== AMMO ? 'w' + it.worn : it.idx}`;
+    const findByKey = key => {
+        if (!bag || !key || key.startsWith('loot:')) return null;
+        const cut = key.indexOf(':'), c = bag.comps.find(x => x.cid === key.slice(0, cut));
+        const it = c?.items.find(x => itemKey(c, x) === key);
+        return it ? { c, it } : null;
+    };
+
     function renderBag() {
         if (!bag) return '<div class="empty">Looking in the bags...</div>';
         const out = [];
         if (bagMsg) out.push(msgLine());
-        // 3.1.0: the purse moved to the Loot tab; the "drag in / double-click" hint is gone.
         if (!bag.inv) {
             out.push('<div class="note">Companion inventory is off (Settings &gt; Population), so their potions and arrows are free and refill by themselves. '
                 + 'Turn it on to have them carry only what you give them; then you can take things back here.</div>');
         }
-        if (!bag.comps.length) out.push('<div class="empty">No companions in your party.</div>');
-        const label = it => (it.refine ? `+${it.refine} ` : '') + it.name;
-        // One line under the name: what it is and what's special about it.
-        const facts = it => [
-            it.worn && it.worn !== AMMO ? slotName(it.worn) : it.worn ? 'In use (arrows)' : '',
-            it.amount > 1 ? `x${num(it.amount)}` : '',
-            it.bound ? 'bound' : '', it.rental ? 'rental' : ''
-        ].filter(Boolean).join(' · ');
-        const cardName = id => api.items?.get?.(id)?.name || `Card #${id}`;
-        // How many: a plain box between - and + (no tiny spinner), All, and the
-        // button says the number it will move.
-        const amountRow = (n, max, go, word) => `<div class="cnt">`
-            + `<button class="act st" data-act="step" data-d="-1" title="One less">&minus;</button>`
-            + `<input type="number" min="1" max="${max}" value="${n}" data-n>`
-            + `<button class="act st" data-act="step" data-d="1" title="One more">+</button>`
-            + `<button class="act st" data-act="step" data-d="all" title="All ${num(max)}">All</button>`
-            + `<button class="act go" ${go}>${word} <b>${num(n)}</b></button></div>`;
-        const slot = (c, it, key, cls) => {
+        if (!bag.comps.length) { out.push('<div class="empty">No companions in your party.</div>'); return out.join(''); }
+        const c = picked();
+        pickCid = c.cid;
+        // The name tabs: a drop on one gives to that companion too.
+        out.push('<div class="party">' + bag.comps.map(x =>
+            `<span class="pk${x.cid === c.cid ? ' on' : ''}" data-cid="${esc(x.cid)}">${esc(x.name)}</span>`).join('') + '</div>');
+        const square = (it, cls = '') => {
             const pips = (it.cardIds.length ? '<i class="pc"></i>' : '') + (it.opts.length ? '<i class="po"></i>' : '') + (it.bound || it.rental ? '<i class="pb"></i>' : '');
-            const tip = [label(it), facts(it), ...it.opts.map(optText), ...it.cardIds.map(cardName)].filter(Boolean).join('\n');
             const src = iconUrl.get(it.id);
-            return `<div class="sl ${cls}${sel === key ? ' on' : ''}" data-sel="${esc(key)}" draggable="true" title="${esc(tip)}">`
+            return `<div class="sl ${cls}${it.own ? ' own' : ''}" data-sel="${esc(itemKey(c, it))}"${it.own ? '' : ' draggable="true"'}>`
                 + `<img data-icon="${it.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
                 + (it.refine ? `<span class="r">+${it.refine}</span>` : '')
                 + (it.amount > 1 ? `<span class="q">${it.amount > 9999 ? '9k+' : it.amount}</span>` : '')
                 + (pips ? `<span class="pips">${pips}</span>` : '') + '</div>';
         };
-        for (const c of bag.comps) {
-            // Wearing: only gear you gave (the server leaves out its own).
-            const wornIt = c.items.filter(it => it.worn && it.worn !== AMMO);
-            const bagIt = c.items.filter(it => !it.worn || it.worn === AMMO);
-            const worn = wornIt.map(it => slot(c, it, `${c.cid}:w${it.worn}`, 'worn')).join('');
-            let cells = bagIt.map(it => slot(c, it, `${c.cid}:${it.idx}`, it.worn ? 'use' : '')).join('');
-            // Empty squares, like the game's inventory, to fill the first rows.
-            if (bag.inv) cells += '<div class="sl nil"></div>'.repeat(Math.max(0, 8 - bagIt.length));
-            const rows = cells ? `<div class="grid">${cells}</div>` : '<div class="am">Empty.</div>';
-            // The picked item, with its buttons.
-            let det = '';
-            const pick = sel && sel.startsWith(c.cid + ':') ? sel.slice(c.cid.length + 1) : null;
-            const it = pick === null ? null : pick[0] === 'w' ? wornIt.find(x => 'w' + x.worn === pick) : bagIt.find(x => x.idx === pick);
-            if (it) {
-                let acts = '', row = '';
-                if (it.worn && it.worn !== AMMO) {
-                    const tip = it.worn & 0x3C00 ? 'Hands back every costume piece you gave' : 'Back to you; it puts its own piece back on';
-                    acts = `<button class="act" data-act="gearback" data-cid="${esc(c.cid)}" data-eq="${it.worn}" title="${tip}">Take back</button>`;
-                } else if (it.worn) {
-                    acts = '<span class="am">in use</span>';
-                } else if (bag.inv && it.amount > 1) {
-                    const n = takeN.key === sel && takeN.n > 0 ? Math.min(takeN.n, it.amount) : it.amount;
-                    row = amountRow(n, it.amount, `data-act="take" data-cid="${esc(c.cid)}" data-idx="${esc(it.idx)}" data-amt="box"`, 'Take');
-                } else if (bag.inv) {
-                    acts = `<button class="act" data-act="take" data-cid="${esc(c.cid)}" data-idx="${esc(it.idx)}" data-amt="1">Take</button>`;
-                }
-                const src = iconUrl.get(it.id);
-                // Below the name: its random options, its cards, then the game's own
-                // description (the same text as in your inventory).
-                const desc = String(api.items?.get?.(it.id)?.description || '').trim();
-                const more = it.opts.map(o => `<div class="op">${esc(optText(o))}</div>`).join('')
-                    + it.cardIds.map(id => `<div class="cd">${esc(cardName(id))}</div>`).join('')
-                    + (desc ? `<div class="ds">${esc(desc)}</div>` : '');
-                det = `<div class="det"><div class="hd"><img data-icon="${it.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
-                    + `<div class="tx"><b title="${esc(label(it))}">${esc(label(it))}</b><span>${esc(facts(it))}</span></div>${acts}</div>`
-                    + row + (more ? `<div class="more">${more}</div>` : '') + '</div>';
-            }
-            // Outfit and hair colour: the arrows wrap around the class's own range.
-            const dye = (kind, label, v, lo, hi) => {
-                if (hi <= lo) return '';
-                const prev = v <= lo ? hi : v - 1, next = v >= hi ? lo : v + 1;
-                return `<span class="dy"><span class="am">${label}</span>`
-                    + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${prev}" title="Previous colour">&#9664;</button>`
-                    + `<b>${v - lo + 1} / ${hi - lo + 1}</b>`
-                    + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${next}" title="Next colour">&#9654;</button></span>`;
-            };
-            const dyes = dye('cloth', 'Outfit', c.cloth, c.clothMin, c.clothMax) + dye('hair', 'Hair', c.hair, c.hairMin, c.hairMax);
-            // A stack dropped here, waiting for "how many".
-            if (giving && giving.cid === c.cid) {
-                const src = iconUrl.get(giving.id);
-                det += `<div class="det give"><div class="hd"><img data-icon="${giving.id}"${src ? ` src="${esc(src)}"` : ''} alt="">`
-                    + `<div class="tx"><b>${esc(giving.name)}</b><span>Give how many to <b style="display:inline">${esc(c.name)}</b>? You have ${num(giving.max)}.</span></div>`
-                    + `<button class="act" data-act="nogive" title="Cancel">&#10005;</button></div>`
-                    + amountRow(giving.n, giving.max, 'data-act="give"', 'Give') + '</div>';
-            }
-            // Weight, in the game's units (the server counts tenths). From half, RO
-            // stops natural HP/SP regen; from 90% no attacking or skills.
-            let wt = '';
-            if (c.maxWeight > 0) {
-                const p = pct(c.weight, c.maxWeight);
-                const cls = p >= 90 ? 'hi' : p >= 50 ? 'mid' : '';
-                const tip = `Weight ${num(Math.floor(c.weight / 10))} / ${num(Math.floor(c.maxWeight / 10))} (${p}%)`
-                    + (p >= 90 ? '\nOver 90%: can\'t attack or use skills.' : p >= 50 ? '\nOver 50%: no natural HP/SP regen.' : '');
-                wt = `<span class="wt" title="${esc(tip)}"><i class="${cls}" style="width:${p}%"></i></span>`
-                    + `<span class="wn${cls === 'hi' ? ' hi' : ''}" title="${esc(tip)}">${num(Math.floor(c.weight / 10))}/${num(Math.floor(c.maxWeight / 10))}</span>`;
-            }
-            // Restock: what it keeps, bought in town; drop a shop item here to add it.
-            let rs = '';
-            if (bag.inv) {
-                const have = id => c.items.reduce((n, x) => n + (x.id === id ? x.amount : 0), 0);
-                const chips = c.restock.map(r => {
-                    const h = have(r.id), src = iconUrl.get(r.id);
-                    return `<span class="chip${h < r.keep ? ' low' : ''}" data-act="rsedit" data-cid="${esc(c.cid)}" data-id="${r.id}" data-keep="${r.keep}" `
-                        + `title="${esc(r.name)}: has ${num(h)}, keeps ${num(r.keep)}. Click to change.">`
-                        + `<img data-icon="${r.id}"${src ? ` src="${esc(src)}"` : ''} alt=""><b>${num(h)}/${num(r.keep)}</b>`
-                        + `<span class="x" data-act="rsdel" title="Take it off the list">&#10005;</span></span>`;
-                }).join('');
-                rs = `<div class="rs" data-cid="${esc(c.cid)}" title="Bought from the party purse whenever you reach a town">`
-                    + `<span class="lb">Restock</span>${chips || '<span class="hint">drag potions, gems, arrows here</span>'}</div>`;
-            }
-            out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span>${wt}</div>`
-                + (dyes ? `<div class="dyes">${dyes}</div>` : '')
-                + (worn ? `<div class="sub">Equipped</div><div class="grid">${worn}</div>` : '')
-                + `<div class="sub">Bag</div>${rows}${det}${rs}</div>`);
+        // Worn gear by slot. A piece over two or three slots (a two-handed weapon, a
+        // full helm) shows in each, faded where it isn't its first slot.
+        const wornIt = c.items.filter(it => it.worn && it.worn !== AMMO && !(it.worn & COSTUME) && it.worn < 0x10000);
+        const slotFor = ([bit, name]) => {
+            const it = wornIt.find(x => x.worn & bit);
+            if (!it) return `<div class="sl nil" title="${name}"><span class="lb">${name}</span></div>`;
+            const first = DOLL_ORDER.find(b => it.worn & b) === bit;
+            return square(it, 'worn' + (first ? '' : ' ghost'));
+        };
+        const costumes = c.items.filter(it => it.worn && (it.worn & COSTUME));
+        const bagIt = c.items.filter(it => !it.worn || it.worn === AMMO);
+        let cells = bagIt.map(it => square(it, it.worn ? 'use' : '')).join('');
+        if (bag.inv) cells += '<div class="sl nil"></div>'.repeat(Math.max(0, 8 - bagIt.length));
+        const rows = cells ? `<div class="grid">${cells}</div>` : '<div class="am">Empty.</div>';
+        // Outfit and hair colour on one row; the arrows wrap round the class's range.
+        const dye = (kind, label, v, lo, hi) => {
+            if (hi <= lo) return '';
+            const prev = v <= lo ? hi : v - 1, next = v >= hi ? lo : v + 1;
+            return `<span class="dy"><span class="am">${label}</span>`
+                + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${prev}" title="Previous colour">&#9664;</button>`
+                + `<b>${v - lo + 1}/${hi - lo + 1}</b>`
+                + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${next}" title="Next colour">&#9654;</button></span>`;
+        };
+        const dyes = dye('cloth', 'Outfit', c.cloth, c.clothMin, c.clothMax) + dye('hair', 'Hair', c.hair, c.hairMin, c.hairMax);
+        // Weight, in the game's units (the server counts tenths). From half, RO stops
+        // natural HP/SP regen; from 90% no attacking or skills.
+        let wt = '';
+        if (c.maxWeight > 0) {
+            const p = pct(c.weight, c.maxWeight);
+            const cls = p >= 90 ? 'hi' : p >= 50 ? 'mid' : '';
+            const tip = `Weight ${num(Math.floor(c.weight / 10))} / ${num(Math.floor(c.maxWeight / 10))} (${p}%)`
+                + (p >= 90 ? '\nOver 90%: can\'t attack or use skills.' : p >= 50 ? '\nOver 50%: no natural HP/SP regen.' : '');
+            wt = `<span class="wt" title="${esc(tip)}"><i class="${cls}" style="width:${p}%"></i></span>`
+                + `<span class="wn${cls === 'hi' ? ' hi' : ''}" title="${esc(tip)}">${num(Math.floor(c.weight / 10))}/${num(Math.floor(c.maxWeight / 10))}</span>`;
         }
+        // Restock: what it keeps, bought in town; drop a shop item here to add it.
+        let rs = '';
+        if (bag.inv) {
+            const have = id => c.items.reduce((n, x) => n + (x.id === id && !x.worn ? x.amount : 0), 0);
+            const chips = c.restock.map(r => {
+                const h = have(r.id), src = iconUrl.get(r.id);
+                return `<span class="chip${h < r.keep ? ' low' : ''}" data-act="rsedit" data-cid="${esc(c.cid)}" data-id="${r.id}" data-keep="${r.keep}" `
+                    + `title="${esc(r.name)}: has ${num(h)}, keeps ${num(r.keep)}. Click to change.">`
+                    + `<img data-icon="${r.id}"${src ? ` src="${esc(src)}"` : ''} alt=""><b>${num(h)}/${num(r.keep)}</b>`
+                    + `<span class="x" data-act="rsdel" title="Take it off the list">&#10005;</span></span>`;
+            }).join('');
+            rs = `<div class="rs" data-cid="${esc(c.cid)}" title="Bought from the party purse whenever you reach a town">`
+                + `<span class="lb">Restock</span>${chips || '<span class="hint">drag potions, gems, arrows here</span>'}</div>`;
+        }
+        out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span>${wt}</div>`
+            + (dyes ? `<div class="dyes one">${dyes}</div>` : '')
+            + `<div class="doll"><div class="col">${DOLL_L.map(slotFor).join('')}</div>`
+            + `<div class="stg" data-stage></div>`
+            + `<div class="col">${DOLL_R.map(slotFor).join('')}</div></div>`
+            + (costumes.length ? `<div class="cost"><span class="lb">Costume</span>${costumes.map(it => square(it, 'worn')).join('')}</div>` : '')
+            + `<div class="sub">Bag</div>${rows}${rs}</div>`);
         return out.join('');
+    }
+
+    // The companion in the middle: the game draws it from its look, on one canvas kept
+    // for the window (the tab is redrawn every few seconds; the canvas just moves into
+    // the new layout). If this client can't draw it, its class icon stands there.
+    const stageCanvas = document.createElement('canvas');
+    stageCanvas.width = 110;
+    stageCanvas.height = 150;
+    let stage = null, actor = null, stageLook = '', stageFailed = false;
+    function dropStage() {
+        try { stage?.dispose(); } catch { /* fine */ }
+        stage = null; actor = null; stageLook = '';
+    }
+    api.cleanup(dropStage);
+    function mountStage(pane) {
+        const spot = pane.querySelector('[data-stage]');
+        const c = picked();
+        if (!spot || !c) return;
+        if (!stageFailed && c.look && typeof api.screens?.stage === 'function') {
+            try {
+                const key = JSON.stringify(c.look);
+                if (!stage) stage = api.screens.stage(stageCanvas, { scale: 1 });
+                // A fresh one for every new look: set() on the old one kept headgear the
+                // new look doesn't have (0 doesn't clear a loaded sprite in the client's
+                // entity), so Serawen wore Talimel's hat after switching tabs.
+                if (!actor || key !== stageLook) {
+                    stage.clear();
+                    actor = stage.add(c.look, { x: 0.5, y: 0.92, direction: 0, shadow: true });
+                }
+                stageLook = key;
+                spot.appendChild(stageCanvas);
+                return;
+            } catch (e) {
+                stageFailed = true;
+                dropStage();
+                console.error('[companion-party-overhaul] the companion can\'t be drawn here:', e);
+            }
+        }
+        const job = c.look?.job;
+        spot.innerHTML = `<div class="fb"><img alt="" data-jobicon="${job || ''}"><span>${esc(c.job)}</span></div>`;
+        if (job && typeof api.screens?.image === 'function') {
+            Promise.resolve(api.screens.image(`renewalparty/icon_jobs_${job}.bmp`)).then(url => {
+                const img = spot.querySelector('img[data-jobicon]');
+                if (url && img) img.src = url;
+            }).catch(() => {});
+        }
+    }
+
+    // Hover details for the Bag tab's squares: name, refine, slot or amount, random
+    // options (orange), cards (purple), the game's own description, and what a click does.
+    const tipHost = document.createElement('div');
+    const tipRoot = tipHost.attachShadow({ mode: 'open' });
+    tipRoot.innerHTML = `<style>${TIP_STYLE}</style><div class="tip" hidden></div>`;
+    const tipBox = tipRoot.querySelector('.tip');
+    document.body.appendChild(tipHost);
+    api.cleanup(() => tipHost.remove());
+    let tipKey = null, tipAt = { x: 0, y: 0 };
+    function hideTip() { tipKey = null; tipBox.hidden = true; }
+    function tipHtml(key) {
+        const hit = findByKey(key);
+        if (!hit) return '';
+        const { c, it } = hit;
+        const name = (it.refine ? `+${it.refine} ` : '') + it.name;
+        const facts = [
+            it.worn && it.worn !== AMMO ? slotName(it.worn) : it.worn ? 'In use (arrows)' : '',
+            it.amount > 1 ? `x${num(it.amount)}` : '',
+            it.own ? `${c.name}'s own` : '', it.bound ? 'bound' : '', it.rental ? 'rental' : ''
+        ].filter(Boolean).join(' · ');
+        const cardName = id => api.items?.get?.(id)?.name || `Card #${id}`;
+        const desc = String(api.items?.get?.(it.id)?.description || '').trim();
+        const hint = it.own ? 'Their own gear: it stays on.'
+            : it.worn && it.worn !== AMMO ? 'Double-click to take it back.'
+            : it.worn ? 'In use: they come off with the gear they\'re for.'
+            : !bag.inv ? ''
+            : it.amount > 1 ? 'Double-click to take some (asks how many), or drag it onto your inventory.'
+            : 'Double-click to take it, or drag it onto your inventory.';
+        const src = iconUrl.get(it.id);
+        return `<div class="hd"><img${src ? ` src="${esc(src)}"` : ''} alt=""><div><b>${esc(name)}</b><span>${esc(facts)}</span></div></div>`
+            + it.opts.map(o => `<div class="op">${esc(optText(o))}</div>`).join('')
+            + it.cardIds.map(id => `<div class="cd">${esc(cardName(id))}</div>`).join('')
+            + (desc ? `<div class="ds">${esc(desc)}</div>` : '')
+            + (hint ? `<div class="hint">${hint}</div>` : '');
+    }
+    function placeTip() {
+        const w = tipBox.offsetWidth, h = tipBox.offsetHeight;
+        let x = tipAt.x + 14, y = tipAt.y + 16;
+        if (x + w > innerWidth - 4) x = Math.max(4, tipAt.x - 14 - w);
+        if (y + h > innerHeight - 4) y = Math.max(4, innerHeight - 4 - h);
+        tipBox.style.left = x + 'px';
+        tipBox.style.top = y + 'px';
+    }
+    function showTip(key, x, y) {
+        tipAt = { x, y };
+        if (key !== tipKey) {
+            const html = tipHtml(key);
+            if (!html) { hideTip(); return; }
+            tipKey = key;
+            tipBox.innerHTML = html;
+            tipBox.hidden = false;
+        }
+        placeTip();
     }
 
     function render() {
@@ -591,6 +728,13 @@ export default function init(parameters, api) {
             msgTimer = { msg: shown, id: setTimeout(() => { if (bagMsg === shown) { bagMsg = null; render(); } }, shown.ok ? 4000 : 8000) };
         }
         if (tab === 'bag' || tab === 'loot') fillIcons(pane);
+        // 3.5.0: the companion in the middle, and hover details kept up to date (or
+        // gone with the square).
+        if (tab === 'bag') mountStage(pane);
+        if (tipKey) {
+            if (tab !== 'bag' || !pane.querySelector(`.sl[data-sel="${CSS.escape(tipKey)}"]`)) hideTip();
+            else { const k = tipKey; tipKey = null; showTip(k, tipAt.x, tipAt.y); }
+        }
         if (button) button.classList.toggle('hurt', list.some(c => c.state === 'dead' || (c.mhp && c.hp * 100 / c.mhp < 30)));
     }
 
@@ -655,6 +799,7 @@ export default function init(parameters, api) {
         const cut = key.indexOf(':'), cid = key.slice(0, cut), k = key.slice(cut + 1);
         const c = bag.comps.find(x => x.cid === cid);
         if (!c) return;
+        if (k[0] === 'o') { bagMsg = { ok: false, text: `That's ${c.name}'s own gear. It stays on.` }; render(); return; }
         if (k[0] === 'w') { bagAction(`gearback ${cid} ${k.slice(1)}`); return; }
         const it = c.items.find(x => x.idx === k);
         if (!it || !bag.inv) return;
@@ -845,11 +990,27 @@ export default function init(parameters, api) {
                     .then(n => { if (n > 0) bagAction(`rsset ${cid} ${id} ${n}`); });
                 return;
             }
-            // A square: pick it, and its details show below the bag. A second click
-            // on it soon after takes it all back, like using an item in the game's
-            // inventory. (Counted here: the window redraws between the two clicks,
-            // so the browser's own dblclick can miss.)
+            // 3.5.0: a companion's name tab in the Bag tab.
+            const pk = event.target.closest('.pk[data-cid]');
+            if (pk) { pickCid = pk.dataset.cid; hideTip(); bagMsg = null; render(); return; }
+            // A square in the Bag tab: a double-click takes it (worn gear back, a stack
+            // after "how many"), as in the game's inventory; its details are on hover.
+            // 3.5.2: was a single click. Counted here: the window redraws between the
+            // two clicks, so the browser's own dblclick can miss.
             const s = event.target.closest('.sl[data-sel]');
+            if (s && tab === 'bag') {
+                const key = s.dataset.sel, now = Date.now();
+                if (lastClick.key === key && now - lastClick.at < 400) {
+                    lastClick = { key: null, at: 0 };
+                    hideTip();
+                    takeOut(key);
+                } else lastClick = { key, at: now };
+                return;
+            }
+            // A Loot square: pick it, and its details show below. A second click on it
+            // soon after takes it all, like using an item in the game's inventory.
+            // (Counted here: the window redraws between the two clicks, so the
+            // browser's own dblclick can miss.)
             if (s) {
                 const key = s.dataset.sel, now = Date.now();
                 if (lastClick.key === key && now - lastClick.at < 400) {
@@ -866,6 +1027,8 @@ export default function init(parameters, api) {
             const t = event.target.closest('button[data-tab]');
             if (!t) return;
             tab = t.dataset.tab;
+            hideTip();
+            if (tab !== 'bag') dropStage();
             bagMsg = null;
             giving = null;
             bagAt = 0;
@@ -883,7 +1046,9 @@ export default function init(parameters, api) {
             return d && d.type === 'item' && d.from === 'Inventory' && d.data ? d.data : null;
         };
         // 3.1.0: the Restock row inside a card is its own drop zone (add to the list).
-        const card = event => (tab === 'bag' && bag?.inv ? event.target.closest?.('.rs[data-cid]') || event.target.closest?.('.bag[data-cid]') : null);
+        // 3.5.0: a companion's name tab is a drop zone too (give to that one).
+        const card = event => (tab === 'bag' && bag?.inv ? event.target.closest?.('.rs[data-cid]') || event.target.closest?.('.pk[data-cid]')
+            || event.target.closest?.('.bag[data-cid]') : null);
         let overCard = null;
         const unmark = () => { overCard?.classList.remove('over'); overCard = null; };
         body.addEventListener('dragover', event => {
@@ -934,7 +1099,15 @@ export default function init(parameters, api) {
         // is ours before the game's own handlers (storage, cart, ground) see it.
         let outDrag = null;
         const overInv = event => event.composedPath().some(el => typeof el.id === 'string' && /^Inventory/.test(el.id));
+        // 3.5.0: hover details on the Bag tab's squares.
+        body.addEventListener('mousemove', event => {
+            const s = tab === 'bag' ? event.target.closest?.('.sl[data-sel]') : null;
+            if (s) showTip(s.dataset.sel, event.clientX, event.clientY);
+            else if (tipKey) hideTip();
+        });
+        body.addEventListener('mouseleave', hideTip);
         body.addEventListener('dragstart', event => {
+            hideTip();
             const s = event.target.closest?.('.sl[data-sel]');
             if (!s || (tab !== 'bag' && tab !== 'loot')) return;
             outDrag = s.dataset.sel;
@@ -977,7 +1150,7 @@ export default function init(parameters, api) {
             const v = Math.floor(Number(box.value));
             if (v > 0) setAmount(box, Math.min(v, Number(box.max) || 1), false);
         });
-        win.onClose?.(() => { stopTimer(); try { api.preferences.set('open', false); } catch { /* fine */ } });
+        win.onClose?.(() => { stopTimer(); hideTip(); dropStage(); try { api.preferences.set('open', false); } catch { /* fine */ } });
         return win;
     }
 
@@ -990,7 +1163,7 @@ export default function init(parameters, api) {
         try { api.preferences.set('open', true); } catch { /* fine */ }
     }
     function toggle() {
-        if (win?.isOpen()) { win.hide(); stopTimer(); try { api.preferences.set('open', false); } catch { /* fine */ } }
+        if (win?.isOpen()) { win.hide(); stopTimer(); hideTip(); dropStage(); try { api.preferences.set('open', false); } catch { /* fine */ } }
         else open();
     }
 
@@ -1094,6 +1267,9 @@ export default function init(parameters, api) {
     const CAMP_ON = ['make camp', 'campfire', 'camp fire', 'set up camp', "let's rest", 'lets rest', "let's camp", 'lets camp'];
     const CAMP_OFF = ['time to go', "let's go", 'lets go', 'put out the fire', 'pack up', 'break camp'];
     const CAMP_YES = /^(yes|yeah|yep|yup|sure|ok|okay|do it|light it|please|yes please|sure thing|go ahead)[.! ]*$/;
+    // 3.3.0: Warp Portal. The server picks the way: out hunting → your save point,
+    // in town → back to the spot you left from.
+    const WARP = ['take us back', 'warp us back', 'take us home', 'warp us home', 'open a portal', 'portal us'];
     // 3.0.1: companions' lines in their own colour (setting chat_colour, 0 = white as
     // before), everyday talk (public chat) and battle callouts (party chat) alike. The
     // server sends their names as "@@event clnames A|B|" whenever they change. The words
@@ -1107,7 +1283,10 @@ export default function init(parameters, api) {
     const colourLine = div => {
         if (!chatColour || !compNames.length) return;
         const text = div.textContent || '';
-        if (compNames.some(n => text.startsWith(n + ' : '))) div.style.color = chatColour;
+        if (!compNames.some(n => text.startsWith(n + ' : '))) return;
+        // Party chat is drawn in rgb(230, 215, 200); remember it for the portraits (3.2.0).
+        if (div.style.color.replace(/\s/g, '') === 'rgb(230,215,200)') div.dataset.cpoParty = '1';
+        div.style.color = chatColour;
     };
 
     if ((chatOrders || chatColour) && typeof MutationObserver === 'function') {
@@ -1128,10 +1307,12 @@ export default function init(parameters, api) {
             const camp = CAMP_ON.some(w => said.includes(w)) ? 'on'
                 : CAMP_OFF.some(w => said.includes(w)) ? 'off'
                 : CAMP_YES.test(said) ? 'yes' : '';
-            const on = ROAM_ON.some(w => said.includes(w));
-            const off = !on && ROAM_OFF.some(w => said.includes(w));
-            if (!on && !off && !camp) return;
+            const warp = WARP.some(w => said.includes(w));
+            const on = !warp && ROAM_ON.some(w => said.includes(w));
+            const off = !warp && !on && ROAM_OFF.some(w => said.includes(w));
+            if (!on && !off && !camp && !warp) return;
             seen.set(said, now);
+            if (warp) Promise.resolve(api.server.request('clwarp', 'go', { timeout: 4000 })).catch(() => {});
             if (camp) Promise.resolve(api.server.request('clcamp', camp, { timeout: 4000 })).catch(() => {});
             if (on || off) Promise.resolve(api.server.request('clroam', `${on ? 'on' : 'off'} ${said}`, { timeout: 4000 })).catch(() => {});
         };
