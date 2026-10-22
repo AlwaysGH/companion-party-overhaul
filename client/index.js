@@ -2,8 +2,11 @@
 //   Alt+N (Alt+N is the game's Achievements), or a click on the small "Companions" button, opens it.
 //   Status tab: each companion's HP and SP, level and job, and whether it is
 //   resting, fallen or on another map, refreshed every second while open.
-//   Memories tab: how long you've been together, where you met, monsters and
-//   MVPs beaten together, places seen, falls.
+//   Orders tab (3.7.0): the party-chat orders as buttons: stance (Engage / Protect /
+//   Hold), focus on your target, roam (and as a group or alone), camp, Warp Portal,
+//   item appraisal; greyed out with the reason when nobody can. Asks @clorder state.
+//   Bonds tab (3.7.0, was Memories): each companion's bond tier, the perks it brings,
+//   and a few highlights of your time together.
 //   Bag tab (3.5.0): one companion at a time, picked by its name tab, laid out like
 //   the game's Equip window: its gear round it and the companion drawn in the middle,
 //   then its bag as a grid of item icons. Hover a square for its details, double-click
@@ -144,6 +147,30 @@ const WIN_STYLE = `
 .cw button.act.sell { color: #7a5a0c; background: #fbf1d4; border-color: #d8c88e; }
 .cw button.act.sell:hover { background: #f6e6b8; }
 .cw * { scrollbar-width: thin; }
+/* 3.7.0: Orders tab: a box per kind of order, buttons sharing the width. */
+.og { padding: 5px 6px 6px; border: 1px solid #d6deeb; border-radius: 3px; background: #fff; margin-bottom: 5px; }
+.og h4 { margin: 0 0 4px; font: bold 11px Tahoma, sans-serif; color: #1f3f73; display: flex; align-items: baseline; gap: 6px; }
+.og h4 small { font-weight: normal; color: #6a7a92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob { display: flex; gap: 4px; }
+.ob + .ob { margin-top: 4px; }
+.cw button.ord { flex: 1 1 0; min-width: 0; font: bold 11px Tahoma, sans-serif; color: #1f3f73; background: linear-gradient(#f4f7fd, #dde6f4);
+  border: 1px solid #9fb0c8; border-radius: 3px; padding: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw button.ord:hover { border-color: #3c6fc0; }
+.cw button.ord.on { color: #fff; background: #3c6fc0; border-color: #3c6fc0; }
+.cw button.ord:disabled { color: #9aa7ba; background: #eef1f6; border-color: #d6deeb; cursor: default; }
+.why { margin-top: 3px; font-size: 10px; color: #8a6a12; }
+.why.ok { color: #2e7d46; }
+/* Bonds tab. */
+.bd { padding: 5px 7px 6px; border: 1px solid #d6deeb; border-radius: 3px; background: #fff; margin-bottom: 5px; line-height: 1.45; }
+.bd .top { margin-bottom: 2px; }
+.tier { font-size: 10px; padding: 0 6px; border-radius: 7px; color: #fff; white-space: nowrap; }
+.tier.t1 { background: #9aa3ad; } .tier.t2 { background: #5aa36b; } .tier.t3 { background: #3c8fc0; } .tier.t4 { background: #8e5bd6; } .tier.t5 { background: #d0892a; }
+.bar.bond { height: 10px; }
+.bar.bond i { background: linear-gradient(#ffd98a, #e0a12e); }
+.perk { font-size: 10px; color: #2e7d46; }
+.perk.next { color: #6a7a92; }
+.hl { margin-top: 2px; font-size: 10px; color: #6a7a92; }
+.hl b { color: #1f3f73; font-weight: normal; }
 /* 3.5.0: the Bag tab like the game's Equip window. A name tab per companion (one shown
    at a time; past five they wrap), Outfit and Hair on one row, the gear round the
    companion, then the bag and the restock row. */
@@ -319,11 +346,30 @@ function parse(text) {
             state: f[8] || 'off', map: f[9] || '',
             days: +f[10] || 0, kills: +f[11] || 0, mvps: +f[12] || 0, fell: +f[13] || 0,
             places: +f[14] || 0, metMap: f[15] || '', metLv: +f[16] || 0, firstMvp: f[17] || '', sawFall: +f[18] || 0,
-            closest: f[19] || ''
+            closest: f[19] || '',
+            // 3.7.0, Bonds: points, tier 1-5, campfire nights, gifts
+            pts: +f[20] || 0, tier: +f[21] || 1, camps: +f[22] || 0, gifts: +f[23] || 0
         });
     }
     return out;
 }
+
+// @clorder state (3.7.0): OK|companions here|portal caster|why no portal|portal home|
+// appraiser|why no appraisal|unidentified|camp lit|roamers|roam alone|roaming on|campfire on
+function parseOrders(text) {
+    const f = String(text || '').split('|');
+    if (f[0] !== 'OK') return null;
+    return { alive: +f[1] || 0, caster: f[2] || '', warpWhy: f[3] || '', home: f[4] === '1', appraiser: f[5] || '',
+        appWhy: f[6] || '', unid: +f[7] || 0, camp: f[8] === '1', roamers: +f[9] || 0, alone: f[10] === '1',
+        roamOn: f[11] === '1', campOn: f[12] === '1' };
+}
+
+// Bond tiers (3.7.0), as the server's .bt_need / .bt_perk.
+const TIERS = [null,
+    { name: 'Acquaintance', need: 0 }, { name: 'Companion', need: 100, perk: '+2% max HP and SP' },
+    { name: 'Trusted', need: 300, perk: 'better gifts, camp meals 15 minutes longer' },
+    { name: 'Sworn', need: 750, perk: '+4% max HP and SP' }, { name: 'Kindred', need: 1500, perk: '+6% max HP and SP' }];
+const BOND_HPSP = [0, 0, 2, 2, 4, 6];
 
 // @clbag list: P|purse|inventory on|zeny per level|in town, C|cid|name|job|
 // colours...|weight|max weight|class|sex|hair style|weapon|shield|head low|head top|
@@ -399,6 +445,13 @@ export default function init(parameters, api) {
     let win = null, body = null, tab = 'status', list = [], timer = null, busy = false;
     let bag = null, bagAt = 0, bagMsg = null;   // the Bag tab: last answer, when, last action's result
     let loot = null, lootAt = 0;                // the Loot tab: last answer, when
+    let orders = null, ordersAt = 0;            // the Orders tab (3.7.0): last @clorder state, when
+    let stance = '';                            // the stance last sent (the engine keeps it; we only remember)
+    try { stance = api.preferences.get('stance', '') || ''; } catch { /* fine */ }
+    let focus = false;                          // focus on your target, as last sent (back to off on a restart)
+    const setOn = key => parameters?.[key] !== false && parameters?.[key] !== 0;
+    const focusOk = setOn('chat_orders');       // focus is a party-chat strategy (db/when/chat_orders)
+    const roamStyles = setOn('roam_together');  // As a group / Alone needs the group rules loaded
     let msgTimer = null;                        // { msg, id }: the answer line clears itself after a few seconds
     let sel = null;                             // the picked square: "<cid>:<index>" or "<cid>:w<slots>"
     let giving = null;                          // a stack dropped on a companion: { cid, idx, id, max, name, n }
@@ -434,21 +487,70 @@ export default function init(parameters, api) {
         }).join('');
     }
 
-    function renderMemories() {
+    // 3.7.0: the Bonds tab (was Memories): the tier, a bar to the next, its perks, and
+    // a few highlights instead of the counters.
+    function renderBonds() {
         if (!list.length) return '<div class="empty">No companions in your party.</div>';
-        return list.map(c => {
-            const lines = [];
-            lines.push(`<span class="k">Together</span> <span class="v">${c.days === 1 ? '1 day' : num(c.days) + ' days'}</span>`
-                + (c.metMap ? ` <span class="k">· met in</span> <span class="v">${esc(c.metMap)}</span>` : '')
-                + (c.metLv ? ` <span class="k">when you were Lv</span> <span class="v">${c.metLv}</span>` : ''));
-            lines.push(`<span class="k">Monsters beaten together</span> <span class="v">${num(c.kills)}</span>`
-                + ` <span class="k">· MVPs</span> <span class="v">${num(c.mvps)}</span>`
-                + (c.firstMvp ? ` <span class="k">(first:</span> <span class="v">${esc(c.firstMvp)}</span><span class="k">)</span>` : ''));
-            lines.push(`<span class="k">Places seen together</span> <span class="v">${num(c.places)}</span>`);
-            lines.push(`<span class="k">Fallen</span> <span class="v">${num(c.fell)}</span> <span class="k">· saw you fall</span> <span class="v">${num(c.sawFall)}</span>`);
-            if (c.closest) lines.push(`<span class="k">Closest to</span> <span class="v">${c.closest === 'you' ? 'you &#9829;' : esc(c.closest)}</span>`);
-            return `<div class="mem"><div class="nm">${esc(c.name)} <span class="jb">${c.job ? esc(c.job) : ''}</span></div>${lines.join('<br>')}</div>`;
+        const top = '<div class="note">Bonds grow with all you do together: time, fights, MVPs, new places, gifts and campfire nights.</div>';
+        return top + list.map(c => {
+            const t = Math.min(5, Math.max(1, c.tier || 1));
+            const cur = TIERS[t], next = TIERS[t + 1];
+            const pct = next ? Math.max(0, Math.min(100, Math.round((c.pts - cur.need) * 100 / (next.need - cur.need)))) : 100;
+            const perks = [];
+            if (BOND_HPSP[t]) perks.push(`+${BOND_HPSP[t]}% max HP and SP`);
+            if (t >= 3) perks.push('better gifts, camp meals 15 minutes longer');
+            const hl = [`Together <b>${c.days === 1 ? '1 day' : num(c.days) + ' days'}</b>`];
+            if (c.metMap) hl.push(`met in <b>${esc(c.metMap)}</b>${c.metLv ? ` at your Lv <b>${c.metLv}</b>` : ''}`);
+            if (c.firstMvp) hl.push(`first MVP <b>${esc(c.firstMvp)}</b>`);
+            if (c.camps) hl.push(`<b>${num(c.camps)}</b> campfire night${c.camps === 1 ? '' : 's'}`);
+            if (c.closest) hl.push(`closest to <b>${c.closest === 'you' ? 'you &#9829;' : esc(c.closest)}</b>`);
+            return `<div class="bd"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${c.job ? esc(c.job) : ''}</span>`
+                + `<span class="tier t${t}">${cur.name}</span></div>`
+                + `<div class="bar bond"><i style="width:${pct}%"></i><b>${num(c.pts)}${next ? ' / ' + num(next.need) : ''}</b></div>`
+                + (perks.length ? `<div class="perk">&#10003; ${perks.join(' &middot; ')}</div>` : '')
+                + (next ? `<div class="perk next">Next: ${next.name} at ${num(next.need)} (${next.perk})</div>` : '<div class="perk">The closest a bond can be.</div>')
+                + `<div class="hl">${hl.join(' &middot; ')}</div></div>`;
         }).join('');
+    }
+
+    // 3.7.0: the Orders tab. Each button is an order you could type in party chat;
+    // one nobody can carry out is greyed, with the reason under it.
+    function renderOrders() {
+        if (!orders) return '<div class="empty">Asking your companions...</div>';
+        const o = orders, out = [];
+        if (bagMsg) out.push(msgLine());
+        if (!o.alive) out.push('<div class="note">No companions standing here with you: orders reach the ones on this map.</div>');
+        const btn = (act, label, title, on = false, off = false) =>
+            `<button class="ord${on ? ' on' : ''}" data-ord="${act}" title="${esc(title)}"${off ? ' disabled' : ''}>${label}</button>`;
+        out.push('<div class="og"><h4>Fight <small>the whole party</small></h4><div class="ob">'
+            + btn('stance attack', 'Engage', 'They attack any monster near you', stance === 'attack')
+            + btn('stance defensive', 'Protect', 'They fight what attacks you or the party', stance === 'defensive')
+            + btn('stance passive', 'Hold', 'They never start a fight', stance === 'passive')
+            + '</div><div class="ob">'
+            + btn('focus on', 'Focus: On', 'Everyone attacks your target, and switches when you do', focus, !focusOk)
+            + btn('focus off', 'Focus: Off', 'Back to choosing their own targets', !focus, !focusOk)
+            + '</div>' + (focusOk ? '' : '<div class="why">Focus needs "Orders in party chat" on in the mod settings.</div>') + '</div>');
+        const noRoam = !o.roamOn;
+        out.push(`<div class="og"><h4>Roam <small>${o.roamers ? `${o.roamers} out hunting` : 'following you'}</small></h4><div class="ob">`
+            + btn('roam on', 'Go hunt', 'They roam the map and hunt on their own', false, noRoam || !o.alive)
+            + btn('roam off', 'Come back', 'They come back and follow you', false, noRoam || !o.roamers)
+            + '</div>'
+            + (roamStyles ? '<div class="ob">'
+                + btn('style group', 'As a group', 'They stick together behind the tank, call for help and gather at a fallen one', !o.alone, noRoam)
+                + btn('style alone', 'Alone', 'Each one roams on its own', o.alone, noRoam) + '</div>' : '')
+            + (noRoam ? '<div class="why">Turn on Companion roaming in the app\'s Settings (Population).</div>' : '') + '</div>');
+        out.push(`<div class="og"><h4>Camp <small>${o.camp ? 'the fire is lit' : 'or they make camp after 3 minutes standing still'}</small></h4><div class="ob">`
+            + btn('camp on', 'Make camp', 'A campfire here: talks, a meal, and Well Rested when you leave', false, !o.campOn || o.camp || !o.alive)
+            + btn('camp off', 'Pack up', 'Put the fire out', false, !o.campOn || !o.camp)
+            + '</div>' + (o.campOn ? '' : '<div class="why">Campfire nights are off in the mod settings.</div>') + '</div>');
+        out.push(`<div class="og"><h4>Warp Portal <small>${esc(o.caster)}</small></h4><div class="ob">`
+            + btn('warp', o.home ? 'Take us back' : 'Return to the spot', o.home ? 'A portal to your save point; this spot is remembered'
+                : 'A portal back to where you left the hunt', false, !!o.warpWhy)
+            + `</div><div class="why${o.warpWhy ? '' : ' ok'}">${esc(o.warpWhy || (o.home ? 'Ready: home now, back to this spot later.' : 'Ready: back to where you left the hunt.'))}</div></div>`);
+        out.push(`<div class="og"><h4>Item Appraisal <small>${esc(o.appraiser)}</small></h4><div class="ob">`
+            + btn('appraise', o.unid ? `Appraise ${num(o.unid)} item${o.unid === 1 ? '' : 's'}` : 'Appraise', 'Identify the unknown items in your bag, 10 SP each', false, !!o.appWhy)
+            + `</div><div class="why${o.appWhy ? '' : ' ok'}">${esc(o.appWhy || `${o.appraiser} identifies them for 10 SP each.`)}</div></div>`);
+        return out.join('');
     }
 
     // An action's answer, floating over the top of the tab (it takes no room).
@@ -718,7 +820,8 @@ export default function init(parameters, api) {
         const active = pane.getRootNode().activeElement || document.activeElement;
         if ((tab === 'bag' || tab === 'loot') && active && pane.contains(active) && active.matches('input')) return;
         const keep = pane.scrollTop;
-        pane.innerHTML = tab === 'status' ? renderStatus() : tab === 'bag' ? renderBag() : tab === 'loot' ? renderLoot() : renderMemories();
+        pane.innerHTML = tab === 'status' ? renderStatus() : tab === 'orders' ? renderOrders() : tab === 'bag' ? renderBag()
+            : tab === 'loot' ? renderLoot() : renderBonds();
         // The answer line is sticky, so it shows wherever you are scrolled,
         // and it goes away by itself: "done" after 4 s, a problem after 8 s.
         pane.scrollTop = keep;
@@ -759,6 +862,10 @@ export default function init(parameters, api) {
                 if (Date.now() - lootAt < 3000) return;
                 loot = parseLoot(await api.server.request('clbag', 'lootlist', { timeout: 4000 }));
                 lootAt = Date.now();
+            } else if (tab === 'orders') {
+                if (Date.now() - ordersAt < 2000) return;
+                orders = parseOrders(await api.server.request('clorder', 'state', { timeout: 4000 })) || orders;
+                ordersAt = Date.now();
             } else {
                 list = parse(await api.server.request('clstat', 'list', { timeout: 4000 }));
             }
@@ -783,6 +890,70 @@ export default function init(parameters, api) {
         bagAt = 0;
         lootAt = 0;
         await refresh();
+    }
+
+    // 3.7.0: the engine takes its stances ("attack", "defensive", "passive") only as a
+    // party-chat line from you, the way the app's own Companions window sends them, and
+    // the focus order is a party-chat strategy rule. So the line is typed into the chat
+    // box and sent with its own button (the Chronicle's Route trick): '%' in front sends
+    // it to the party when the box is on public chat, and a whisper name is set aside.
+    function partySay(text) {
+        const root = document.getElementById('ChatBox')?.shadowRoot;
+        const box = root?.querySelector('.input-chatbox');
+        const send = root?.querySelector('.chat-function .chatmode');
+        if (!box || !send || inDialog()) return false;
+        const typed = box.innerHTML;
+        const nick = root.querySelector('.input .username');
+        const who = nick ? nick.value : '';
+        if (nick) nick.value = '';
+        box.textContent = (box.classList.contains('party') ? '' : '%') + text;
+        send.click();
+        box.innerHTML = typed;
+        if (nick) nick.value = who;
+        box.blur();	// the send focused it; keys go back to the game
+        return true;
+    }
+
+    // An Orders button: a party-chat line, or a server order and its answer on top.
+    const ORDER_ERR = {
+        'roaming off': "Turn on Companion roaming in the app's Settings (Population).", 'no caster': 'No Acolyte in the party.',
+        nobody: 'Nobody is here with you.', open: 'The portal is already open. Step in!', nowarp: 'No portals on this map.',
+        nowhere: 'Nowhere to go back to yet.', sp: 'Not enough SP yet.', gem: 'No Blue Gemstone.', 'campfire off': 'Campfire nights are off.',
+    };
+    async function order(act) {
+        const [kind, arg] = act.split(' ');
+        if (kind === 'stance' || kind === 'focus') {
+            const line = kind === 'stance' ? arg : arg === 'on' ? 'focus' : 'free fight';
+            if (!partySay(line)) { bagMsg = { ok: false, text: 'Close the NPC dialog first.' }; render(); return; }
+            if (kind === 'stance') { stance = arg; try { api.preferences.set('stance', arg); } catch { /* fine */ } }
+            else focus = arg === 'on';
+            const NAMES = { attack: 'Engage: they attack any monster near you.', defensive: 'Protect: they fight what attacks you or the party.',
+                passive: 'Hold: they never start a fight.' };
+            bagMsg = { ok: true, text: kind === 'stance' ? NAMES[arg] : focus ? 'Focus on: everyone hits your target.' : 'Focus off: they pick their own targets.' };
+            render();
+            return;
+        }
+        for (let i = 0; busy && i < 30; i++) await new Promise(r => setTimeout(r, 100));	// the 1 s refresh may be asking
+        if (busy || inDialog()) { bagMsg = { ok: false, text: inDialog() ? 'Close the NPC dialog first.' : 'Busy, try again.' }; render(); return; }
+        const ask = kind === 'roam' ? ['clroam', `${arg} tab`] : kind === 'style' ? ['clorder', arg] : kind === 'camp' ? ['clcamp', arg]
+            : kind === 'warp' ? ['clwarp', 'tab'] : ['clorder', 'appraise'];
+        busy = true;
+        try {
+            const reply = String(await api.server.request(ask[0], ask[1], { timeout: 4000 }) || '');
+            const cut = reply.indexOf('|');
+            const said = cut >= 0 ? reply.slice(cut + 1) : reply;
+            const ok = reply.startsWith('OK');
+            let text = ORDER_ERR[said] || said;
+            if (ok && kind === 'roam') text = arg === 'on' ? 'Off they go, hunting.' : 'They are coming back to you.';
+            else if (ok && kind === 'style') text = arg === 'alone' ? 'When they roam, each goes alone.' : 'When they roam, they stick together.';
+            else if (ok && kind === 'camp') text = said === '1' ? 'The campfire is lit.' : arg === 'on' ? 'They could not make camp here.' : 'The fire is out.';
+            else if (ok && kind === 'warp') text = `${said} is opening a portal.`;
+            bagMsg = { ok, text };
+        } catch { bagMsg = { ok: false, text: 'No answer from the server. Try again in a moment.' }; }
+        finally { busy = false; }
+        ordersAt = 0;
+        await refresh();
+        render();
     }
 
     // A square dragged onto your inventory (3.1.2): worn gear back, a single item at
@@ -928,10 +1099,24 @@ export default function init(parameters, api) {
         if (win) return win;
         win = api.ui.window({ id: 'companions', title: 'Companions', width: 320, height: 360, resizable: true });
         win.body.innerHTML = `<style>${WIN_STYLE}</style><div class="cw"><div class="tabs">`
-            + `<button data-tab="status">Status</button><button data-tab="memories">Memories</button><button data-tab="bag">Bag</button><button data-tab="loot">Loot</button></div>`
+            + `<button data-tab="status">Status</button><button data-tab="orders">Orders</button><button data-tab="bonds">Bonds</button>`
+            + `<button data-tab="bag">Bag</button><button data-tab="loot">Loot</button></div>`
             + `<div class="pane"></div></div>`;
+        // 3.6.2: the game's resize grip is an invisible 12 px corner (and its
+        // resize cursor never shows under the game's own cursor), so nobody
+        // found it. Draw it as the usual corner stripes, a little bigger.
+        const frame = win.body.getRootNode();
+        if (frame instanceof ShadowRoot) {
+            const grip = document.createElement('style');
+            grip.textContent = `.grip { width: 16px; height: 16px; z-index: 2; opacity: .75;
+  background: linear-gradient(135deg, transparent 0 50%, #6b7a99 50% 57%, transparent 57% 66%, #6b7a99 66% 73%, transparent 73% 82%, #6b7a99 82% 89%, transparent 89%); }
+.grip:hover { opacity: 1; }`;
+            frame.appendChild(grip);
+        }
         body = win.body;
         body.addEventListener('click', event => {
+            const ob = event.target.closest('button[data-ord]');
+            if (ob) { if (!ob.disabled) order(ob.dataset.ord); return; }
             const a = event.target.closest('button[data-act]');
             if (a) {
                 if (a.dataset.act === 'step') {
@@ -1033,6 +1218,7 @@ export default function init(parameters, api) {
             giving = null;
             bagAt = 0;
             lootAt = 0;
+            ordersAt = 0;
             render();
             refresh();
         });
@@ -1266,7 +1452,7 @@ export default function init(parameters, api) {
     const ROAM_OFF = ['come back', 'regroup', 'fall back', 'follow me'];
     const CAMP_ON = ['make camp', 'campfire', 'camp fire', 'set up camp', "let's rest", 'lets rest', "let's camp", 'lets camp'];
     const CAMP_OFF = ['time to go', "let's go", 'lets go', 'put out the fire', 'pack up', 'break camp'];
-    const CAMP_YES = /^(yes|yeah|yep|yup|sure|ok|okay|do it|light it|please|yes please|sure thing|go ahead)[.! ]*$/;
+    // 3.7.0: no more yes to an offer: they make camp on their own when you stand still.
     // 3.3.0: Warp Portal. The server picks the way: out hunting → your save point,
     // in town → back to the spot you left from.
     const WARP = ['take us back', 'warp us back', 'take us home', 'warp us home', 'open a portal', 'portal us'];
@@ -1302,11 +1488,9 @@ export default function init(parameters, api) {
             const said = text.slice(me.length + 3).toLowerCase().replace(/\s+/g, ' ');
             const now = Date.now();
             if (now - (seen.get(said) || 0) < 2000) return;
-            // 3.0.0: campfire nights (setting campfire): light, put out, or say yes when
-            // a companion offers to light one. The server ignores a yes nobody asked for.
+            // 3.0.0: campfire nights (setting campfire): light or put out.
             const camp = CAMP_ON.some(w => said.includes(w)) ? 'on'
-                : CAMP_OFF.some(w => said.includes(w)) ? 'off'
-                : CAMP_YES.test(said) ? 'yes' : '';
+                : CAMP_OFF.some(w => said.includes(w)) ? 'off' : '';
             const warp = WARP.some(w => said.includes(w));
             const on = !warp && ROAM_ON.some(w => said.includes(w));
             const off = !warp && !on && ROAM_OFF.some(w => said.includes(w));

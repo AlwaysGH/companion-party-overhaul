@@ -1496,23 +1496,15 @@ OnInit:
 	setarray .giftlvl_0$, "I got stronger thanks to you, {t}. Take {i}. Please.", "A new level, and I owe it to you. {i}, {t}.";
 	setarray .giftann_0$, "Happy anniversary, {t}. I got you {i}.", "Has it really been that long? Here, {t}. {i}. For every day of it.";
 
-	// ---- Campfire nights (3.0.0, setting "campfire"): "make camp" in party chat,
-	// or yes when one of them offers. The fire is a dynamic NPC (CampFire, below),
+	// ---- Campfire nights (3.0.0, setting "campfire"): "make camp" in party chat or
+	// the Orders tab, or on their own after you stand still 3 minutes (3.7.0; was an
+	// offer you said yes to). The fire is a dynamic NPC (CampFire, below),
 	// which rAthena removes after feature.dynamicnpc_timeout without a click (60 s
 	// stock): raised to 6 hours here, and we put it out ourselves.
 	.camp = callfunc("F_ModSetting", .mod$, "campfire", 1);
 	bindatcmd "clcamp", strnpcinfo(3) + "::OnCmdCamp", 0, 99;
 	if (.camp && getbattleflag("feature.dynamicnpc_timeout") < 21600000)
 		setbattleflag "feature.dynamicnpc_timeout", 21600000;
-	// Offering to light one ({t} = you).
-	setarray .campask_0$, "{t}, can we make a fire? Please? Just a little one?", "My legs are tired, {t}. Camp here?";
-	setarray .campask_1$, "We've stood here a while, {t}. Shall I light a fire and keep watch?", "A good spot for a camp, {t}. Your call.";
-	setarray .campask_2$, "It's a good place to rest, {t}. Shall we make camp? I have notes to write.", "A fire would help me think. Camp, {t}?";
-	setarray .campask_3$, "Nice spot for a fire, {t}. I've got a song saved for one.", "Camp here, {t}? I'll find the dry wood.";
-	setarray .campask_4$, "Everyone could use a rest, {t}. May I light a fire?", "Let's rest by a fire for a while, {t}. Please.";
-	setarray .campask_5$, "Fire? Food? Fire AND food, {t}?", "I'm starving, {t}. Can we camp and cook?";
-	setarray .campask_6$, "Quiet here. Good spot for a fire, {t}. Want one?", "I could use a sit by a fire, {t}. Your call.";
-	setarray .campask_7$, "Shall I set up camp, {t}? I've got a pot and opinions about soup.", "Break time, {t}? I'll light a fire. No charge.";
 	// Lighting it.
 	setarray .camplit_0$, "I lit it! I lit it myself! Look, {t}!", "It's crackling! I love that sound!";
 	setarray .camplit_1$, "The fire is lit. Sit, {t}. I'll keep watch.", "There. Warm and safe.";
@@ -1672,6 +1664,37 @@ OnInit:
 	setarray .warpnone_5$, "No Warp Portal here, {t}. Butterfly Wing, or we run back. I vote run!", "Portal? None of us can. Race you back, {t}!";
 	setarray .warpnone_6$, "None of us knows Warp Portal. Best we find us a Butterfly Wing, or worst we walk back.", "No portals in this crew, {t}. Wing or walk.";
 	setarray .warpnone_7$, "Nobody here knows Warp Portal, {t}. Butterfly Wings are cheap, you know. Walking is free, though.", "No portal, {t}. I'd sell you a Butterfly Wing if I had one.";
+
+	// ---- 3.7.0: the Orders tab (client/index.js) asks @clorder: its state, Appraise
+	// (a Merchant-line companion identifies your items, 10 SP each, as Item Appraisal),
+	// and the roam style (as a group / alone, char var CL_ROAMALONE).
+	bindatcmd "clorder", strnpcinfo(3) + "::OnCmdOrder", 0, 99;
+	setarray .appraise_7$, "Let me see those, {t}. Ah, I know exactly what these are.", "Appraisal, free of charge. For you, anyway.",
+		"Hand them over, {t}. A merchant's eye never lies.", "Hmm, hmm... yes. All done. You're welcome, {t}.";
+	setarray .appnosp_7$, "My SP's run dry, {t}. That's all I could appraise for now.", "I need a breather before I appraise the rest, {t}.";
+	setarray .appnone_7$, "Nothing to appraise, {t}. Everything in your bag is already known.", "Your bag's all identified, {t}. Bring me a mystery next time.";
+	// Auto camp (3.7.0): after 3 minutes of you standing still, no offer and no
+	// question: one of them just lights the fire while you're away.
+	setarray .campauto_0$, "{t} isn't moving... are they asleep? Let's make a fire while we wait!", "Shh, {t} is resting. I'll light a little fire.";
+	setarray .campauto_1$, "The {t} has gone quiet. We'll make camp and keep watch.", "Looks like we're staying a while. I'll set a fire and stand guard.";
+	setarray .campauto_2$, "The {t} seems lost in thought. A fire, then, while we wait.", "We appear to be resting. I'll light a fire; I have notes to catch up on.";
+	setarray .campauto_3$, "The {t} dozed off, I think. Let's take this time to set a campfire and rest.", "Looks like a break. Fire's on me.";
+	setarray .campauto_4$, "The {t} needs a rest, and so do we. I'll light a fire.", "Let's rest while we wait for the {t}. A warm fire, everyone.";
+	setarray .campauto_5$, "{t}'s snoozing! Fire time!", "We're not moving anyway. Fire! Food! Go!";
+	setarray .campauto_6$, "{t}'s gone quiet. I'll set a fire and keep an eye out.", "Waiting, are we? Then we wait by a fire.";
+	setarray .campauto_7$, "The {t} is taking a break, so camp's open for business!", "We're staying put, it seems. I'll get a fire going. No charge.";
+	// Bonds (3.7.0): tiers from the memories (L_BondPts). .bt_need = points for tiers 1-5.
+	setarray .bt_need, 0, 100, 300, 750, 1500;
+	setarray .bt_name$, "", "Acquaintance", "Companion", "Trusted", "Sworn", "Kindred";
+	setarray .bt_perk$, "", "", "+2% max HP and SP", "better gifts, camp meals 15 minutes longer", "+4% max HP and SP", "+6% max HP and SP";
+	setarray .bondup_0$, "We're real friends now, right, {t}? Right?!", "I feel like I could follow you anywhere, {t}.";
+	setarray .bondup_1$, "My shield is yours, {t}. More than ever.", "I trust you with my life, {t}. I hope you know that.";
+	setarray .bondup_2$, "I've updated my notes, {t}. Under 'people I trust': you.", "Our bond grows, {t}. Fascinating, and... nice.";
+	setarray .bondup_3$, "Every road's better with you on it, {t}.", "I'd write a song about us, {t}, but I'd blush.";
+	setarray .bondup_4$, "The goddess must have led me to you, {t}.", "I'll always be there to heal you, {t}. Always.";
+	setarray .bondup_5$, "You're my best sparring partner, {t}. And my best friend.", "I'd take a hundred hits for you, {t}! Ha!";
+	setarray .bondup_6$, "I don't trust anyone. Except you, {t}. Don't make it weird.", "You've got my back, I've got yours. That's rare, {t}.";
+	setarray .bondup_7$, "Best partnership I ever signed, {t}. No contract needed.", "You're worth more than any deal, {t}. Don't tell my ledger.";
 
 	initnpctimer;	// the tick below
 	end;
@@ -2144,21 +2167,35 @@ OnTick:
 	}
 
 	// Campfire nights (setting campfire): the fire's tick, or after 3 minutes of you
-	// standing still with no fight, a companion offers to light one (once per stop,
-	// and not within 20 minutes of the last camp). "yes" in party chat lights it.
+	// standing still with no fight, they light one themselves (once per stop, and not
+	// within 20 minutes of the last camp). 3.7.0: was an offer you had to say yes to.
 	if (.camp) {
 		if (@cl_camp)
 			callsub L_CampTick, .@sec;
 		else if (.@sec - @cl_still >= 180 && @cl_cofferd != @cl_still && !@cl_incombat && .@sec - @cl_peace >= 30
 				&& .@sec >= @cl_clast + 1200 && !getarraysize(@cl_qa)) {
 			@cl_cofferd = @cl_still;
-			.@a = callsub(L_Pick, -1, -1);
-			if (.@a >= 0) {
-				@cl_coffer = .@sec + 90;
-				callsub L_QueueIdx, .@a, "campask", "", ET_QUESTION;
-				// In gold too, so it isn't lost in the chatter.
-				dispbottom "[Companions] " + @cl_nm$[.@a] + " wants to make camp. Say yes in party chat (90 seconds).", 0xFFCC66;
+			if (callsub(L_Pick, -1, -1) >= 0)	// somebody here and standing
+				callsub L_CampStart, 1;
+		}
+	}
+
+	// Bonds (3.7.0, part of Memories): every minute together counts, a new tier is
+	// announced, and the tier's max HP/SP bonus is kept up (6 minutes, renewed here).
+	if (.mem && .@sec >= @cl_bmnext) {
+		@cl_bmnext = .@sec + 60;
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			.@p$ = "m.c" + @cl_cid[.@i];
+			modstore_inc("char", .@p$ + ".mins", 1);
+			.@bt = callsub(L_BondTier, callsub(L_BondPts, @cl_cid[.@i]));
+			if (.@bt > modstore_get("char", .@p$ + ".tier", 1)) {
+				modstore_set "char", .@p$ + ".tier", .@bt;
+				dispbottom "[Companions] Your bond with " + @cl_nm$[.@i] + " grew: " + .bt_name$[.@bt] + " (" + .bt_perk$[.@bt] + ").", 0xFFCC66;
+				if (@cl_hp[.@i] > 0)
+					callsub L_QueueIdx, .@i, "bondup", "", ET_THROB;
 			}
+			if (@cl_hp[.@i] > 0)
+				callsub L_BondBuff, .@i, .@bt;
 		}
 	}
 
@@ -2179,12 +2216,15 @@ OnTick:
 		// roam rules (db/when/roam_together) asked for it too. 3.0.0: they ask for a status
 		// of their own, Entry_Queue_Notify_Admission_Time_Out, that only roamers get, so a
 		// stroll near you no longer looks like roaming to them.
+		// 3.7.0: the Orders tab's "Alone" (CL_ROAMALONE) leaves out that second status, so
+		// the group rules let them roam each on their own.
 		if (.roamhelp) {
 			for (.@ri = 0; .@ri < @cl_n; .@ri++) {
 				if (@cl_hp[.@ri] <= 0 || !callsub(L_Roams, .@ri))
 					continue;
 				sc_start SC_ENTRY_QUEUE_APPLY_DELAY, 8000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@ri];
-				sc_start SC_ENTRY_QUEUE_NOTIFY_ADMISSION_TIME_OUT, 8000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@ri];
+				if (!CL_ROAMALONE)
+					sc_start SC_ENTRY_QUEUE_NOTIFY_ADMISSION_TIME_OUT, 8000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@ri];
 			}
 		}
 		// A new companion that starts unequipped gets its starter kit.
@@ -2313,7 +2353,8 @@ OnTick:
 OnCmdRoam:
 	.@req$ = .@atcmd_parameters$[0];
 	.@on = (.@atcmd_parameters$[1] == "on");
-	if (!.orders) {
+	// The Orders tab's buttons say "tab" and work with chat orders off too (3.7.0).
+	if (!.orders && .@atcmd_parameters$[2] != "tab") {
 		callsub L_BagReply, .@req$, "ERR|chat orders off";
 		end;
 	}
@@ -2393,10 +2434,9 @@ OnCmdCamp:
 	if (.@act$ == "off") {
 		if (@cl_camp)
 			callsub L_CampEnd, 1;
-	} else if (.@act$ == "on" || (.@act$ == "yes" && @cl_coffer > gettimetick(2))) {
-		@cl_coffer = 0;
+	} else if (.@act$ == "on") {
 		if (!@cl_camp)
-			callsub L_CampStart;
+			callsub L_CampStart, 0;
 	}
 	callsub L_BagReply, .@req$, "OK|" + @cl_camp;
 	end;
@@ -2408,7 +2448,7 @@ OnCmdCamp:
 // (L_WarpOpen), which is also when the gem and SP are paid.
 OnCmdWarp:
 	.@req$ = .@atcmd_parameters$[0];
-	if (!.orders) {
+	if (!.orders && .@atcmd_parameters$[1] != "tab") {
 		callsub L_BagReply, .@req$, "ERR|chat orders off";
 		end;
 	}
@@ -2577,6 +2617,173 @@ L_WarpClose:
 	@cl_wpend = 0;
 	return;
 
+// The Orders tab (3.7.0, client/index.js): "@clorder <request> <action>".
+//   state     OK|companions here|portal caster or ""|why no portal or ""|portal home (1)
+//             or back (0)|appraiser or ""|why no appraisal or ""|unidentified items|
+//             camp lit|roamers|roam alone|roaming on (app setting)|campfire on
+//   appraise  the Merchant-line companion with the most SP identifies your items,
+//             10 SP each (Item Appraisal); fewer if its SP runs out
+//   group / alone   the roam style, kept on your character (CL_ROAMALONE)
+OnCmdOrder:
+	.@req$ = .@atcmd_parameters$[0];
+	.@act$ = .@atcmd_parameters$[1];
+	callsub L_Gather;
+	if (.@act$ == "group" || .@act$ == "alone") {
+		CL_ROAMALONE = (.@act$ == "alone");
+		callsub L_BagReply, .@req$, "OK|" + CL_ROAMALONE;
+		end;
+	}
+	if (.@act$ == "appraise") {
+		.@ix = callsub(L_Appraiser);
+		if (.@ix < 0) {
+			callsub L_BagReply, .@req$, "ERR|No Merchant in the party.";
+			end;
+		}
+		.@n = identifyall(false);
+		if (.@n <= 0) {
+			callsub L_SpeakNow, .@ix, "appnone", "", ET_QUESTION;
+			callsub L_BagReply, .@req$, "OK|Nothing to appraise.";
+			end;
+		}
+		.@can = @cl_sp[.@ix] / 10;
+		if (.@can <= 0) {
+			callsub L_SpeakNow, .@ix, "appnosp", "", ET_SWEAT;
+			callsub L_BagReply, .@req$, "ERR|" + @cl_nm$[.@ix] + " is out of SP.";
+			end;
+		}
+		stand @cl_nm$[.@ix];	// a sitter can't walk
+		callsub L_GiftWalk, .@ix;
+		if (.@can >= .@n) {
+			identifyall(true);
+			.@done = .@n;
+		} else {
+			// Not enough SP for all: one by one, each given back identified (cards,
+			// options, refine and binding kept, as the Bag tab's take does).
+			getinventorylist;
+			.@done = 0;
+			for (.@j = 0; .@j < @inventorylist_count && .@done < .@can; .@j++) {
+				if (@inventorylist_identify[.@j])
+					continue;
+				.@id = @inventorylist_id[.@j];
+				.@amt = @inventorylist_amount[.@j];
+				setarray .@oid, @inventorylist_option_id1[.@j], @inventorylist_option_id2[.@j], @inventorylist_option_id3[.@j], @inventorylist_option_id4[.@j], @inventorylist_option_id5[.@j];
+				setarray .@oval, @inventorylist_option_value1[.@j], @inventorylist_option_value2[.@j], @inventorylist_option_value3[.@j], @inventorylist_option_value4[.@j], @inventorylist_option_value5[.@j];
+				setarray .@opar, @inventorylist_option_parameter1[.@j], @inventorylist_option_parameter2[.@j], @inventorylist_option_parameter3[.@j], @inventorylist_option_parameter4[.@j], @inventorylist_option_parameter5[.@j];
+				delitemidx @inventorylist_idx[.@j], .@amt;
+				if (@inventorylist_bound[.@j])
+					getitembound3 .@id, .@amt, 1, @inventorylist_refine[.@j], @inventorylist_attribute[.@j], @inventorylist_card1[.@j], @inventorylist_card2[.@j], @inventorylist_card3[.@j], @inventorylist_card4[.@j], @inventorylist_bound[.@j], .@oid, .@oval, .@opar;
+				else
+					getitem3 .@id, .@amt, 1, @inventorylist_refine[.@j], @inventorylist_attribute[.@j], @inventorylist_card1[.@j], @inventorylist_card2[.@j], @inventorylist_card3[.@j], @inventorylist_card4[.@j], .@oid, .@oval, .@opar;
+				.@done++;
+			}
+		}
+		heal 0, -(.@done * 10), @cl_cid[.@ix];
+		.@left = .@n - .@done;
+		if (.@left > 0)
+			callsub L_SpeakNow, .@ix, "appnosp", "", ET_SWEAT;
+		else
+			callsub L_SpeakNow, .@ix, "appraise", "", ET_OK;
+		.@msg$ = @cl_nm$[.@ix] + " appraised " + .@done + " item" + (.@done == 1 ? "" : "s") + " (" + (.@done * 10) + " SP).";
+		if (.@left > 0)
+			.@msg$ += " " + .@left + " still unknown: ask again when their SP is back.";
+		dispbottom "[Companions] " + .@msg$, 0xFFCC66;
+		callsub L_BagReply, .@req$, "OK|" + .@msg$;
+		end;
+	}
+	// state
+	.@alive = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] > 0)
+			.@alive++;
+	}
+	getmapxy(.@m$, .@x, .@y, BL_PC);
+	.@kind$ = callsub(L_MapKind, .@m$);
+	.@home = (.@kind$ == "field" || .@kind$ == "dungeon");
+	// The portal: the same checks as OnCmdWarp, said in a few words.
+	.@wc$ = "";
+	.@why$ = "";
+	.@me = getcharid(3);
+	.@wix = -1;
+	.@wlv = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		if ((eaclass(@cl_cls[.@i]) & EAJ_BASEMASK) != EAJ_ACOLYTE)
+			continue;
+		if (!attachrid(@cl_aid[.@i]))
+			continue;
+		.@k = getskilllv(27);
+		attachrid(.@me);
+		if (.@k < 1)
+			continue;
+		if (.@wix >= 0) {
+			if (@cl_sp[.@i] <= @cl_sp[.@wix])
+				continue;
+		}
+		.@wix = .@i;
+		.@wlv = .@k;
+	}
+	if (.@wix < 0)
+		.@why$ = "No Acolyte in the party";
+	else {
+		.@wc$ = callsub(L_Clean, @cl_nm$[.@wix]);
+		if (@cl_wpat || @cl_wp$ != "")
+			.@why$ = "The portal is open";
+		else if (getmapflag(.@m$, MF_NOWARP))
+			.@why$ = "No portals on this map";
+		else if (!.@home && (CL_WPM$ == "" || .@wlv < 2))
+			.@why$ = "Nowhere to go back to yet";
+		else if (@cl_sp[.@wix] < 38 - 3 * .@wlv)
+			.@why$ = @cl_nm$[.@wix] + " needs SP";
+		else if (.warp_gem) {
+			if (callsub(L_CampFind, "717") == "")
+				.@why$ = "No Blue Gemstone";
+		}
+	}
+	// The appraiser.
+	.@ac$ = "";
+	.@awhy$ = "";
+	.@un = identifyall(false);
+	.@aix = callsub(L_Appraiser);
+	if (.@aix < 0)
+		.@awhy$ = "No Merchant in the party";
+	else {
+		.@ac$ = callsub(L_Clean, @cl_nm$[.@aix]);
+		if (.@un <= 0)
+			.@awhy$ = "Nothing to appraise";
+		else if (@cl_sp[.@aix] < 10)
+			.@awhy$ = @cl_nm$[.@aix] + " needs SP";
+	}
+	callsub L_RoamRead;
+	callsub L_BagReply, .@req$, "OK|" + .@alive + "|" + .@wc$ + "|" + callsub(L_Clean, .@why$) + "|" + .@home + "|" + .@ac$ + "|" + callsub(L_Clean, .@awhy$)
+		+ "|" + max(0, .@un) + "|" + @cl_camp + "|" + getarraysize(@cl_rm$) + "|" + CL_ROAMALONE
+		+ "|" + (getbattleflag("population_engine_companion_roam") > 0) + "|" + .camp;
+	end;
+
+// The living Merchant-line companion here who knows Item Appraisal (40), the one with
+// the most SP; -1 if none.
+L_Appraiser:
+	.@me = getcharid(3);
+	.@ix = -1;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		if ((eaclass(@cl_cls[.@i]) & EAJ_BASEMASK) != EAJ_MERCHANT)
+			continue;
+		if (!attachrid(@cl_aid[.@i]))
+			continue;
+		.@k = getskilllv(40);
+		attachrid(.@me);
+		if (.@k < 1)
+			continue;
+		if (.@ix >= 0) {
+			if (@cl_sp[.@i] <= @cl_sp[.@ix])
+				continue;
+		}
+		.@ix = .@i;
+	}
+	return .@ix;
+
 // Maximize Power (3.4.0): the engine turns it on but never off, and it drains SP and stops
 // SP regen while on. Off once no monster is within 9 cells of the smith for two ticks
 // (about 3 s), or nobody in the party was hit for 20 s (a fight's @cl_combat_until is
@@ -2668,10 +2875,15 @@ L_CampStart:
 			@cl_crid$ += @cl_aid[.@i] + ":" + @cl_cid[.@i] + ";";
 		}
 	}
+	// getarg(0) 1: lit on their own while you stood still (3.7.0).
+	.@auto = getarg(0, 0);
 	.@a = callsub(L_Pick, -1, 7);
 	if (.@a >= 0)
-		callsub L_SpeakNow, .@a, "camplit", "", ET_DELIGHT;
-	dispbottom "[Companions] Campfire lit. Say \"time to go\" in party chat (or click the fire) to put it out.", 0xFFCC66;
+		callsub L_SpeakNow, .@a, (.@auto ? "campauto" : "camplit"), "", ET_DELIGHT;
+	if (.@auto)
+		dispbottom "[Companions] You stood still a while, so they made camp. Walk away, say \"time to go\" in party chat, or click the fire to put it out.", 0xFFCC66;
+	else
+		dispbottom "[Companions] Campfire lit. Say \"time to go\" in party chat (or click the fire) to put it out.", 0xFFCC66;
 	return;
 
 // Seats in an even circle: the 16 cells two out from the fire, in clockwise order.
@@ -2789,6 +3001,11 @@ L_CampEnd:
 	else if (.@min >= 5)
 		.@dur = 1800;
 	if (.@dur) {
+		// A camp of 5+ minutes is a night to remember (Bonds, 3.7.0).
+		if (.mem) {
+			for (.@i = 0; .@i < @cl_n; .@i++)
+				modstore_inc("char", "m.c" + @cl_cid[.@i] + ".camps", 1);
+		}
 		bonus_script "bonus2 bExpAddRace,RC_ALL,10; bonus bHPrecovRate,30; bonus bSPrecovRate,30;", .@dur, BSF_FORCE_REPLACE, 0, EFST_CASH_PLUSEXP;
 		for (.@i = 0; .@i < @cl_n; .@i++) {
 			if (@cl_hp[.@i] > 0)
@@ -2957,10 +3174,16 @@ L_CampCook:
 	// The client's food icon closest to the meal (each icon has the game's own fixed
 	// tooltip, so the gold line above says what the meal really does).
 	setarray .@ic, 0, EFST_FOOD_STR, EFST_FOOD_VIT, EFST_FOOD_INT, EFST_FOOD_VIT;
-	bonus_script .@bs$[.@meal], 1800, BSF_FORCE_REPLACE, 0, .@ic[.@meal];
+	// Bonds (3.7.0): a Trusted (or closer) cook's meal lasts 15 minutes longer.
+	.@mdur = 1800;
+	if (.mem) {
+		if (callsub(L_BondTier, callsub(L_BondPts, @cl_cid[.@k])) >= 3)
+			.@mdur = 2700;
+	}
+	bonus_script .@bs$[.@meal], .@mdur, BSF_FORCE_REPLACE, 0, .@ic[.@meal];
 	for (.@i = 0; .@i < @cl_n; .@i++) {
 		if (@cl_hp[.@i] > 0)
-			bonus_script .@bs$[.@meal], 1800, BSF_FORCE_REPLACE, 0, .@ic[.@meal], @cl_cid[.@i];
+			bonus_script .@bs$[.@meal], .@mdur, BSF_FORCE_REPLACE, 0, .@ic[.@meal], @cl_cid[.@i];
 	}
 	.@t$ = replacestr(callsub(L_Text, callsub(L_Line, "cook" + .@meal, 0), .@k, ""), "{i}", .@mn$[.@meal]);
 	.@q = getarraysize(@cl_qa);
@@ -2968,7 +3191,7 @@ L_CampCook:
 	@cl_qn$[.@q] = @cl_nm$[.@k];
 	@cl_qt$[.@q] = .@t$;
 	@cl_qe[.@q] = ET_DELIGHT;
-	dispbottom "[Companions] " + @cl_nm$[.@k] + " cooked " + .@mn$[.@meal] + " (" + .@used$ + "): " + .@fx$[.@meal] + " for everyone, 30 minutes.", 0xFFCC66;
+	dispbottom "[Companions] " + @cl_nm$[.@k] + " cooked " + .@mn$[.@meal] + " (" + .@used$ + "): " + .@fx$[.@meal] + " for everyone, " + (.@mdur / 60) + " minutes.", 0xFFCC66;
 	return;
 
 // "<account id>:<item id>" of the first bag (companions', then yours) holding one of
@@ -3064,6 +3287,9 @@ OnCmdStat:
 				}
 			}
 			.@r$ += "|" + .@fav$;
+			// 3.7.0, Bonds: |points|tier|camps|gifts
+			.@pt = callsub(L_BondPts, .@c);
+			.@r$ += "|" + .@pt + "|" + callsub(L_BondTier, .@pt) + "|" + modstore_get("char", .@p$ + ".camps", 0) + "|" + modstore_get("char", .@p$ + ".gifts", 0);
 			if (.@out$ != "")
 				.@out$ += "~";
 			.@out$ += .@r$;
@@ -4077,6 +4303,14 @@ L_Gift:
 	} else if (.@k$ != "") {
 		.@rr = 200;
 		.@vr = 10;
+	}
+	// Bonds (3.7.0): from Trusted on, half again the chance of a rare gift, and twice
+	// the very rare.
+	if (.mem) {
+		if (callsub(L_BondTier, callsub(L_BondPts, @cl_cid[.@i])) >= 3) {
+			.@rr = .@rr * 3 / 2;
+			.@vr = .@vr * 2;
+		}
 	}
 	.@roll = rand(1000);
 	if (.@roll < .@vr) {
@@ -5410,6 +5644,39 @@ L_PlayerBond:
 	if (@cl_ar[.@i] == 4 && @cl_hurt_aid == getcharid(3) && gettimetick(2) - @cl_hurt_t < 300)
 		.@b += 5;
 	return .@b;
+
+// Bonds (3.7.0): points from the memories of companion char id getarg(0). Days
+// together 5, 20 kills 1, an MVP 10, a new place 2, a gift 5, a camp night 15,
+// 10 minutes together 1. With the tiers in .bt_need, a party that played a week
+// together is Trusted.
+L_BondPts:
+	.@p$ = "m.c" + getarg(0);
+	.@pt = 0;
+	.@met = modstore_get("char", .@p$ + ".met", 0);
+	if (.@met > 0)
+		.@pt = (gettimetick(2) - .@met) / 86400 * 5;
+	.@pt += modstore_get("char", .@p$ + ".kills", 0) / 20 + modstore_get("char", .@p$ + ".mvps", 0) * 10
+		+ modstore_count("char", .@p$ + ".maps") * 2 + modstore_get("char", .@p$ + ".gifts", 0) * 5
+		+ modstore_get("char", .@p$ + ".camps", 0) * 15 + modstore_get("char", .@p$ + ".mins", 0) / 10;
+	return .@pt;
+
+// The tier (1 Acquaintance .. 5 Kindred) for getarg(0) points.
+L_BondTier:
+	for (.@t = 4; .@t > 0; .@t--) {
+		if (getarg(0) >= .bt_need[.@t])
+			return .@t + 1;
+	}
+	return 1;
+
+// A tier's max HP/SP bonus on companion getarg(0) (an index), tier getarg(1):
+// 2% at Companion and Trusted, 4% Sworn, 6% Kindred. Six minutes, renewed every minute.
+L_BondBuff:
+	setarray .@pc, 0, 0, 2, 2, 4, 6;
+	.@v = .@pc[getarg(1)];
+	if (!.@v)
+		return;
+	bonus_script "bonus bMaxHPrate," + .@v + "; bonus bMaxSPrate," + .@v + ";", 360, BSF_FORCE_REPLACE, 0, EFST_BLANK, @cl_cid[getarg(0)];
+	return;
 
 L_PairBond:
 	.@i = getarg(0);

@@ -1,8 +1,8 @@
 {
   "name": "companion-party-overhaul",
-  "version": "3.6.1",
+  "version": "3.7.0",
   "author": "Always",
-  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, memories, bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
+  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, one-click orders (stance, focus, roam, camp, Warp Portal, item appraisal), your bonds with each of them (tiers that grow into small perks), bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
   "requires": { "app": ">=1.6.0", "era": "any" },
   "tags": ["companions", "population", "combat", "dialogue", "immersion"],
   "settingsPage": "settings/index.html",
@@ -47,7 +47,7 @@
       "type": "boolean",
       "default": true,
       "label": "Campfire nights",
-      "description": "Say \"make camp\" in party chat, or yes when a companion offers after you've stood still a while. A bonfire, everyone round it, campfire talks, a meal cooked from food in your bags (a 30-minute party buff), and Well Rested (+10% base EXP, faster regen) once you leave after 5+ minutes. \"time to go\" puts it out. Needs Orders in party chat. Changing this restarts the server."
+      "description": "They make camp on their own once you stand still 3 minutes, or on \"make camp\" (Orders tab or party chat). A bonfire, campfire talks, a meal from food in your bags (a 30-minute party buff), and Well Rested (+10% base EXP, faster regen) after 5+ minutes. Walking away or \"time to go\" puts it out. Changing this restarts the server."
     },
     {
       "key": "party_roles",
@@ -89,7 +89,7 @@
       "type": "boolean",
       "default": true,
       "label": "Roam as a group",
-      "description": "When you send them hunting (\"go hunt\"), the whole party sticks to the tank and roams as one group: no resting on the way, 3+ on one and it calls for help, the hurt kite round the Priest, and they gather at a fallen one for the revive. Off: each roams on its own, the way the game does it. Changing this restarts the server."
+      "description": "When you send them hunting (\"go hunt\"), the whole party sticks to the tank and roams as one group: no resting on the way, 3+ on one and it calls for help, the hurt kite round the Priest, and they gather at a fallen one for the revive. Off: each roams on its own. On, the Orders tab switches As a group / Alone in game. Changing this restarts the server."
     },
     {
       "key": "titles",
@@ -206,8 +206,8 @@
       "key": "memories",
       "type": "boolean",
       "default": true,
-      "label": "Memories",
-      "description": "Each companion remembers your time together: the day and place you met, monsters and MVPs beaten together (your kills while they're with you), places seen, times fallen. They bring it up now and then, and celebrate milestones and anniversaries. Kept with your character."
+      "label": "Memories and bonds",
+      "description": "Each companion remembers your time together: the day and place you met, time spent together, monsters and MVPs beaten together, places seen, gifts, campfire nights. They bring it up now and then and celebrate anniversaries, and it all grows your bond (the Bonds tab): Companion +2% max HP/SP, Trusted better gifts and longer camp meals, Sworn +4%, Kindred +6%. Kept with your character."
     },
     {
       "key": "companion_growth",
