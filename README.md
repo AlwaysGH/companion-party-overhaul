@@ -13,6 +13,7 @@ Your companions as a real party of people who live in this world with you. This 
 - They go first for whatever is hitting the healer, then whatever is hitting the casters, then your target.
 - You give orders in party chat, such as `assist me`, `free fight`, `regroup`, `heal me`, `buff me`, `kyrie me`, `wall me`, `land protector`, `aoe`, `trap`, `take a break` and `let's go`.
 - `go hunt` sends them roaming as a group: they follow the tank, wait for each other and gather to revive the fallen. `come back` calls them back.
+- `take us back` (or `take us home`, `open a portal`): an Acolyte-line companion opens a Warp Portal to your save point, and from town back to the exact spot you left. It costs a Blue Gemstone from their bags or yours (a setting).
 - They use the items you give them. They cure bad statuses, use Yggdrasil Seeds and Berries when they're in danger, revive the fallen with Yggdrasil Leaves when no Priest can, and drink speed potions near a boss. This needs the game's Companion inventory setting.
 - Hunters lay traps with a purpose: a snare in front of whatever chases the Priest or the casters, Sandman on packs, Claymore on bunched monsters.
 - They don't buff in town when no monster is in sight.
@@ -25,6 +26,7 @@ Your companions as a real party of people who live in this world with you. This 
 
 ## How they live
 
+- **Portraits:** when a companion speaks, their class portrait slides in at the bottom right with the line in a speech bubble, like an NPC's. Battle callouts go first, in a red bubble. Every pre-renewal class has one, male and female.
 - They talk. They greet you, react to places, call out in battle and answer you in party chat. Hundreds of conversations grow from strangers to close friends.
 - Campfire nights: after you've been idle for 3 minutes they suggest making camp, or you say `make camp`. They sit around the fire, talk and cook a meal that buffs the party, and you leave Well Rested with bonus EXP.
 - Now and then a companion brings you a gift.
@@ -42,10 +44,10 @@ Press **Alt+N**, or use the small on-screen button. Four tabs:
 
 - **Status:** everyone's HP, SP, level and state.
 - **Memories:** where you met, the bosses you beat together, the places you saw.
-- **Bag:** each companion's bag, the gear you gave, their colours, a colour-coded weight bar (yellow from 50%, when natural regen stops; red from 90%, when they can't attack), and their **Restock** list.
+- **Bag:** one companion at a time (pick them by name), laid out like the game's Equip window: their gear around them and the companion drawn in the middle. Below: their bag, a colour-coded weight bar (yellow from 50%, when natural regen stops; red from 90%, when they can't attack), and their **Restock** list.
 - **Loot:** the party purse and the party bag.
 
-Drag an item from your inventory onto a companion to give it, or onto its Restock row to add it to the list. For a stack, you pick how many. Gear they can wear goes on at once, including an accessory on each side. Click an item to see it; double-click it, or drag it onto your inventory, to take it back.
+Drag an item from your inventory onto a companion to give it, or onto its Restock row to add it to the list. For a stack, you pick how many. Gear they can wear goes on at once, including an accessory on each side. Hover an item to see it; double-click it, or drag it onto your inventory, to take it back.
 
 ## Install
 
@@ -62,8 +64,10 @@ On renewal the mod loads and the talk, memories, campfires, gifts and window wor
 
 ## Settings
 
-You can turn every feature on or off in the mod's Settings window: party spacing (Close, Normal, Far), party roles, roaming, campfires, gifts, growth, sitting, chat and its colour, emotes, the purse, party loot (Off, Low, Normal, Generous), memories and more.
+You can turn every feature on or off in the mod's Settings window: party spacing (Close, Normal, Far), party roles, roaming, campfires, gifts, growth, sitting, chat and its colour, emotes, the purse, party loot (Off, Low, Normal, Generous), portraits (size, reading speed, small talk or callouts only), the Warp Portal's gem, memories and more.
 
 ## Author
 
 Always
+
+The class portraits are Gravity's official Ragnarok Online class art, cut out by hand for this fan mod. Ragnarok Online and its art belong to Gravity Co., Ltd.
