@@ -1,6 +1,6 @@
 {
   "name": "companion-party-overhaul",
-  "version": "3.7.0",
+  "version": "3.8.2",
   "author": "Always",
   "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, one-click orders (stance, focus, roam, camp, Warp Portal, item appraisal), your bonds with each of them (tiers that grow into small perks), bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
   "requires": { "app": ">=1.6.0", "era": "any" },
@@ -76,6 +76,15 @@
       "default": true,
       "label": "Use the items you give them",
       "description": "Needs Settings > Population > Companion inventory on. They cure poison, silence, blind, curse and confusion (Green Herb, Green Potion, Holy Water, Panacea, Royal Jelly), use Yggdrasil Seed or Berry under 20% HP while hit, revive the fallen (you too) with Yggdrasil Leaves when no Priest can, and drink their class's speed potion near a boss. Cheapest first. Changing this restarts the server."
+    },
+    {
+      "key": "drink_hp",
+      "type": "number",
+      "default": 50,
+      "min": 0,
+      "max": 90,
+      "label": "Drink and eat below HP %",
+      "description": "Needs Companion inventory on. In a fight or while you walk on, under this HP % they use the healing item that fits (potions, herbs, food); under 25% the strongest, Yggdrasil only under 15%; SP under 20%. Healers heal first. A heavy bag never stops them. Standing still, they rest. 0 = the game's own habit only."
     },
     {
       "key": "town_calm",
@@ -187,6 +196,13 @@
       "max": 3,
       "label": "Loot finds",
       "description": "A monster the party beats (yours or a companion's) can also turn up one thing from its own drop list, into the party bag (Loot tab, no weight limit): Take it or Sell it into the purse. 0 off, 1 Low (a tenth of its drop rate), 2 Normal (a quarter), 3 Generous (half)."
+    },
+    {
+      "key": "restock_gems",
+      "type": "boolean",
+      "default": false,
+      "label": "Restock Red and Yellow Gemstones",
+      "description": "NPC shops only sell Blue Gemstones. On: restock buys Red and Yellow ones too, at 600 zeny each (an exception to RO's shops). Off: like the original game, you hunt for them."
     },
     {
       "key": "gifts",
