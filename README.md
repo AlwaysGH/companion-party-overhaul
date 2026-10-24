@@ -15,6 +15,7 @@ Your companions as a real party of people who live in this world with you. This 
 - `go hunt` sends them roaming as a group: they follow the tank, wait for each other and gather to revive the fallen. `come back` calls them back.
 - `take us back` (or `take us home`, `open a portal`): an Acolyte-line companion opens a Warp Portal to your save point, and from town back to the exact spot you left. It costs a Blue Gemstone from their bags or yours (a setting).
 - They use the items you give them. They cure bad statuses, use Yggdrasil Seeds and Berries when they're in danger, revive the fallen with Yggdrasil Leaves when no Priest can, and drink speed potions near a boss. This needs the game's Companion inventory setting.
+- **Potions and food like a careful player:** in a fight, or while you walk on, a companion under 50% HP (a setting) uses the healing item from its bag that best fits the wound: potions, herbs, Meat, Cheese... Under 25% the strongest one. A Priest or Acolyte gets 2 seconds to heal first, and a heavy bag never stops them. Standing still after a fight, they sit and rest.
 - Hunters lay traps with a purpose: a snare in front of whatever chases the Priest or the casters, Sandman on packs, Claymore on bunched monsters.
 - They don't buff in town when no monster is in sight.
 
@@ -35,7 +36,7 @@ Your companions as a real party of people who live in this world with you. This 
 - Between fights they stand loosely around you, look around and walk patrols (scouts). They sit down beside the one they feel closest to.
 - A party purse fills with a little zeny from every monster you beat.
 - **Party loot:** monsters the party beats sometimes turn up an extra find from their own drop list, into the party bag. Sell it from the Loot tab to fill the purse, or take it yourself.
-- **Restock in town:** give each companion a shopping list (potions, gems, arrows...). Whenever you reach a town they top up from the party purse, at shop prices, with a Merchant's Discount.
+- **Restock in town:** give each companion a shopping list (potions, Blue Gemstones, arrows...). Whenever you reach a town they top up from the party purse, at shop prices, with a Merchant's Discount. Red and Yellow Gemstones too, if you turn that setting on (NPC shops only sell Blue).
 - Fallen companions get back up when you leave the map.
 - Their lines in your chat box come in a colour of your choice.
 
@@ -49,7 +50,7 @@ Press **Alt+N**, or use the small on-screen button. Drag its corner to resize it
 - **Bag:** one companion at a time (pick them by name), laid out like the game's Equip window: their gear around them and the companion drawn in the middle. Below: their bag, a colour-coded weight bar (yellow from 50%, when natural regen stops; red from 90%, when they can't attack), and their **Restock** list.
 - **Loot:** the party purse and the party bag.
 
-Drag an item from your inventory onto a companion to give it, or onto its Restock row to add it to the list. For a stack, you pick how many. Gear they can wear goes on at once, including an accessory on each side. Hover an item to see it; double-click it, or drag it onto your inventory, to take it back.
+Drag an item from your inventory onto a companion to give it, or onto its Restock row to add it to the list. For a stack, you pick how many. Gear they can wear goes on at once, including an accessory on each side, even two of the same ring. Hover an item to see it; double-click it, or drag it onto your inventory, to take it back.
 
 ## Install
 
