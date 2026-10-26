@@ -376,12 +376,14 @@ const BOND_HPSP = [0, 0, 2, 2, 4, 6];
 // head mid|garment|mount bits (3.5.0: the look), R|cid|item id|keep|name,
 // I|cid|index|item id|amount|worn|refine|cards|options|bound|rental|own|name
 // (own, 3.5.0: its own starting gear, listed for the Equip layout, not takeable).
+// 3.8.4: "list <cid> <have>": R and I lines come only for the companion picked
+// (P's 6th field, detail); the answer is "SAME" when nothing changed.
 function parseBag(text) {
-    const bag = { purse: 0, inv: false, rate: 0, town: false, comps: [] };
+    const bag = { purse: 0, inv: false, rate: 0, town: false, detail: null, comps: [] };
     const byCid = {};
     for (const rec of String(text || '').split('~')) {
         const f = rec.split('|');
-        if (f[0] === 'P') { bag.purse = +f[1] || 0; bag.inv = f[2] === '1'; bag.rate = +f[3] || 0; bag.town = f[4] === '1'; }
+        if (f[0] === 'P') { bag.purse = +f[1] || 0; bag.inv = f[2] === '1'; bag.rate = +f[3] || 0; bag.town = f[4] === '1'; bag.detail = f[5] ?? null; }
         else if (f[0] === 'C') {
             byCid[f[1]] = { cid: f[1], name: f[2], job: f[3], items: [], restock: [],
                 cloth: +f[4] || 0, clothMin: +f[5] || 0, clothMax: +f[6] || 0,
@@ -643,6 +645,8 @@ export default function init(parameters, api) {
         // The name tabs: a drop on one gives to that companion too.
         out.push('<div class="party">' + bag.comps.map(x =>
             `<span class="pk${x.cid === c.cid ? ' on' : ''}" data-cid="${esc(x.cid)}">${esc(x.name)}</span>`).join('') + '</div>');
+        // 3.8.4: just picked; its bag is on the way.
+        if (bag.detail != null && bag.detail !== c.cid) { out.push(`<div class="empty">Looking in ${esc(c.name)}'s bag...</div>`); return out.join(''); }
         const square = (it, cls = '') => {
             const pips = (it.cardIds.length ? '<i class="pc"></i>' : '') + (it.opts.length ? '<i class="po"></i>' : '') + (it.bound || it.rental ? '<i class="pb"></i>' : '');
             const src = iconUrl.get(it.id);
@@ -856,8 +860,13 @@ export default function init(parameters, api) {
             if (tab === 'bag') {
                 // The bags change slowly: every 3 s is plenty.
                 if (Date.now() - bagAt < 3000) return;
-                bag = parseBag(await api.server.request('clbag', 'list', { timeout: 4000 }));
+                // 3.8.4: only the picked companion's bag, and nothing to redraw when it's
+                // the same as last time.
+                const have = bag && bag.detail === pickCid ? 1 : 0;
+                const reply = String(await api.server.request('clbag', `list ${pickCid || 0} ${have}`, { timeout: 4000 }) || '');
                 bagAt = Date.now();
+                if (reply.trim() === 'SAME' && have) return;
+                bag = parseBag(reply);
             } else if (tab === 'loot') {
                 if (Date.now() - lootAt < 3000) return;
                 loot = parseLoot(await api.server.request('clbag', 'lootlist', { timeout: 4000 }));
@@ -890,6 +899,7 @@ export default function init(parameters, api) {
         bagAt = 0;
         lootAt = 0;
         await refresh();
+        render();   // the answer line, even when the bag came back the same
     }
 
     // 3.7.0: the engine takes its stances ("attack", "defensive", "passive") only as a
@@ -1177,7 +1187,7 @@ export default function init(parameters, api) {
             }
             // 3.5.0: a companion's name tab in the Bag tab.
             const pk = event.target.closest('.pk[data-cid]');
-            if (pk) { pickCid = pk.dataset.cid; hideTip(); bagMsg = null; render(); return; }
+            if (pk) { pickCid = pk.dataset.cid; hideTip(); bagMsg = null; render(); bagAt = 0; refresh(); return; }
             // A square in the Bag tab: a double-click takes it (worn gear back, a stack
             // after "how many"), as in the game's inventory; its details are on hover.
             // 3.5.2: was a single click. Counted here: the window redraws between the
