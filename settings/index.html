@@ -96,7 +96,7 @@ const $ = id => document.getElementById(id);
 // 'spacing' is the four-way choice drawn over the three spacing_* switches.
 const CARDS = [
   { cls: 'party', title: 'Party behaviour', blurb: 'How they stand, wander and rest between fights.',
-    rows: ['spacing', 'look_around', 'idle_sit', 'campfire'] },
+    rows: ['spacing', 'look_around', 'idle_sit', 'campfire', 'pets', 'pet_strength'] },
   { cls: 'battle', title: 'In battle', blurb: 'Each class in its part, your orders, and your items.',
     rows: ['party_roles', 'roam_together', 'chat_orders', 'warp_gem', 'use_items', 'drink_hp', 'town_calm'] },
   { cls: 'talk', title: 'Talk & personality', blurb: 'What they say, to you and to each other.',
@@ -119,7 +119,7 @@ const SPACING = [
 const SEGS = {
   spacing: { label: 'Party spacing', hint: 'How far from you they stand between fights.' },
 };
-const UNITS = { drink_hp: '%', banter_minutes: 'min', purse_per_level: 'zeny', portrait_size: '%' };
+const UNITS = { drink_hp: '%', banter_minutes: 'min', purse_per_level: 'zeny', portrait_size: '%', pet_strength: '%' };
 // loot_finds (a number 0-3) drawn as a four-way choice.
 const LEVELS = {
   loot_finds: [
@@ -142,6 +142,7 @@ const SWATCHES = [
 // The app hands the page values but not defaults; keep these in step with mod.json.
 const DEFAULTS = {
   spacing_close: false, spacing_normal: true, spacing_far: false, look_around: true, idle_sit: true, campfire: true,
+  pets: true, pet_strength: 100,
   party_roles: true, roam_together: true, chat_orders: true, warp_gem: true, use_items: true, drink_hp: 50, town_calm: true,
   titles: 'Boss,Captain,Leader', everyday_chatter: true, combat_callouts: true, chat_replies: true,
   banter_minutes: 4, chat_colour: 1, purse_per_level: 2, loot_finds: 1, restock_gems: false, gifts: true, starter_kit: true,

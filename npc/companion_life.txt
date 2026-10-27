@@ -1731,6 +1731,164 @@ OnInit:
 	setarray .bondup_6$, "I don't trust anyone. Except you, {t}. Don't make it weird.", "You've got my back, I've got yours. That's rare, {t}.";
 	setarray .bondup_7$, "Best partnership I ever signed, {t}. No contract needed.", "You're worth more than any deal, {t}. Don't tell my ledger.";
 
+	// ---- Pets (3.2.0, setting "pets"): the companions you allow (Bag tab, Pet) bring
+	// the classic tameable pet of their class, as the lore has it. Lookalikes with ids
+	// of their own (db/mob_db.yml 31201-31213, the real sprites via System/jobname.lub):
+	// no drops, spells or EXP. Each is its companion's slave (UMOB_MASTERAID), so
+	// rAthena's slave AI (mob.cpp mob_ai_sub_hard_slavemob) has it follow and take its
+	// companion's target. Monsters see a player's slave as a friend, players can't hit
+	// it, and UMOB_DMGIMMUNE covers the rest. The slave AI kills it when its companion
+	// is gone (a warp or teleport, a fall), and L_PetTick puts it back. Every pet is as
+	// strong as the next (setting pet_strength): attack 2 x its companion's level, one
+	// hit per 1.5 s, accuracy with level.
+	.pets = callfunc("F_ModSetting", .mod$, "pets", 1);
+	.pet_pow = cap_value(callfunc("F_ModSetting", .mod$, "pet_strength", 100), 0, 200);
+	setarray .pet_mob, 31201, 31202, 31203, 31204, 31205, 31206, 31207, 31208, 31209, 31210, 31211, 31212, 31213;
+	setarray .pet_nm$, "Baby Desert Wolf", "Lunatic", "Deviruchi", "Chonchon", "Peco Peco", "Poring", "Steel Chonchon", "Spore", "Isis", "Yoyo", "Smokie", "Rocker", "Drops";
+	// By job id (pre-re 0-25; transcendent and baby folded in, L_PetOf). 1st classes
+	// take their family's: Swordman the Knight's Peco Peco, Acolyte the Priest's Lunatic.
+	//                Nov Swd Mag Arc Aco Mer Thf Kni Pri Wiz Bsm Hun Asn Kn2 Cru Mnk Sag Rog Alc Brd Dnc Cr2 Wed SNv Gun Nin
+	setarray .pet_job, 5,  4,  2,  0,  1,  6,  8,  4,  1,  2,  6,  0,  8,  4,  5, 10,  3,  9,  7, 11, 12,  5,  5,  5,  0,  9;
+	// Lines: {m} = the pet, {a} = another companion, {t} = you.
+	setarray .petget_0$, "A {m}! For me? {t}, I'm going to take such good care of it!", "Look, {t}, my very own {m}! It followed me!";
+	setarray .petget_1$, "A {m} at my side. I'll guard it as I guard you, {t}.", "Thank you, {t}. This {m} and I will keep watch together.";
+	setarray .petget_2$, "A {m}. Fascinating. I'll be taking notes on it, {t}.", "Thank you, {t}. The old texts say a {m} makes a fine companion. Let's test that.";
+	setarray .petget_3$, "A {m} for the road! Now we're a proper travelling band, {t}.", "Hey there, little {m}. Ready to see the world?";
+	setarray .petget_4$, "A {m}... the goddess sends us small blessings, {t}. Thank you.", "Come here, little {m}. I'll keep you safe.";
+	setarray .petget_5$, "A {m}! Bet it can throw a punch. Can it, {t}?", "My own {m}! We'll train together every morning!";
+	setarray .petget_6$, "A {m}. Quiet, sharp, a little dangerous. We'll get along, {t}.", "Fine, the {m} can tag along. Don't tell anyone I like it.";
+	setarray .petget_7$, "A {m}! Do you know what a tame one goes for in Prontera? Not selling, though, {t}.", "My {m}. Priceless. Well, I could name a price, but no.";
+	setarray .petoff_0$, "Bye for now, little {m}! See you soon!", "Aww, {m} has to go home? Okay...";
+	setarray .petoff_1$, "Go on home, {m}. I'll hold the line alone for a while.", "Understood, {t}. The {m} rests at home.";
+	setarray .petoff_2$, "Back home, {m}. My notes on you can wait.", "Very well, {t}. My {m} will wait for us.";
+	setarray .petoff_3$, "Off you go, {m}. Keep the fire warm for me.", "The {m} heads home. The road feels quieter already.";
+	setarray .petoff_4$, "Rest well, little {m}. Freyja watch over you.", "Go home safe, {m}. I'll miss you.";
+	setarray .petoff_5$, "See you later, {m}! Stay strong!", "Home time, {m}. Keep up your training!";
+	setarray .petoff_6$, "Scram, {m}. ...See you later.", "The {m} slips away home. Smart animal.";
+	setarray .petoff_7$, "The {m} goes home. Fewer mouths to feed, at least.", "Off you go, {m}. Mind the shop while I'm out.";
+	setarray .petidle_0$, "{t}, my {m} follows my every step. Is that normal?", "I think my {m} likes me. It stays so close!", "Do you think a {m} ever gets tired? Mine never does.";
+	setarray .petidle_1$, "My {m} stands guard when I do. Good discipline.", "Steady, {m}. We move when {t} moves.", "The {m} hasn't left my side once today.";
+	setarray .petidle_2$, "Note: a {m} tilts its head when I read aloud. Curious.", "My {m} fell asleep on my spellbook again.", "I wonder what a {m} dreams about.";
+	setarray .petidle_3$, "My {m} found a shortcut I didn't know. Clever thing.", "Every road is better with a {m} along.", "I wrote my {m} a little tune. It seems to like it.";
+	setarray .petidle_4$, "My {m} sits so quietly while I pray. It's very sweet.", "I bandaged my {m}'s paw. Well, it didn't need it, but still.", "A {m} by my side and friends around me. I'm lucky.";
+	setarray .petidle_5$, "My {m} watched me train all morning. I think it's learning.", "Me and my {m}, best sparring partners.", "I'm teaching my {m} to dodge. It's better at it than me.";
+	setarray .petidle_6$, "My {m} tried to pick a pocket earlier. I'm so proud.", "Nobody sneaks up on us. My {m} hears everything.", "The {m} and I have an understanding. I don't ask, it doesn't tell.";
+	setarray .petidle_7$, "Feeding a {m} costs nothing. Best deal I ever made.", "My {m} has walked further than any caravan this week. I counted.", "A {m} draws customers, you know. Good for business.";
+	setarray .petcx_0$, "{a}, your {m} is so cute! Can I hold it?", "{a}! Your {m} just looked at me! I think it likes me!";
+	setarray .petcx_1$, "{a}, your {m} keeps good formation. Better than some soldiers.", "That {m} of yours is brave, {a}.";
+	setarray .petcx_2$, "{a}, may I study your {m}? Just for an hour or two.", "{a}, your {m} is a fine specimen.";
+	setarray .petcx_3$, "{a}, your {m} would make a great travelling companion. Oh, wait.", "Hey {a}, your {m} and I should race sometime.";
+	setarray .petcx_4$, "{a}, your {m} looks well. You take good care of it.", "Bless your {m}, {a}. It brightens the whole party.";
+	setarray .petcx_5$, "{a}! Your {m} looks tough. Want to spar? Pets included!", "{a}, does your {m} train? It looks strong.";
+	setarray .petcx_6$, "{a}, your {m} was sniffing around my bag again.", "Keep your {m} away from my things, {a}. ...It is kind of cute, though.";
+	setarray .petcx_7$, "{a}, I'd pay good zeny for a {m} like yours. Just saying.", "{a}, your {m} chewed a strap on my bag. I'm adding it to your tab.";
+	setarray .petre_0$, "Really? My {m} likes you too, {a}!", "Hehe, my {m} says hi, {a}!";
+	setarray .petre_1$, "My {m} is loyal, {a}. As it should be.", "Thank you, {a}. My {m} and I are proud.";
+	setarray .petre_2$, "You may observe my {m}, {a}. From a respectful distance.", "My {m} is quite remarkable, I agree.";
+	setarray .petre_3$, "My {m}? Wouldn't trade it for a horse, {a}.", "Ha! My {m} would win that race, {a}.";
+	setarray .petre_4$, "Thank you, {a}. My {m} is a little blessing.", "My {m} is fond of you too, {a}.";
+	setarray .petre_5$, "My {m} could take you, {a}! Probably!", "You're on, {a}! My {m} never backs down!";
+	setarray .petre_6$, "My {m} goes where it likes, {a}. Like me.", "Hmph. My {m} has good taste, {a}.";
+	setarray .petre_7$, "My {m} isn't for sale, {a}. Make me an offer anyway.", "Put it on my tab, {a}. My {m} has expensive taste.";
+	setarray .petfight_0$, "Go, {m}! We can do this!", "Careful, {m}! Stay behind me!";
+	setarray .petfight_1$, "With me, {m}! Hold the line!", "{m}, guard my flank!";
+	setarray .petfight_2$, "{m}, keep it busy while I cast!", "Now, {m}! Its guard is down!";
+	setarray .petfight_3$, "Get it, {m}!", "Flank it, {m}! I'll cover you!";
+	setarray .petfight_4$, "Stay close, {m}, I'll heal you!", "Easy, {m}! Don't get hurt!";
+	setarray .petfight_5$, "Together, {m}! Hit it hard!", "Show them what we trained for, {m}!";
+	setarray .petfight_6$, "Bite it, {m}. Then we run.", "Quietly, {m}. From behind.";
+	setarray .petfight_7$, "{m}, that one's worth good zeny. Go!", "Earn your keep, {m}!";
+	setarray .petshow_0$, "This is my {m}, {t}! Isn't it the best?", "Meet my {m}! Say hello, {m}!";
+	setarray .petshow_1$, "My {m}, {t}. Loyal and ready.", "This is my {m}. It stands with us.";
+	setarray .petshow_2$, "My {m}, {t}. Observe the ears.", "Allow me to present my {m}.";
+	setarray .petshow_3$, "My {m}, {t}! We've walked many roads already.", "Say hi, {m}! That's {t}, our leader.";
+	setarray .petshow_4$, "My little {m}, {t}. Isn't it precious?", "Here's my {m}. It's been a good friend.";
+	setarray .petshow_5$, "My {m}! Strongest pet in Rune-Midgard!", "Check out my {m}, {t}! Tough, right?";
+	setarray .petshow_6$, "My {m}. Don't stare, it's shy.", "That's my {m}. Best partner I ever had.";
+	setarray .petshow_7$, "My {m}, {t}! Worth more than a Kafra's yearly pay.", "Presenting my {m}! No touching without paying.";
+	// 3.9.0 "Can we keep it?" (L_PetAsk): pets aren't yours to switch on any more. The
+	// first time a companion reaches the Companion bond, it walks over with the little
+	// one that has been following it and asks. "Not now" once: it asks one last time
+	// about an hour of play later. "Not now" twice: it stops asking, and the Bag tab
+	// has "Let them keep it". Lines: pcome over its head as it walks up, pask1/pask2
+	// in the portrait's bubble with Yes / Not now, plater/plast its answer to a
+	// "Not now", pwel once you've named it ({m} = the name).
+	setarray .pcome_0$, "{t}! {t}! Look who followed me again!", "Psst, {t}... come see!";
+	setarray .pcome_1$, "{t}, a word, if you have a moment.", "{t}. Something to report.";
+	setarray .pcome_2$, "{t}, a small matter. A furry one.", "{t}, I have a question. And a specimen.";
+	setarray .pcome_3$, "Hey {t}, look what the road brought us!", "{t}! Got a minute? Someone wants to meet you.";
+	setarray .pcome_4$, "{t}... may I ask you something?", "{t}, if you have a moment...";
+	setarray .pcome_5$, "{t}! Look at this little fighter!", "Hey {t}! Got a question for you!";
+	setarray .pcome_6$, "{t}. Don't laugh. Just look.", "{t}, over here. Quietly.";
+	setarray .pcome_7$, "{t}, a proposal for you!", "{t}! Got a deal you'll like.";
+	setarray .pask1_0$, "This {m} has been following me everywhere! It even waits for me when I sit down. Can we keep it, {t}? Please?", "{t}, this {m} won't leave my side, and honestly I don't want it to. Can we keep it? I'll take care of everything!";
+	setarray .pask1_1$, "This {m} has kept pace with me for days, {t}. It doesn't flinch when we fight. With your leave, I'd like to keep it.", "A {m} has been standing watch beside me, {t}. Loyal as any squire. May it stay with us?";
+	setarray .pask1_2$, "This {m} has followed me since our last town, {t}. I've been taking notes. I'd like to keep taking them. May we keep it?", "I believe this {m} has adopted me, {t}. The texts say they rarely do that. May we keep it?";
+	setarray .pask1_3$, "This {m} has been walking our road with us for a while now, {t}. It feels like part of the band already. Can we keep it?", "Every camp, this {m} finds me. Every morning, it's still there. Can it come with us, {t}?";
+	setarray .pask1_4$, "{t}... this little {m} has followed me for days. It sleeps by my feet every night. Could we keep it?", "This {m} keeps close when I pray, {t}. I think it's lonely. Could we keep it with us?";
+	setarray .pask1_5$, "This {m} has been training with me every morning, {t}! It's tougher than it looks. Can we keep it?", "This {m} jumped in to help me in our last fight, {t}! A real partner. Can it stay?";
+	setarray .pask1_6$, "This {m} keeps following me, {t}. I've tried to lose it. Twice. ...Can we keep it?", "So. This {m} picked me, {t}, not the other way round. I wouldn't mind if it stayed. Can it?";
+	setarray .pask1_7$, "{t}, this {m} has followed me for days and costs us nothing. Best deal on the road. Can we keep it?", "I've done the sums, {t}. One {m}, free, very loyal. I say we keep it. What do you say?";
+	setarray .pask2_0$, "{t}, the {m} is still here! It never left. I won't ask again, promise... but can it stay?", "It's still following me, {t}! Last time I ask, really. Can we keep the {m}?";
+	setarray .pask2_1$, "The {m} is still at my side, {t}. I'll ask only this once more. May it stay?", "It hasn't left its post, {t}. One last request: let the {m} stay with us.";
+	setarray .pask2_2$, "My notes on the {m} now fill three pages, {t}. I won't ask again after this. May we keep it?", "The {m} is still here. Persistent creature. Last time I ask, {t}: may it stay?";
+	setarray .pask2_3$, "The {m} is still walking with us, {t}. One last time: can it join the band?", "Still here, this little {m}. I won't ask again, {t}. Can it come along?";
+	setarray .pask2_4$, "The {m} is still with us, {t}. I won't ask again, I promise... but may it stay?", "It hasn't left, {t}. I think it has chosen us. This is the last time I'll ask: may it stay?";
+	setarray .pask2_5$, "The {m} is still keeping up, {t}! Last time I ask. Can it stay?", "This {m} doesn't quit, {t}! Neither do I. One more time: can we keep it?";
+	setarray .pask2_6$, "Still here. The {m}, I mean. I won't ask again, {t}. ...Can it stay?", "The {m} won't go away, {t}. Last chance to say yes. I won't bring it up again.";
+	setarray .pask2_7$, "Final offer, {t}: one {m}, still free, still loyal. Can we keep it?", "The {m} is still with us, {t}. Last time I ask, I promise. Deal?";
+	setarray .plater_0$, "Okay... it'll wait, and so will I!", "Aww. Okay, {t}. Maybe later!";
+	setarray .plater_1$, "Understood, {t}. It will keep its distance for now.", "As you say, {t}.";
+	setarray .plater_2$, "Very well. I'll continue my observations from afar.", "Noted, {t}. We'll revisit the matter.";
+	setarray .plater_3$, "Fair enough, {t}. The road is long. We'll see.", "Alright. Another day, maybe.";
+	setarray .plater_4$, "Of course. It will wait, and so will I.", "I understand, {t}. Maybe another time.";
+	setarray .plater_5$, "Got it, {t}! We'll show you what it can do!", "Alright, alright. Another time!";
+	setarray .plater_6$, "Fine. It'll be around. They always are.", "Your call, {t}. ...It's still following me, though.";
+	setarray .plater_7$, "Fair. Think it over, {t}. The offer stands.", "No sale today, then. Maybe later.";
+	setarray .plast_0$, "Okay, {t}... If you ever change your mind, you know where to find us.", "Alright. I won't ask again. But it's still so cute...";
+	setarray .plast_1$, "Understood, {t}. I won't raise it again.", "Very well. The matter is closed, {t}.";
+	setarray .plast_2$, "I see. I'll close the file. Should you reconsider, it's in the Bag.", "Understood, {t}. I won't bring it up again.";
+	setarray .plast_3$, "Alright, {t}. Some roads we walk alone. If you change your mind...", "That's that, then. No more asking, I promise.";
+	setarray .plast_4$, "I understand, {t}. If you change your mind, you know where to find us.", "Alright. I won't ask again. Thank you for listening, {t}.";
+	setarray .plast_5$, "Okay, {t}! No hard feelings. I won't ask again!", "Alright. Not another word about it, {t}.";
+	setarray .plast_6$, "Fine. I won't ask again. ...It's still following me, though.", "Got it, {t}. Done asking.";
+	setarray .plast_7$, "No deal, then. The offer stays on the table, {t}.", "Understood. I won't ask again. Your loss, {t}.";
+	setarray .pwel_0$, "{m}! Welcome to the family, {m}! Thank you, thank you, {t}!", "{m}! Did you hear that? You're staying! Thank you, {t}!";
+	setarray .pwel_1$, "{m}. A fine name. Welcome to the party, {m}. Thank you, {t}.", "{m} it is. Fall in, {m}. We march with {t}.";
+	setarray .pwel_2$, "{m}. Yes. I'll write that at the top of my notes. Thank you, {t}.", "{m}. A good name, {t}. Thank you. Truly.";
+	setarray .pwel_3$, "{m}! Welcome to the band, {m}. Thank you, {t}!", "{m}! That has a ring to it. Welcome aboard!";
+	setarray .pwel_4$, "{m}... I love it. Welcome to the family, {m}. Thank you, {t}.", "{m}. The goddess sends us small blessings. Thank you, {t}.";
+	setarray .pwel_5$, "{m}! Strong name! Welcome to the team, {m}!", "{m}! You hear that? We're partners now! Thanks, {t}!";
+	setarray .pwel_6$, "{m}. ...Yeah. That works. Thanks, {t}.", "{m}. Don't get used to the attention, {m}. ...Thanks, {t}.";
+	setarray .pwel_7$, "{m}! Priceless. Thank you, {t}. Best deal I ever made.", "{m}. Signed and sealed. Welcome, {m}. Thank you, {t}!";
+	// 3.9.0 pets react: the party's MVP (petmvp), the campfire (petcamp, once a camp),
+	// two pets playing between fights (petplay: {a} the other pet), and a pet crying
+	// beside its fallen companion until it's back up (no line: the pet's crying says it).
+	setarray .petmvp_0$, "{m} is so happy! Look at it jump!", "We did it, {m}! We did it!";
+	setarray .petmvp_1$, "Well fought, {m}. You held your ground.", "{m} stood firm the whole fight. Good.";
+	setarray .petmvp_2$, "{m} seems to understand what we just did. Remarkable.", "Even {m} is celebrating. Noted.";
+	setarray .petmvp_3$, "Look at {m} go! That's a victory dance if I ever saw one.", "{m} will be telling this story for weeks.";
+	setarray .petmvp_4$, "{m}, are you hurt? No? Thank goodness. We did it!", "{m} is cheering with us. Bless it.";
+	setarray .petmvp_5$, "{m} wants another round! Ha!", "That's my {m}! Champion!";
+	setarray .petmvp_6$, "Calm down, {m}. ...Okay, fine, celebrate.", "{m} took a bite out of that one too. Proud.";
+	setarray .petmvp_7$, "{m} smells loot. Good instincts.", "{m}! Check the drops! ...It's just jumping. Fine.";
+	setarray .petcamp_0$, "Shh... {m} fell asleep by the fire.", "{m} is snoring! So tiny!";
+	setarray .petcamp_1$, "{m} sleeps. I'll keep watch for both of us.", "{m} is out cold by the fire. Let it rest.";
+	setarray .petcamp_2$, "{m} has fallen asleep on my notes. Again.", "Observe: {m}, asleep, twitching. Dreaming, I'd guess.";
+	setarray .petcamp_3$, "{m} curled up by the fire. Best spot in camp.", "Look at {m}, warm and asleep. That's the life.";
+	setarray .petcamp_4$, "{m} is asleep in my lap. I don't dare move.", "Sleep well, {m}. We're all here.";
+	setarray .petcamp_5$, "{m} trained so hard today it fell asleep mid-yawn.", "Out like a light, {m}. Good work today.";
+	setarray .petcamp_6$, "{m} is asleep. Don't wake it. It bites.", "{m}'s asleep on my bag. Guess I'm not getting into it.";
+	setarray .petcamp_7$, "{m} sleeps for free. I envy it.", "{m} is asleep. Fewer snacks stolen tonight.";
+	setarray .petplay_0$, "{m} and {a} are playing tag! Can I join?", "Look, {m} and {a} are best friends now!";
+	setarray .petplay_1$, "{m} and {a}, sparring. Good form, both of them.", "{m} is chasing {a} again. Let them.";
+	setarray .petplay_2$, "Fascinating. {m} and {a} have a game with rules.", "{m} and {a} are at it again. I'm keeping score.";
+	setarray .petplay_3$, "{m} and {a} running circles. Wish I had their energy.", "There go {m} and {a}. Nothing like a friend on the road.";
+	setarray .petplay_4$, "{m} and {a} are playing. Isn't that lovely?", "Careful, you two! {m}, {a}, gently!";
+	setarray .petplay_5$, "{m}'s wrestling {a}! My money's on {m}!", "{m} and {a} training together. Good!";
+	setarray .petplay_6$, "{m} stole something from {a}. That's my pet.", "{m} and {a} are causing trouble. Good.";
+	setarray .petplay_7$, "{m} and {a} again. I should charge admission.", "If {m} and {a} were a show, we'd be rich.";
+
 	initnpctimer;	// the tick below
 	end;
 
@@ -1767,6 +1925,10 @@ OnPCLogoutEvent:
 		unloadnpc @cl_fire$;	// the campfire goes out with you
 	if (@cl_wp$ != "")
 		unloadnpc @cl_wp$;	// and an open Warp Portal closes
+	for (.@s = 0; .@s < 6; .@s++) {
+		if (getd("@cl_mo" + .@s + "$") != "")
+			unloadnpc getd("@cl_mo" + .@s + "$");	// and a crying pet goes home
+	}
 	end;
 
 OnPCBaseLvUpEvent:
@@ -1808,6 +1970,13 @@ OnNPCKillEvent:
 			.@g = callsub(L_Pick, -1, -1);
 			if (.@g >= 0)
 				callsub L_Gift, .@g, "mvp";
+		}
+		// 3.9.0: every pet out cheers, and one companion says so.
+		if (.pets) {
+			callsub L_PetEmotes, ET_CONGRATULATION, 100;
+			.@a = callsub(L_PetPick, -1);
+			if (.@a >= 0 && .chatter && rand(100) < 60)
+				callsub L_QueueFmt, .@a, "petmvp", "", ET_DELIGHT, 0, callsub(L_PetName, @cl_cid[.@a]);
 		}
 	}
 	// The party purse: a share of each of your kills for every living
@@ -1881,6 +2050,9 @@ OnTick:
 		callsub L_WarpClose;
 	if (@cl_greet && .@sec > @cl_login + 90)
 		@cl_greet = 0;	// nobody came back with you: no greeting later
+	// 3.9.0: pets crying beside their fallen companions (L_PetMourn).
+	if (.pets)
+		callsub L_PetMourn, .@sec;
 	if (!@cl_n)
 		end;
 
@@ -1894,6 +2066,13 @@ OnTick:
 	// The loot bag: monsters beaten round the party (L_LootTrack).
 	if (.loot_share > 0)
 		callsub L_LootTrack;
+
+	// 3.2.0: the pets of the companions you allowed (L_PetTick).
+	if (.pets)
+		callsub L_PetTick, .@sec;
+	// 3.9.0: "Can we keep it?" (L_PetAsk). Bonds come from Memories, so it needs those.
+	if (.pets && .mem)
+		callsub L_PetAsk, .@sec;
 
 	// A companion we haven't seen this session: newly hired or drafted.
 	// The ones that come back with you at login are marked quietly during
@@ -2091,6 +2270,17 @@ OnTick:
 				if (.@a >= 0)
 					callsub L_SpeakNow, .@a, "fight", "", ET_GO;
 			}
+			// 3.2.0: the pets perk up, and now and then one's companion calls to it.
+			if (.pets) {
+				callsub L_PetEmotes, ET_SURPRISE, 60;
+				if (.callouts && .@sec >= @cl_pfight_cd && rand(100) < 25) {
+					.@a = callsub(L_PetPick, -1);
+					if (.@a >= 0) {
+						@cl_pfight_cd = .@sec + 120;
+						callsub L_QueueFmt, .@a, "petfight", "", 0, 0, callsub(L_PetName, @cl_cid[.@a]);
+					}
+				}
+			}
 		}
 		@cl_combat_until = .@sec + 10;
 	} else if (@cl_incombat && .@sec > @cl_combat_until) {
@@ -2207,6 +2397,11 @@ OnTick:
 			}
 		}
 	}
+
+	// 3.2.0: pets between fights: a happy emote now and then (sleepy once the party
+	// has sat a while), and every few minutes a word about them (L_PetLife).
+	if (.pets && !@cl_incombat && .@sec - @cl_peace >= 10)
+		callsub L_PetLife, .@sec;
 
 	// Campfire nights (setting campfire): the fire's tick, or after 3 minutes of you
 	// standing still with no fight, they light one themselves (once per stop, and not
@@ -3394,6 +3589,10 @@ OnCmdBag:
 		// choppy. When the window already has this answer (have 1) and nothing
 		// changed, it gets "SAME" and doesn't redraw.
 		.@pick = atoi(.@atcmd_parameters$[2]);
+		// 3.9.0: a window from before 3.8.4 (a cached copy after an update) sends no
+		// companion at all: it gets every companion's bag, as it used to, instead of
+		// only the first one's (Ekado's report: the others' gear looked gone).
+		.@all = (.@atcmd_numparameters < 3);
 		callsub L_BagParty;
 		if (inarray(@clb_cid, .@pick) < 0)
 			.@pick = @clb_cid[0];
@@ -3417,8 +3616,12 @@ OnCmdBag:
 				+ "|" + .@cls + "|" + readparam(Sex, .@c) + "|" + getlook(LOOK_HAIR, .@c)
 				+ "|" + getlook(LOOK_WEAPON, .@c) + "|" + getlook(LOOK_SHIELD, .@c)
 				+ "|" + getlook(LOOK_HEAD_BOTTOM, .@c) + "|" + getlook(LOOK_HEAD_TOP, .@c) + "|" + getlook(LOOK_HEAD_MID, .@c)
-				+ "|" + getlook(LOOK_ROBE, .@c) + "|" + .@fx;
-			if (.@c != .@pick)
+				+ "|" + getlook(LOOK_ROBE, .@c) + "|" + .@fx
+				// 3.9.0: its pet (fields 22-25): out 1/0 (-1 with the pets setting off), its
+				// name, kept or not (L_PetState), and what it is.
+				+ "|" + (.pets ? callsub(L_PetOn, .@c) : -1) + "|" + callsub(L_Clean, callsub(L_PetName, .@c))
+				+ "|" + callsub(L_PetState, .@c) + "|" + .pet_nm$[callsub(L_PetOf, .@cls)];
+			if (.@c != .@pick && !.@all)
 				continue;
 			// Its restock list.
 			.@rn = modstore_keys("char", "rs.c" + .@c, .@rids$);
@@ -3639,6 +3842,15 @@ OnCmdBag:
 			// variable, so every ring was taken for "both sides" and sent the worn
 			// one back, 2.4.0.)
 			.@t = .@loc;
+			// 3.9.0: dual wield (app 1.7.3: equip takes a position). A dagger,
+			// one-handed sword or one-handed axe for an Assassin whose right hand
+			// holds a weapon and whose left hand is free goes in the left hand.
+			// (A katar fills both hands, so the left isn't free then.)
+			if (.@loc == EQP_HAND_R && (eaclass(readparam(Class, .@c)) & EAJ_UPPERMASK) == (EAJ_THIEF | EAJL_2_1)) {
+				.@sub = getiteminfo(.@id, ITEMINFO_SUBTYPE);
+				if ((.@sub == W_DAGGER || .@sub == W_1HSWORD || .@sub == W_1HAXE) && getequipid(EQI_HAND_R, .@c) > 0 && getequipid(EQI_HAND_L, .@c) <= 0)
+					.@t = EQP_HAND_L;
+			}
 			if (.@loc == EQP_ACC_RL) {
 				if (getequipid(EQI_ACC_L, .@c) <= 0 || getequipid(EQI_ACC_R, .@c) <= 0)
 					.@t = 0;
@@ -3697,6 +3909,164 @@ OnCmdBag:
 				.@msg$ = callsub(L_WearNow, .@c, .@nm$, .@id, .@t, .@aid, .@extra$, .@msg$);
 		}
 		callsub L_BagReply, .@req$, "OK|" + .@msg$;
+		end;
+	}
+	// 3.2.0: "pet <char id> <1|0>", the Bag tab's Pet switch: the companion brings its
+	// class's pet, or sends it home. Kept in the store (pet.c<char id>).
+	if (.@act$ == "pet") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@on = (atoi(.@atcmd_parameters$[3]) > 0);
+		if (!.pets) {
+			callsub L_BagReply, .@req$, "ERR|Pets are off in this mod's settings (Party behaviour > Companion pets).";
+			end;
+		}
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		if (.@c < 95000000 || .@k < 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't in your party.";
+			end;
+		}
+		// 3.9.0: only a pet you let them keep.
+		if (!callsub(L_PetKept, .@c)) {
+			callsub L_BagReply, .@req$, "ERR|" + @clb_nm$[.@k] + " hasn't got a pet of their own yet.";
+			end;
+		}
+		if (.@on)
+			modstore_set "char", "pet.c" + .@c, 1;
+		else
+			modstore_delete "char", "pet.c" + .@c;
+		setd "@cl_po_" + .@c, .@on + 1;
+		.@pn$ = callsub(L_PetName, .@c);
+		callsub L_Gather;
+		.@i = inarray(@cl_cid, .@c);
+		if (.@i >= 0) {
+			.@aid = @cl_aid[.@i];
+			if (.@on) {
+				setd "@cl_qpw_" + .@aid, 0;	// at the next tick
+				if (.chatter)
+					callsub L_QueueFmt, .@i, "petshow", "", ET_DELIGHT, 0, .@pn$;
+			} else {
+				.@g = getd("@cl_pg_" + .@aid);
+				callsub L_PetHide, .@g;
+				setd "@cl_pg_" + .@aid, 0;
+				if (.chatter)
+					callsub L_QueueFmt, .@i, "petoff", "", 0, 0, .@pn$;
+			}
+		}
+		if (.@on)
+			callsub L_BagReply, .@req$, "OK|" + @clb_nm$[.@k] + "'s " + .@pn$ + " comes along" + (.@i >= 0 ? "." : " once they're back with you.");
+		else
+			callsub L_BagReply, .@req$, "OK|" + @clb_nm$[.@k] + "'s " + .@pn$ + " goes home.";
+		end;
+	}
+	// 3.9.0: "keep <char id> yes|later": the answer to "Can we keep it?" (L_PetAsk), or
+	// the Bag tab's "Let them keep it" (yes). Yes: the pet is theirs and comes along
+	// (the window then asks for a name, "petname ... new"). Not now: asked once, the
+	// second ask waits an hour of play together; asked twice, it stops asking.
+	if (.@act$ == "keep") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@yes = (.@atcmd_parameters$[3] == "yes");
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		if (!.pets || .@c < 95000000 || .@k < 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't in your party.";
+			end;
+		}
+		callsub L_Gather;
+		.@i = inarray(@cl_cid, .@c);
+		.@sp$ = .pet_nm$[callsub(L_PetOf, readparam(Class, .@c))];
+		if (.@yes) {
+			modstore_set "char", "pk.c" + .@c, 1;
+			modstore_set "char", "pet.c" + .@c, 1;
+			setd "@cl_po_" + .@c, 0;	// read again
+			if (@cl_akc == .@c) {
+				@cl_akc = 0;	// its pet stays: it's theirs now
+				@cl_aks = 0;
+				@cl_aknext = gettimetick(2) + 600;
+			}
+			setd "@cl_pv_" + .@c, 0;
+			callsub L_BagReply, .@req$, "OK|" + .@sp$;
+			end;
+		}
+		if (@cl_akc != .@c) {
+			callsub L_BagReply, .@req$, "OK|";
+			end;
+		}
+		.@n = modstore_get("char", "pa.c" + .@c, 0) + 1;
+		modstore_set "char", "pa.c" + .@c, .@n;
+		if (.@n < 2)
+			modstore_set "char", "pat.c" + .@c, modstore_get("char", "m.c" + .@c + ".mins", 0) + 60;
+		if (.@i >= 0 && .chatter)
+			callsub L_QueueFmt, .@i, (.@n >= 2 ? "plast" : "plater"), "", (.@n >= 2 ? ET_SWEAT : ET_OK), 0, .@sp$;
+		@cl_aks = 0;	// the box closed itself
+		callsub L_PetAskEnd, gettimetick(2) + 600;
+		callsub L_BagReply, .@req$, "OK|";
+		end;
+	}
+	// 3.9.0: "petname <char id> new|re <name ...>": the name you give a kept pet, up to 23
+	// letters ("" = what it is). New: right after the yes, with its companion's welcome.
+	// The pet steps out and back in to wear it (the game keeps the old name on screen).
+	if (.@act$ == "petname") {
+		.@c = atoi(.@atcmd_parameters$[2]);
+		.@new = (.@atcmd_parameters$[3] == "new");
+		.@nm$ = "";
+		for (.@k = 4; .@k < .@atcmd_numparameters; .@k++)
+			.@nm$ += (.@nm$ != "" ? " " : "") + .@atcmd_parameters$[.@k];
+		.@nm$ = replacestr(replacestr(replacestr(.@nm$, "|", ""), "~", ""), "^", "");
+		if (getstrlen(.@nm$) > 23)
+			.@nm$ = substr(.@nm$, 0, 22);
+		callsub L_BagParty;
+		.@k = inarray(@clb_cid, .@c);
+		if (!.pets || .@c < 95000000 || .@k < 0) {
+			callsub L_BagReply, .@req$, "ERR|That companion isn't in your party.";
+			end;
+		}
+		if (!callsub(L_PetKept, .@c)) {
+			callsub L_BagReply, .@req$, "ERR|" + @clb_nm$[.@k] + " hasn't got a pet of their own yet.";
+			end;
+		}
+		.@sp$ = .pet_nm$[callsub(L_PetOf, readparam(Class, .@c))];
+		if (.@nm$ == "" || .@nm$ == .@sp$)
+			modstore_delete "char", "pn.c" + .@c;
+		else
+			modstore_set "char", "pn.c" + .@c, .@nm$;
+		.@pn$ = callsub(L_PetName, .@c);
+		callsub L_Gather;
+		.@i = inarray(@cl_cid, .@c);
+		if (.@i >= 0) {
+			.@aid = @cl_aid[.@i];
+			callsub L_PetHide, getd("@cl_pg_" + .@aid);
+			setd "@cl_pg_" + .@aid, 0;
+			setd "@cl_qpw_" + .@aid, 0;
+			if (.@new && .chatter)
+				callsub L_QueueFmt, .@i, "pwel", "", ET_THROB, 0, .@pn$;
+		}
+		if (.@new)
+			dispbottom "[Companions] " + @clb_nm$[.@k] + " and " + .@pn$ + " are together now. Rename " + .@pn$ + " any time in the Companions window, Bag tab.", 0xFFCC66;
+		callsub L_BagReply, .@req$, "OK|" + @clb_nm$[.@k] + "'s pet is called " + .@pn$ + ".";
+		end;
+	}
+	// 3.2.0: "show me your pets" in party chat (client/index.js): the companions with
+	// a pet out show it off, up to four of them.
+	if (.@act$ == "petshow") {
+		if (!.pets) {
+			callsub L_BagReply, .@req$, "ERR|pets off";
+			end;
+		}
+		callsub L_Gather;
+		.@n = 0;
+		for (.@i = 0; .@i < @cl_n && .@n < 4; .@i++) {
+			.@g = getd("@cl_pg_" + @cl_aid[.@i]);
+			if (@cl_hp[.@i] <= 0 || !.@g || !unitexists(.@g))
+				continue;
+			callsub L_QueueFmt, .@i, "petshow", "", ET_DELIGHT, 0, callsub(L_PetName, @cl_cid[.@i]);
+			if (.emotes)
+				emotion ET_LUV, .@g;
+			.@n++;
+		}
+		if (!.@n)
+			dispbottom "[Companions] None of your companions here has a pet out. Allow one in the Companions window, Bag tab (Pet).", 0xFFCC66;
+		callsub L_BagReply, .@req$, "OK|" + .@n;
 		end;
 	}
 	// Dye: "dye <char id> cloth|hair <colour>". Shown at once (setlook), and kept
@@ -4878,7 +5248,9 @@ L_WearNow:
 			getitem3 .@id, 1, .@bi, .@br, .@ba, .@b1, .@b2, .@b3, .@b4, .@boid, .@boval, .@bopar, .@aid;
 		equip .@id, .@c;
 		.@swap = 1;
-	} else
+	} else if (.@t == EQP_HAND_L)
+		equip .@id, .@c, EQP_HAND_L;	// 3.9.0: dual wield (an unworn copy, so a second of the same dagger works)
+	else
 		equip .@id, .@c;
 	// Where it went (an accessory picks a side, a two-hander takes both hands).
 	.@m = 0;
@@ -4894,6 +5266,13 @@ L_WearNow:
 	// chose (or the one that was free).
 	if (.@swap && getequipid(EQI_ACC_L, .@c) == .@id && getequipid(EQI_ACC_R, .@c) == .@id)
 		.@m = .@t ? .@t : .@free;
+	// 3.9.0: the left hand. With the same dagger in both hands, the loop above
+	// found the right-hand copy first.
+	if (.@t == EQP_HAND_L) {
+		.@m = 0;
+		if (getequipid(EQI_HAND_L, .@c) == .@id)
+			.@m = EQP_HAND_L;
+	}
 	if (!.@m)
 		return .@msg$ + " " + .@nm$ + " can't wear it, so it's in the bag." + .@extra$;
 	.@own = 0;
@@ -5114,6 +5493,15 @@ L_QueueFmt:
 	.@t$ = callsub(L_Line, getarg(1), @cl_ar[.@i]);
 	if (.@t$ == "")
 		return;
+	// 3.9.0: a pet with a name of its own is "Mochi", not "a Mochi" or "the Mochi".
+	// (Nested: && reads both sides, and substr on a short key errors.)
+	if (getstrlen(getarg(1)) > 3 && getarg(5) != "") {
+		if (substr(getarg(1), 0, 2) == "pet" && inarray(.pet_nm$, getarg(5)) < 0) {
+			setarray .@art$, "A {m}", "a {m}", "The {m}", "the {m}", "This {m}", "this {m}", "That {m}", "that {m}";
+			for (.@k = 0; .@k < 8; .@k++)
+				.@t$ = replacestr(.@t$, .@art$[.@k], "{m}");
+		}
+	}
 	.@t$ = replacestr(replacestr(.@t$, "{n}", "" + getarg(4)), "{m}", getarg(5));
 	.@t$ = callsub(L_Text, .@t$, .@i, getarg(2));
 	.@q = getarraysize(@cl_qa);
@@ -5121,6 +5509,455 @@ L_QueueFmt:
 	@cl_qn$[.@q] = @cl_nm$[.@i];
 	@cl_qt$[.@q] = .@t$;
 	@cl_qe[.@q] = getarg(3);
+	return;
+
+// ---- Pets (3.2.0) -------------------------------------------------------------
+// Per companion (account id): @cl_pg_ the pet's id, @cl_pp_ which pet (.pet_*),
+// @cl_qpl_ the level its strength was set for, @cl_qpw_ no new try before (s),
+// @cl_pe_ its next worried emote, @cl_pdd_ its companion fell. @cl_po_<char id>:
+// allowed, read once from the store (pet.c<char id>), stored +1.
+
+// Each companion here: a pet that's missing (gone with its companion on a warp, a
+// teleport or a fall) comes back beside it; one sent home goes; a level-up makes it
+// stronger. getarg(0) = now (s).
+L_PetTick:
+	.@sec = getarg(0);
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@aid = @cl_aid[.@i];
+		.@g = getd("@cl_pg_" + .@aid);
+		// (Nested: && reads both sides, and getunittype(0) warns.)
+		if (.@g) {
+			if (!unitexists(.@g))
+				.@g = 0;
+			else if (getunittype(.@g) != BL_MOB)
+				.@g = 0;
+		}
+		if (@cl_hp[.@i] <= 0) {
+			// 3.9.0: it falls with a pet out: the pet stays by it, crying (L_PetMourn).
+			if (!getd("@cl_pdd_" + .@aid) && getd("@cl_pg_" + .@aid) && .emotes)
+				callsub L_PetMournStart, .@i;
+			setd "@cl_pdd_" + .@aid, 1;
+		}
+		// Out: kept and switched on, or come along to be asked about (@cl_pv_, L_PetAsk).
+		.@out = callsub(L_PetOn, @cl_cid[.@i]);
+		if (getd("@cl_pv_" + @cl_cid[.@i]))
+			.@out = 1;
+		if (!.@out || @cl_hp[.@i] <= 0) {
+			if (.@g)
+				callsub L_PetHide, .@g;
+			setd "@cl_pg_" + .@aid, 0;
+			continue;
+		}
+		if (!.@g) {
+			setd "@cl_pg_" + .@aid, 0;
+			if (.@sec >= getd("@cl_qpw_" + .@aid))
+				callsub L_PetSpawn, .@i;
+			continue;
+		}
+		if (getd("@cl_qpl_" + .@aid) != @cl_lv[.@i]) {
+			setd "@cl_qpl_" + .@aid, @cl_lv[.@i];
+			callsub L_PetStats, .@g, @cl_lv[.@i];
+		}
+		// 3.9.0: left behind (the user's test: run ahead or teleport and the pet stood
+		// where it was). rAthena only runs a monster's AI with a player near it, so a
+		// pet out of sight stops following. Over 12 cells away, or on another map: it
+		// catches up, next to its companion. (getmapxy can't find a monster, "Invalid
+		// type 2": so the monsters within 12 cells of the companion, on its map.)
+		if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) == 0) {
+			deletearray .@near;
+			.@nn = getareaunits(BL_MOB, .@cm$, .@cx - 12, .@cy - 12, .@cx + 12, .@cy + 12, .@near);
+			if (inarray(.@near, .@g) < 0)
+				unitwarp .@g, .@cm$, .@cx, .@cy;
+		}
+		// Its companion in trouble.
+		if (.emotes && @cl_incombat && @cl_mhp[.@i] > 0 && @cl_hp[.@i] * 100 / @cl_mhp[.@i] < 35 && .@sec >= getd("@cl_pe_" + .@aid)) {
+			setd "@cl_pe_" + .@aid, .@sec + 30;
+			emotion ET_SWEAT, .@g;
+		}
+	}
+	// 3.9.0: the pets' ids to the window's client, which marks them friendly (app
+	// 1.7.3, api.monsters.friendly): the plain cursor over them, and attack-nearest
+	// leaves them alone. Sent when the list changes ("@@event clpets id|id|").
+	.@all$ = "";
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@g = getd("@cl_pg_" + @cl_aid[.@i]);
+		if (.@g)
+			.@all$ += .@g + "|";
+	}
+	if (.@all$ != @cl_petids$) {
+		@cl_petids$ = .@all$;
+		dispbottom "@@event clpets " + .@all$;
+	}
+	return;
+
+// Is companion getarg(0) (char id)'s pet out: kept (pk.c, 3.9.0: you said yes when it
+// asked) and switched On in the Bag tab (pet.c)?
+L_PetOn:
+	.@v = getd("@cl_po_" + getarg(0));
+	if (!.@v) {
+		.@v = 1 + (callsub(L_PetKept, getarg(0)) && modstore_get("char", "pet.c" + getarg(0), 0) > 0);
+		setd "@cl_po_" + getarg(0), .@v;
+	}
+	return .@v - 1;
+
+// 3.9.0: did you let companion getarg(0) (char id) keep its pet?
+L_PetKept:
+	return (modstore_get("char", "pk.c" + getarg(0), 0) > 0);
+
+// 3.9.0: what companion getarg(0) (char id) calls its pet: the name you gave it, or what
+// it is ("Lunatic").
+L_PetName:
+	.@n$ = modstore_get("char", "pn.c" + getarg(0), "");
+	if (.@n$ != "")
+		return .@n$;
+	return .pet_nm$[callsub(L_PetOf, readparam(Class, getarg(0)))];
+
+// 3.9.0: a pet sent home or no longer needed leaves without falling over on screen: out
+// of sight to a closed map first (the prison, nobody there), then gone.
+L_PetHide:
+	.@g = getarg(0);
+	if (!.@g || !unitexists(.@g))
+		return;
+	unitwarp .@g, "sec_pri", -1, -1;
+	unitkill .@g;
+	return;
+
+// Bag tab state of companion getarg(0) (char id)'s pet: 3 kept, 2 yours to allow
+// ("Let them keep it": asked twice, or no bonds with Memories off), 1 it will ask
+// soon (Companion bond), 0 not yet.
+L_PetState:
+	.@c = getarg(0);
+	if (callsub(L_PetKept, .@c))
+		return 3;
+	if (!.mem || modstore_get("char", "pa.c" + .@c, 0) >= 2)
+		return 2;
+	if (callsub(L_BondTier, callsub(L_BondPts, .@c)) >= 2)
+		return 1;
+	return 0;
+
+// ---- "Can we keep it?" (3.9.0) ---------------------------------------------------
+// One companion at a time, in a calm moment (no fight, not camping, you standing still
+// a few seconds, nobody talking, not in the first 2 minutes): the first time it has
+// reached the Companion bond, or (second ask) an hour of play together after your first
+// "Not now". Steps (@cl_akc its char id, @cl_aks the step, @cl_akt when the next one is
+// due, s): 1 its pet comes along (@cl_pv_<char id>, L_PetTick); 2 it walks up to you and
+// says so; 3 the portrait asks, Yes / Not now ("@@event clask", client/portraits.js),
+// and the answer comes back as "@clbag keep". No answer in 2 minutes (a warp, the window
+// closed): it lets it go and tries again in 10 minutes. Store per companion: pa.c asks
+// so far, pat.c the minutes together (m.c<id>.mins) when the second may come.
+L_PetAsk:
+	.@sec = getarg(0);
+	if (@cl_akc) {
+		.@i = inarray(@cl_cid, @cl_akc);
+		.@drop = (.@i < 0 || @cl_incombat);
+		if (!.@drop) {
+			if (@cl_hp[.@i] <= 0)
+				.@drop = 1;
+		}
+		if (.@drop) {
+			callsub L_PetAskEnd, .@sec + 600;
+			return;
+		}
+		if (.@sec < @cl_akt)
+			return;
+		if (@cl_aks == 1) {
+			// It walks over with its pet at its heels and says so.
+			callsub L_GiftWalk, .@i;
+			callsub L_QueueFmt, .@i, "pcome", "", ET_QUESTION, 0, "";
+			.@g = getd("@cl_pg_" + @cl_aid[.@i]);
+			if (.@g && .emotes)
+				emotion ET_LUV, .@g;
+			@cl_aks = 2;
+			@cl_akt = .@sec + 5;
+			return;
+		}
+		if (@cl_aks == 2) {
+			.@sp$ = .pet_nm$[callsub(L_PetOf, @cl_cls[.@i])];
+			.@t$ = callsub(L_Line, "pask" + @cl_akr, @cl_ar[.@i]);
+			.@t$ = callsub(L_Text, replacestr(.@t$, "{m}", .@sp$), .@i, "");
+			dispbottom "@@event clask " + @cl_akc + "|" + @cl_nm$[.@i] + "|" + @cl_cls[.@i] + "|" + readparam(Sex, @cl_akc)
+				+ "|" + @cl_akr + "|" + .@sp$ + "|" + replacestr(.@t$, "|", "/");
+			@cl_aks = 3;
+			@cl_akt = .@sec + 120;
+			return;
+		}
+		callsub L_PetAskEnd, .@sec + 600;	// no answer
+		return;
+	}
+	if (.@sec < @cl_aknext || @cl_incombat || @cl_camp || getarraysize(@cl_qa) || .@sec - @cl_peace < 15
+			|| .@sec - @cl_still < 4 || .@sec < @cl_login + 120)
+		return;
+	@cl_aknext = .@sec + 20;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@c = @cl_cid[.@i];
+		if (@cl_hp[.@i] <= 0 || callsub(L_Roams, .@i) || callsub(L_PetKept, .@c))
+			continue;
+		.@n = modstore_get("char", "pa.c" + .@c, 0);
+		if (.@n >= 2)
+			continue;
+		if (.@n == 1) {
+			if (modstore_get("char", "m.c" + .@c + ".mins", 0) < modstore_get("char", "pat.c" + .@c, 0))
+				continue;
+		}
+		if (callsub(L_BondTier, callsub(L_BondPts, .@c)) < 2)
+			continue;
+		@cl_akc = .@c;
+		@cl_aks = 1;
+		@cl_akt = .@sec + 3;	// time for its pet to appear beside it
+		@cl_akr = .@n + 1;
+		setd "@cl_pv_" + .@c, 1;
+		return;
+	}
+	return;
+
+// The ask is over: its pet goes back unless you kept it, the window's box closes, and
+// the next ask (of anyone) waits until getarg(0) (s).
+L_PetAskEnd:
+	if (@cl_akc)
+		setd "@cl_pv_" + @cl_akc, 0;
+	if (@cl_aks >= 3)
+		dispbottom "@@event clask -";
+	@cl_akc = 0;
+	@cl_aks = 0;
+	@cl_aknext = getarg(0);
+	return;
+
+// ---- A pet by its fallen companion (3.9.0) ---------------------------------------
+// The pet itself can't stay: rAthena's slave AI (mob.cpp mob_ai_sub_hard_slavemob) ends
+// a slave the moment its master falls. So a lookalike takes its place beside the body:
+// a copy of one of the CpoPetMourn0-5 NPCs (only you see it; one copy per source NPC
+// per player, so six), with the pet's look and name. It cries every few seconds, and
+// goes once its companion is up again (its pet comes back with a happy emote,
+// L_PetSpawn), when the companion isn't with you any more, or when you leave the map.
+// Slots: @cl_mo<n>$ the copy's name, @cl_moa<n> its companion, @cl_mot<n> next cry (s).
+L_PetMournStart:
+	.@i = getarg(0);
+	.@aid = @cl_aid[.@i];
+	if (getmapxy(.@m$, .@x, .@y, BL_PC, .@aid) != 0 || .@m$ != strcharinfo(3))
+		return;
+	for (.@s = 0; .@s < 6; .@s++) {
+		if (getd("@cl_mo" + .@s + "$") == "")
+			break;
+		if (getd("@cl_moa" + .@s) == .@aid)
+			return;	// already there
+	}
+	if (.@s >= 6)
+		return;
+	// A free cell beside the body.
+	setarray .@ox, 1, -1, 0, 0, 1, -1, 1, -1;
+	setarray .@oy, 0, 0, 1, -1, 1, 1, -1, -1;
+	for (.@k = 0; .@k < 8; .@k++) {
+		if (checkcell(.@m$, .@x + .@ox[.@k], .@y + .@oy[.@k], cell_chkpass))
+			break;
+	}
+	if (.@k >= 8)
+		return;
+	.@n$ = duplicate_dynamic("CpoPetMourn" + .@s);
+	if (.@n$ == "")
+		return;
+	setnpcdisplay .@n$, callsub(L_PetName, @cl_cid[.@i]), .pet_mob[callsub(L_PetOf, @cl_cls[.@i])];
+	movenpc .@n$, .@x + .@ox[.@k], .@y + .@oy[.@k];
+	setd "@cl_mo" + .@s + "$", .@n$;
+	setd "@cl_moa" + .@s, .@aid;
+	setd "@cl_mot" + .@s, gettimetick(2) + 1;
+	return;
+
+L_PetMourn:
+	.@sec = getarg(0);
+	for (.@s = 0; .@s < 6; .@s++) {
+		.@n$ = getd("@cl_mo" + .@s + "$");
+		if (.@n$ == "")
+			continue;
+		.@keep = 0;
+		.@i = inarray(@cl_aid, getd("@cl_moa" + .@s));
+		if (.@i >= 0) {
+			if (@cl_hp[.@i] <= 0 && getmapxy(.@nm$, .@nx, .@ny, BL_NPC, .@n$) == 0) {
+				if (.@nm$ == strcharinfo(3))
+					.@keep = 1;
+			}
+		}
+		if (!.@keep) {
+			unloadnpc .@n$;
+			setd "@cl_mo" + .@s + "$", "";
+			setd "@cl_moa" + .@s, 0;
+		} else if (.@sec >= getd("@cl_mot" + .@s)) {
+			setd "@cl_mot" + .@s, .@sec + 5 + rand(4);
+			emotion ET_CRY, getnpcid(0, .@n$);
+		}
+	}
+	return;
+
+// Which pet (.pet_* index) class getarg(0) brings.
+L_PetOf:
+	.@j = roclass(eaclass(getarg(0)) & ~(EAJL_UPPER|EAJL_BABY));
+	if (.@j >= 0 && .@j < getarraysize(.pet_job))
+		return .pet_job[.@j];
+	if (.@j == JOB_SOUL_LINKER)
+		return 3;	// Chonchon, the TaeKwon line's scholar
+	return 10;	// Smokie: TaeKwon, Star Gladiator
+
+// Companion getarg(0) (index) gets its pet beside it.
+L_PetSpawn:
+	.@i = getarg(0);
+	.@aid = @cl_aid[.@i];
+	setd "@cl_qpw_" + .@aid, gettimetick(2) + 3;	// a try every 3 s at most
+	if (getmapxy(.@m$, .@x, .@y, BL_PC, .@aid) != 0)
+		return;
+	.@p = callsub(L_PetOf, @cl_cls[.@i]);
+	.@nm$ = callsub(L_PetName, @cl_cid[.@i]);	// 3.9.0: the name you gave it
+	if (.@nm$ == .pet_nm$[.@p]) {
+		.@nm$ = @cl_nm$[.@i] + "'s " + .pet_nm$[.@p];
+		if (getstrlen(.@nm$) > 23)
+			.@nm$ = .pet_nm$[.@p];	// a name stops at 23 letters
+	}
+	monster .@m$, .@x, .@y, .@nm$, .pet_mob[.@p], 1;
+	.@g = $@mobid[0];
+	if (.@g <= 0 || !unitexists(.@g))
+		return;
+	setunitdata .@g, UMOB_MASTERAID, .@aid;
+	// Monster spells off (it has none, but to be sure). The server's slaves_inherit_mode
+	// (4) has every slave move and attack, so a pet always joins in.
+	setunitdata .@g, UMOB_MODE, MD_CANMOVE | MD_CANATTACK | MD_NOCAST | MD_KNOCKBACKIMMUNE;
+	setunitdata .@g, UMOB_DMGIMMUNE, 1;
+	setunitdata .@g, UMOB_SPEED, 150;	// slaves_inherit_speed then gives it its companion's
+	callsub L_PetStats, .@g, @cl_lv[.@i];
+	setd "@cl_pg_" + .@aid, .@g;
+	setd "@cl_qpl_" + .@aid, @cl_lv[.@i];
+	setd "@cl_pp_" + .@aid, .@p;
+	if (getd("@cl_pdd_" + .@aid)) {
+		setd "@cl_pdd_" + .@aid, 0;
+		if (.emotes)
+			emotion ET_THROB, .@g;	// its companion is up again
+	}
+	return;
+
+// The same for every pet, by its companion's level getarg(1): attack about 2 x the
+// level (x pet_strength %), one hit per 1.5 s, accuracy enough to land on monsters
+// of that level, no criticals.
+L_PetStats:
+	.@g = getarg(0);
+	.@lv = max(1, getarg(1));
+	.@atk = max(1, .@lv * 2 * .pet_pow / 100);
+	setunitdata .@g, UMOB_LEVEL, .@lv;
+	setunitdata .@g, UMOB_ATKMIN, max(1, .@atk * 4 / 5);
+	setunitdata .@g, UMOB_ATKMAX, .@atk * 6 / 5;
+	setunitdata .@g, UMOB_HIT, .@lv * 2 + 30;
+	setunitdata .@g, UMOB_CRIT, 0;
+	setunitdata .@g, UMOB_ADELAY, 1500;
+	return;
+
+// A companion here whose pet is out (not index getarg(0)); -1 none.
+L_PetPick:
+	.@k = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (.@i == getarg(0) || @cl_hp[.@i] <= 0)
+			continue;
+		.@g = getd("@cl_pg_" + @cl_aid[.@i]);
+		if (.@g && unitexists(.@g)) {
+			.@c[.@k] = .@i;
+			.@k++;
+		}
+	}
+	if (!.@k)
+		return -1;
+	if (.@k == 1)
+		return .@c[0];
+	return .@c[rand(.@k)];
+
+// Every pet out shows emote getarg(0), each at getarg(1) % chance.
+L_PetEmotes:
+	if (!.emotes)
+		return;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@g = getd("@cl_pg_" + @cl_aid[.@i]);
+		if (.@g && unitexists(.@g) && rand(100) < getarg(1))
+			emotion getarg(0), .@g;
+	}
+	return;
+
+// Between fights: a pet's emote every 40-90 s (sleepy once the party has sat a
+// while or by the campfire), and every 5-9 minutes a word: a companion about its
+// own pet, or about another's, who answers. getarg(0) = now (s).
+L_PetLife:
+	.@sec = getarg(0);
+	// 3.9.0: by the campfire every pet sleeps (zzz every 25-40 s), and a minute in,
+	// one companion says so, once a camp.
+	if (!@cl_camp)
+		@cl_pcl = 0;
+	else {
+		if (!@cl_pcl)
+			@cl_pcl = .@sec + 60;
+		if (.emotes && .@sec >= @cl_penext) {
+			@cl_penext = .@sec + 25 + rand(16);
+			callsub L_PetEmotes, ET_SLEEPY, 100;
+		}
+		if (@cl_pcl > 1 && .@sec >= @cl_pcl && .chatter && !getarraysize(@cl_qa)) {
+			@cl_pcl = 1;
+			.@a = callsub(L_PetPick, -1);
+			if (.@a >= 0)
+				callsub L_QueueFmt, .@a, "petcamp", "", 0, 0, callsub(L_PetName, @cl_cid[.@a]);
+		}
+		return;
+	}
+	// 3.9.0: two pets play (every 6-10 minutes, you standing still 20 s+): one runs
+	// over to the other's companion and its own companion's pull brings it back (a
+	// slave stays within 2 cells of its master), both delighted, and someone remarks.
+	if (.@sec >= @cl_pplay && .@sec - @cl_still >= 20) {
+		if (!@cl_pplay)
+			@cl_pplay = .@sec + 240 + rand(240);
+		else {
+			@cl_pplay = .@sec + 360 + rand(241);
+			.@a = callsub(L_PetPick, -1);
+			.@b = callsub(L_PetPick, .@a);	// -1 with no pets at all, as .@a
+			if (.@a >= 0 && .@b >= 0) {
+				.@ga = getd("@cl_pg_" + @cl_aid[.@a]);
+				.@gb = getd("@cl_pg_" + @cl_aid[.@b]);
+				if (getmapxy(.@bm$, .@bx, .@by, BL_PC, @cl_aid[.@b]) == 0)
+					unitwalk .@ga, .@bx + 1, .@by;
+				if (.emotes) {
+					emotion ET_KIK, .@ga;
+					emotion ET_DELIGHT, .@gb;
+				}
+				if (.chatter && !getarraysize(@cl_qa)) {
+					.@w = callsub(L_Pick, -1, -1);
+					if (.@w >= 0)
+						callsub L_QueueFmt, .@w, "petplay", callsub(L_PetName, @cl_cid[.@b]), ET_SMILE, 0, callsub(L_PetName, @cl_cid[.@a]);
+				}
+			}
+		}
+	}
+	if (.emotes && .@sec >= @cl_penext) {
+		@cl_penext = .@sec + 40 + rand(51);
+		.@a = callsub(L_PetPick, -1);
+		if (.@a >= 0) {
+			setarray .@es, ET_THROB, ET_DELIGHT, ET_SMILE, ET_LUV, ET_KIK, ET_QUESTION;
+			.@e = .@es[rand(6)];
+			if (@cl_camp || .@sec - @cl_still >= 120)
+				.@e = ET_SLEEPY;
+			emotion .@e, getd("@cl_pg_" + @cl_aid[.@a]);
+		}
+	}
+	if (!.chatter || getarraysize(@cl_qa) || .@sec < @cl_talk)
+		return;
+	if (!@cl_ptnext) {
+		@cl_ptnext = .@sec + 120 + rand(121);	// not right as you log in
+		return;
+	}
+	if (.@sec < @cl_ptnext)
+		return;
+	@cl_ptnext = .@sec + 300 + rand(241);
+	.@a = callsub(L_PetPick, -1);
+	if (.@a < 0)
+		return;
+	.@pa$ = callsub(L_PetName, @cl_cid[.@a]);
+	.@b = callsub(L_Pick, .@a, -1);
+	if (.@b >= 0 && rand(100) < 45) {
+		callsub L_QueueFmt, .@b, "petcx", @cl_nm$[.@a], 0, 0, .@pa$;
+		if (rand(100) < 70)
+			callsub L_QueueFmt, .@a, "petre", @cl_nm$[.@b], ET_DELIGHT, 0, .@pa$;
+	} else {
+		callsub L_QueueFmt, .@a, "petidle", "", 0, 0, .@pa$;
+	}
 	return;
 
 // Companions on your map, into @cl_* arrays (index 0..@cl_n-1).
@@ -6111,3 +6948,16 @@ OnTouch:
 	warp @cl_wpdm$, @cl_wpdx, @cl_wpdy;
 	end;
 }
+
+// 3.9.0: a pet crying beside its fallen companion (L_PetMournStart). Never placed
+// themselves: a copy of one goes next to the body (only you see it), with the pet's
+// look and name; the tick takes it away. Six, as rAthena gives each player one copy
+// per source NPC.
+-	script	CpoPetMourn0	-1,{
+	end;
+}
+-	duplicate(CpoPetMourn0)	CpoPetMourn1	-1
+-	duplicate(CpoPetMourn0)	CpoPetMourn2	-1
+-	duplicate(CpoPetMourn0)	CpoPetMourn3	-1
+-	duplicate(CpoPetMourn0)	CpoPetMourn4	-1
+-	duplicate(CpoPetMourn0)	CpoPetMourn5	-1

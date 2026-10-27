@@ -1,6 +1,20 @@
 -- companion-party-overhaul: the campfire (CampFire NPC, npc/companion_life.txt) draws the
 -- client's own bonfire sprite under a mod id, since this client has no row for the stock
--- 4_BONFIRE id. Only these rows; the app merges them into the client's own table by id.
+-- 4_BONFIRE id. 3.2.0: the companion pets (db/mob_db.yml 31201-31213) use the real
+-- monsters' sprites. Only these rows; the app merges them into the client's own table by id.
 JobNameTable = {
 	[19420] = "4_BONFIRE",
+	[31201] = "DESERT_WOLF_B",
+	[31202] = "LUNATIC",
+	[31203] = "DEVIRUCHI",
+	[31204] = "CHONCHON",
+	[31205] = "PECOPECO",
+	[31206] = "PORING",
+	[31207] = "STEEL_CHONCHON",
+	[31208] = "SPORE",
+	[31209] = "ISIS",
+	[31210] = "YOYO",
+	[31211] = "SMOKIE",
+	[31212] = "ROCKER",
+	[31213] = "DROPS",
 }

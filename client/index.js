@@ -129,6 +129,14 @@ const WIN_STYLE = `
 .rs .lb { font-size: 10px; font-weight: bold; color: #6a7a92; margin-right: 2px; }
 .rs .hint { font-size: 10px; color: #9aa7ba; }
 .rs.over { border-color: #3c6fc0; border-style: solid; background: #eef4ff; }
+/* 3.9.0: Pet row: the class's pet and an Off / On switch. */
+.pt { display: flex; align-items: center; gap: 5px; margin-top: 4px; padding: 2px 3px; border: 1px solid #d6deeb; border-radius: 3px; background: #fbfcfe; }
+.pt .lb { font-size: 10px; font-weight: bold; color: #6a7a92; }
+.pt .pn { flex: 1; min-width: 0; font-weight: bold; color: #1f3f73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt .pn.off { color: #9aa7ba; font-weight: normal; }
+.pt .pseg { display: flex; flex: none; }
+.pt .ph { flex: 1; min-width: 0; font-size: 10px; color: #8a94a6; font-style: italic; }
+.pt .ren { flex: none; border: 0; background: none; padding: 0 2px; font: inherit; font-size: 10px; color: #4a6fa5; text-decoration: underline; cursor: pointer; }
 .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 1px; border: 1px solid #c9d3e3; border-radius: 3px; background: #fff; cursor: pointer; font-size: 10px; }
 .chip:hover { border-color: #6d8fc2; }
 .chip img { width: 16px; height: 16px; image-rendering: pixelated; pointer-events: none; }
@@ -391,7 +399,11 @@ function parseBag(text) {
                 weight: +f[10] || 0, maxWeight: +f[11] || 0,
                 look: f.length > 12 ? { job: +f[12] || 0, sex: +f[13] || 0, head: +f[14] || 0, headpalette: +f[7] || 0,
                     bodypalette: +f[4] || 0, weapon: +f[15] || 0, shield: +f[16] || 0, accessory: +f[17] || 0,
-                    accessory2: +f[18] || 0, accessory3: +f[19] || 0, robe: +f[20] || 0, effectState: +f[21] || 0 } : null };
+                    accessory2: +f[18] || 0, accessory3: +f[19] || 0, robe: +f[20] || 0, effectState: +f[21] || 0 } : null,
+                // 3.9.0: its pet, out 1/0 (-1: the pets setting is off), its name, kept
+                // (3) / yours to allow (2) / it will ask (1) / not yet (0), and what it is.
+                pet: f[22] === undefined ? -1 : +f[22], petName: f[23] || '',
+                petState: +f[24] || 0, petKind: f[25] || f[23] || '' };
             bag.comps.push(byCid[f[1]]);
         }
         else if (f[0] === 'R' && byCid[f[1]]) {
@@ -705,13 +717,32 @@ export default function init(parameters, api) {
             rs = `<div class="rs" data-cid="${esc(c.cid)}" title="Bought from the party purse whenever you reach a town">`
                 + `<span class="lb">Restock</span>${chips || '<span class="hint">drag potions, gems, arrows here</span>'}</div>`;
         }
+        // 3.9.0: Pet. Each class has its own; a companion asks you whether it may keep it
+        // (at the Companion bond). Kept: Off / On and Rename. Asked twice and you said
+        // "Not now": Let them keep it.
+        let pt = '';
+        if (c.pet >= 0 && c.petName) {
+            const seg = (v, text) => `<button class="act${c.pet === v ? ' on' : ''}" data-act="pet" data-cid="${esc(c.cid)}" data-on="${v}">${text}</button>`;
+            if (c.petState === 3)
+                pt = `<div class="pt" title="${esc(c.pet ? `${c.name}'s ${c.petKind} follows and fights at their side. It needs no care.` : `${c.name}'s ${c.petKind} is resting at home.`)}">`
+                    + `<span class="lb">Pet</span><span class="pn${c.pet ? '' : ' off'}">${esc(c.petName)}</span>`
+                    + `<button class="ren" data-act="petren" data-cid="${esc(c.cid)}">Rename</button>`
+                    + `<span class="pseg">${seg(0, 'Off')}${seg(1, 'On')}</span></div>`;
+            else if (c.petState === 2)
+                pt = `<div class="pt" title="${esc(`A ${c.petKind} keeps following ${c.name}.`)}">`
+                    + `<span class="lb">Pet</span><span class="pn off">${esc(c.petKind)}</span>`
+                    + `<button class="act" data-act="petkeep" data-cid="${esc(c.cid)}">Let them keep it</button></div>`;
+            else
+                pt = `<div class="pt"><span class="lb">Pet</span><span class="ph">${c.petState === 1
+                    ? `${esc(c.name)} wants to ask you something soon...` : 'Needs the Companion bond'}</span></div>`;
+        }
         out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span>${wt}</div>`
             + (dyes ? `<div class="dyes one">${dyes}</div>` : '')
             + `<div class="doll"><div class="col">${DOLL_L.map(slotFor).join('')}</div>`
             + `<div class="stg" data-stage></div>`
             + `<div class="col">${DOLL_R.map(slotFor).join('')}</div></div>`
             + (costumes.length ? `<div class="cost"><span class="lb">Costume</span>${costumes.map(it => square(it, 'worn')).join('')}</div>` : '')
-            + `<div class="sub">Bag</div>${rows}${rs}</div>`);
+            + `<div class="sub">Bag</div>${rows}${rs}${pt}</div>`);
         return out.join('');
     }
 
@@ -1090,6 +1121,77 @@ export default function init(parameters, api) {
     }
     api.cleanup(() => asking?.cancel());
 
+    // 3.9.0: the same box with a name in it, for a pet: up to 23 letters (the game's
+    // name length). Enter or OK gives the name, Esc or a click outside resolves null.
+    function askName({ title, value = '' }) {
+        asking?.cancel();
+        return new Promise(resolve => {
+            const host = document.createElement('div');
+            const root = host.attachShadow({ mode: 'open' });
+            root.innerHTML = `<style>${ASK_STYLE}</style><div class="ov"></div>`
+                + `<div id="inputbox"><div class="border"><div class="text" title="${esc(title)}"><i>Name:</i> ${esc(title)}</div>`
+                + `<input type="text" maxlength="23" value="${esc(value)}"><button class="ok">OK</button></div></div>`;
+            const box = root.getElementById('inputbox'), input = root.querySelector('input'), ok = root.querySelector('.ok');
+            box.style.left = `${Math.round((innerWidth - 280) / 2 + 1)}px`;
+            box.style.top = `${Math.round((innerHeight - 120) / 1.5 - 49)}px`;
+            const pic = state => { const u = OKPIC[state]; if (u) { ok.classList.add('pic'); ok.style.backgroundImage = `url("${u}")`; } };
+            pic('btn_ok.bmp');
+            ok.addEventListener('mouseenter', () => pic('btn_ok_b.bmp'));
+            ok.addEventListener('mouseleave', () => pic('btn_ok.bmp'));
+            ok.addEventListener('mousedown', () => pic('btn_ok_a.bmp'));
+            const done = n => {
+                host.remove();
+                if (asking?.host === host) asking = null;
+                resolve(n);
+            };
+            // The server's separators and the game's colour codes are left out.
+            const submit = () => done(input.value.replace(/[|~^]/g, '').replace(/\s+/g, ' ').trim().slice(0, 23));
+            ok.addEventListener('click', submit);
+            const ov = root.querySelector('.ov');
+            ov.addEventListener('mousedown', event => event.stopPropagation());
+            ov.addEventListener('mouseup', event => event.stopPropagation());
+            ov.addEventListener('click', event => { event.stopPropagation(); done(null); });
+            host.addEventListener('keydown', event => {
+                event.stopPropagation();
+                if (event.key === 'Enter') { event.preventDefault(); submit(); }
+                else if (event.key === 'Escape') { event.preventDefault(); done(null); }
+            });
+            host.addEventListener('keyup', event => event.stopPropagation());
+            host.addEventListener('keypress', event => event.stopPropagation());
+            box.addEventListener('mousedown', event => event.stopPropagation());
+            box.addEventListener('mouseup', event => event.stopPropagation());
+            document.body.appendChild(host);
+            asking = { host, cancel: () => done(null) };
+            setTimeout(() => { input.focus(); input.select(); }, 0);
+        });
+    }
+
+    // 3.9.0: yes, they may keep it: then its name (Esc keeps what it is, "Lunatic").
+    async function keepPet(cid, kind) {
+        try {
+            const reply = String(await api.server.request('clbag', `keep ${cid} yes`, { timeout: 4000 }) || '');
+            if (!reply.startsWith('OK')) return;
+            const name = await askName({ title: `your ${kind}`, value: kind });
+            await api.server.request('clbag', `petname ${cid} new ${name || ''}`, { timeout: 4000 });
+        } catch { /* the Bag tab still shows it, with Rename */ }
+    }
+
+    // 3.9.0: "Can we keep it?": the companion's portrait asks (client/portraits.js),
+    // "@@event clask cid|name|class|sex|ask (1, 2)|what it is|the question", and
+    // "@@event clask -" when the server gave up waiting (a fight, it fell, 2 minutes).
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'clask') return;
+        import('./portraits.js').then(m => {
+            if (text === '-') { m.closeAsk(); return; }
+            const [cid, name, cls, sex, round, kind, ...rest] = String(text || '').split('|');
+            m.askKeep(api, { name, cls: Number(cls), sex: Number(sex), last: Number(round) >= 2, text: rest.join('|') })
+                .then(yes => {
+                    if (yes) keepPet(cid, kind);
+                    else Promise.resolve(api.server.request('clbag', `keep ${cid} later`, { timeout: 4000 })).catch(() => {});
+                });
+        }).catch(e => console.error('[companion-party-overhaul] ask:', e));
+    });
+
     // A how-many box changed: its button's number, and the choice kept so the
     // next refresh draws it the same.
     function setAmount(box, v, write) {
@@ -1165,7 +1267,21 @@ export default function init(parameters, api) {
                     bagAction(`${a.dataset.act} ${a.dataset.id} ${n}`);
                 }
                 else if (a.dataset.act === 'nogive') { giving = null; render(); }
-                else if (a.dataset.act === 'gearback') bagAction(`gearback ${a.dataset.cid} ${a.dataset.eq}`);                else if (a.dataset.act === 'dye') bagAction(`dye ${a.dataset.cid} ${a.dataset.kind} ${a.dataset.val}`, true);
+                else if (a.dataset.act === 'gearback') bagAction(`gearback ${a.dataset.cid} ${a.dataset.eq}`);
+                else if (a.dataset.act === 'pet') {
+                    if (a.classList.contains('on')) return;   // already so
+                    bagAction(`pet ${a.dataset.cid} ${a.dataset.on}`);
+                }
+                // 3.9.0: keep it (after two "Not now"s) and name it; or a new name.
+                else if (a.dataset.act === 'petkeep' || a.dataset.act === 'petren') {
+                    const c = bag?.comps.find(x => x.cid === a.dataset.cid);
+                    if (!c) return;
+                    if (a.dataset.act === 'petren')
+                        askName({ title: `${c.name}'s ${c.petKind}`, value: c.petName })
+                            .then(n => { if (n !== null) bagAction(`petname ${c.cid} re ${n}`); });
+                    else keepPet(c.cid, c.petKind).then(() => { bagAt = 0; refresh(); });
+                }
+                else if (a.dataset.act === 'dye') bagAction(`dye ${a.dataset.cid} ${a.dataset.kind} ${a.dataset.val}`, true);
                 else if (a.dataset.act === 'withdraw' || a.dataset.act === 'deposit') {
                     const box = body.querySelector('input[data-purse]');
                     const z = Math.floor(Number(box?.value || 0));
@@ -1466,6 +1582,8 @@ export default function init(parameters, api) {
     // 3.3.0: Warp Portal. The server picks the way: out hunting → your save point,
     // in town → back to the spot you left from.
     const WARP = ['take us back', 'warp us back', 'take us home', 'warp us home', 'open a portal', 'portal us'];
+    // 3.9.0: companions with a pet out show it off.
+    const PET_SHOW = ['show me your pet', 'show your pet', 'show me the pet', 'let me see your pet', 'your pets', 'pet show'];
     // 3.0.1: companions' lines in their own colour (setting chat_colour, 0 = white as
     // before), everyday talk (public chat) and battle callouts (party chat) alike. The
     // server sends their names as "@@event clnames A|B|" whenever they change. The words
@@ -1473,8 +1591,17 @@ export default function init(parameters, api) {
     const CHAT_COLOURS = ['', '#8fd3ff', '#8ef0b4', '#ffd76a', '#ffa8d8', '#c8b0ff'];
     const chatColour = CHAT_COLOURS[Math.round(Number(parameters?.chat_colour ?? 1))] ?? CHAT_COLOURS[1];
     let compNames = [];
+    let petGids = new Set();
     api.on('server:event', ({ command, text }) => {
         if (command === 'clnames') compNames = String(text || '').split('|').filter(Boolean);
+        // 3.9.0: the companions' pets: the plain cursor over them, and attack-nearest
+        // leaves them alone (app 1.7.3). Pets that went (a warp, sent home) are unmarked.
+        else if (command === 'clpets' && api.monsters?.friendly) {
+            const now = new Set(String(text || '').split('|').filter(Boolean).map(Number));
+            for (const g of petGids) if (!now.has(g)) api.monsters.friendly(g, false);
+            for (const g of now) if (!petGids.has(g)) api.monsters.friendly(g, true);
+            petGids = now;
+        }
     });
     const colourLine = div => {
         if (!chatColour || !compNames.length) return;
@@ -1504,8 +1631,10 @@ export default function init(parameters, api) {
             const warp = WARP.some(w => said.includes(w));
             const on = !warp && ROAM_ON.some(w => said.includes(w));
             const off = !warp && !on && ROAM_OFF.some(w => said.includes(w));
-            if (!on && !off && !camp && !warp) return;
+            const pets = PET_SHOW.some(w => said.includes(w));
+            if (!on && !off && !camp && !warp && !pets) return;
             seen.set(said, now);
+            if (pets) Promise.resolve(api.server.request('clbag', 'petshow', { timeout: 4000 })).catch(() => {});
             if (warp) Promise.resolve(api.server.request('clwarp', 'go', { timeout: 4000 })).catch(() => {});
             if (camp) Promise.resolve(api.server.request('clcamp', camp, { timeout: 4000 })).catch(() => {});
             if (on || off) Promise.resolve(api.server.request('clroam', `${on ? 'on' : 'off'} ${said}`, { timeout: 4000 })).catch(() => {});

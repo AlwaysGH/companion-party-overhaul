@@ -59,6 +59,87 @@ const STYLE = `
 .bubble.urgent .who { color: #c0392b; }
 `;
 
+// 3.9.0 "Can we keep it?": a companion asks you, its portrait at the bottom right as for
+// its chat lines, with Yes / Not now in the bubble. Shown even with portraits switched off
+// (it's a question, not chatter); the chat portraits step aside while it's up, and it steps
+// aside for an NPC's dialog. Resolves true (Yes) or false (Not now); closeAsk() (the server
+// gave up waiting) or leaving the map closes it without an answer.
+const ASK_STYLE = STYLE + `
+.stage { pointer-events: none; }
+.bubble { width: 290px; }
+.bubble .q { margin: 2px 0 0; }
+.btns { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.btns button { font: 11px Tahoma, Verdana, sans-serif; color: #333; padding: 2px 10px; border-radius: 3px; border: 1px solid #7f8ea8;
+  background: linear-gradient(#fdfdfd, #d7dfeb); }
+.btns button:hover { background: linear-gradient(#fff, #c5d6ee); }
+.btns button.yes { border-color: #5a8fc4; font-weight: bold; }
+.last { color: #8b8b8b; font-size: 10px; margin-top: 4px; }
+`;
+const askWatch = new Set();   // the chat portraits' "step aside" switches
+let askOpen = null;           // { close(answer) }
+export function closeAsk() { askOpen?.close(undefined); }
+
+export function askKeep(api, { name, cls, sex, last, text }) {
+    askOpen?.close(undefined);
+    return new Promise(resolve => {
+        const base = CLASS_KEY[cls];
+        const key = base && `${base}_${sex === 1 ? 'm' : 'f'}`;
+        const host = document.createElement('div');
+        const root = host.attachShadow({ mode: 'open' });
+        root.innerHTML = `<style>${ASK_STYLE}</style><div class="stage"><div class="por enter"><img alt=""></div>`
+            + `<div class="bubble"><div class="who"></div><div class="q"></div>`
+            + `<div class="btns"><button class="yes">Yes</button><button class="no">Not now</button></div>`
+            + (last ? `<div class="last">The last time ${name} asks.</div>` : '') + `</div></div>`;
+        const stageEl = root.querySelector('.stage'), por = root.querySelector('.por'), bubble = root.querySelector('.bubble');
+        if (key && PICS[key]) root.querySelector('img').src = PICS[key];
+        else por.remove();   // no picture for this class: the bubble alone
+        const who = root.querySelector('.who');
+        who.textContent = name;
+        const small = document.createElement('small');
+        small.textContent = base ? CLASS_NAME(base) : '';
+        who.append(small);
+        root.querySelector('.q').textContent = text;
+        const fit = () => { stageEl.style.transform = `scale(${Math.min(1, (innerHeight * 0.75) / 480)})`; };
+        fit();
+        addEventListener('resize', fit);
+        host.style.cssText = 'position: fixed; z-index: 39;';
+        for (const type of ['mousedown', 'mouseup', 'click', 'contextmenu']) bubble.addEventListener(type, e => e.stopPropagation());
+        document.body.appendChild(host);
+        void por.offsetWidth;
+        por.className = 'por front';
+        setTimeout(() => bubble.classList.add('on'), 260);
+        askWatch.forEach(f => f(true));
+
+        // Out of the way of an NPC's dialog, as the chat portraits are.
+        const npcOpen = new Set();
+        const hideCheck = () => stageEl.classList.toggle('hidden', npcOpen.size > 0 || !!document.getElementById('cutin'));
+        const offs = [
+            api.on('ui:append', c => { if (c?.name === 'NpcBox' || c?.name === 'NpcMenu') { npcOpen.add(c.name); hideCheck(); } }, { replay: true }),
+            api.on('ui:remove', c => { if (npcOpen.delete(c?.name)) hideCheck(); }),
+            api.on('map:leave', () => close(undefined)),
+        ];
+        const bodyWatch = new MutationObserver(hideCheck);
+        bodyWatch.observe(document.body, { childList: true });
+
+        function close(answer) {
+            if (askOpen !== handle) return;
+            askOpen = null;
+            removeEventListener('resize', fit);
+            bodyWatch.disconnect();
+            for (const off of offs) { try { off?.(); } catch { /* fine */ } }
+            bubble.classList.remove('on');
+            por.className = 'por leave';
+            setTimeout(() => host.remove(), 450);
+            askWatch.forEach(f => f(false));
+            if (answer !== undefined) resolve(answer);
+        }
+        const handle = { close };
+        askOpen = handle;
+        root.querySelector('.yes').addEventListener('click', () => close(true));
+        root.querySelector('.no').addEventListener('click', () => close(false));
+    });
+}
+
 export default function initPortraits(parameters, api) {
     const flag = v => v !== false && v !== 0;
     if (!flag(parameters?.portraits) || typeof MutationObserver !== 'function') return;
@@ -193,7 +274,11 @@ export default function initPortraits(parameters, api) {
 
     // ---- stepping aside for NPCs ----
     const npcOpen = new Set();
-    const hideCheck = () => stageEl.classList.toggle('hidden', npcOpen.size > 0 || !!document.getElementById('cutin'));
+    let asked = false;   // 3.9.0: a "Can we keep it?" is up (askKeep)
+    const hideCheck = () => stageEl.classList.toggle('hidden', asked || npcOpen.size > 0 || !!document.getElementById('cutin'));
+    const onAsk = on => { asked = on; hideCheck(); };
+    askWatch.add(onAsk);
+    api.cleanup(() => askWatch.delete(onAsk));
     api.on('ui:append', c => { if (c?.name === 'NpcBox' || c?.name === 'NpcMenu') { npcOpen.add(c.name); hideCheck(); } }, { replay: true });
     api.on('ui:remove', c => { if (npcOpen.delete(c?.name)) hideCheck(); });
     const bodyWatch = new MutationObserver(hideCheck);   // the game's cutin is an <img id="cutin"> on <body>

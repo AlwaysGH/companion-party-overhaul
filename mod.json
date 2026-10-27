@@ -1,9 +1,9 @@
 {
   "name": "companion-party-overhaul",
-  "version": "3.8.5",
+  "version": "3.9.0",
   "author": "Always",
   "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, one-click orders (stance, focus, roam, camp, Warp Portal, item appraisal), your bonds with each of them (tiers that grow into small perks), bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
-  "requires": { "app": ">=1.6.0", "era": "any" },
+  "requires": { "app": ">=1.7.3", "era": "any" },
   "tags": ["companions", "population", "combat", "dialogue", "immersion"],
   "settingsPage": "settings/index.html",
   "settings": [
@@ -48,6 +48,22 @@
       "default": true,
       "label": "Campfire nights",
       "description": "They make camp on their own once you stand still 3 minutes, or on \"make camp\" (Orders tab or party chat). A bonfire, campfire talks, a meal from food in your bags (a 30-minute party buff), and Well Rested (+10% base EXP, faster regen) after 5+ minutes. Walking away or \"time to go\" puts it out. Changing this restarts the server."
+    },
+    {
+      "key": "pets",
+      "type": "boolean",
+      "default": true,
+      "label": "Companion pets",
+      "description": "Switch Pet on for a companion in the Bag tab and it brings its class's classic pet (Hunter: Baby Desert Wolf, Priest: Lunatic...). Loyal, no care; it follows, joins fights, can't be hurt, comes back after warps. Say \"show me your pets\" in party chat. Changing this restarts the server."
+    },
+    {
+      "key": "pet_strength",
+      "type": "number",
+      "default": 100,
+      "min": 10,
+      "max": 200,
+      "label": "Pet strength (%)",
+      "description": "How hard pets hit. Every pet is equal: at 100% it hits for about twice its companion's level, once every 1.5 seconds. Changing this restarts the server."
     },
     {
       "key": "party_roles",

@@ -1,0 +1,299 @@
+Header:
+  Type: MOB_DB
+  Version: 5
+
+# Companion pets (3.2.0, setting "pets"; npc/companion_life.txt, L_PetSpawn).
+# Lookalikes of the classic tameable pets, one per class family, in the app's
+# custom block (25000-31998). System/jobname.lub draws each with the real
+# monster's sprite. No EXP, no drops, no skills: a pet that vanishes (its
+# companion warped or fell) leaves nothing on the ground. Size, race and the
+# animation timings are the real monster's; the element is Neutral 1 for all,
+# and the script sets the same attack, accuracy and attack speed on every pet
+# from its companion's level, so no class gets a stronger one.
+Body:
+  - Id: 31201
+    AegisName: CPO_PET_DESERT_WOLF_B
+    Name: Baby Desert Wolf
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Small
+    Race: Brute
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 900
+    ClientAttackMotion: 252
+    DamageMotion: 240
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31202
+    AegisName: CPO_PET_LUNATIC
+    Name: Lunatic
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Small
+    Race: Brute
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 456
+    ClientAttackMotion: 264
+    DamageMotion: 336
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31203
+    AegisName: CPO_PET_DEVIRUCHI
+    Name: Deviruchi
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Small
+    Race: Demon
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 600
+    ClientAttackMotion: 288
+    DamageMotion: 384
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31204
+    AegisName: CPO_PET_CHONCHON
+    Name: Chonchon
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Small
+    Race: Insect
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 576
+    ClientAttackMotion: 288
+    DamageMotion: 480
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31205
+    AegisName: CPO_PET_PECOPECO
+    Name: Peco Peco
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Large
+    Race: Brute
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 864
+    ClientAttackMotion: 480
+    DamageMotion: 576
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31206
+    AegisName: CPO_PET_PORING
+    Name: Poring
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Medium
+    Race: Plant
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 672
+    ClientAttackMotion: 288
+    DamageMotion: 480
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31207
+    AegisName: CPO_PET_STEEL_CHONCHON
+    Name: Steel Chonchon
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Small
+    Race: Insect
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 576
+    ClientAttackMotion: 288
+    DamageMotion: 480
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31208
+    AegisName: CPO_PET_SPORE
+    Name: Spore
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Medium
+    Race: Plant
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 672
+    ClientAttackMotion: 576
+    DamageMotion: 288
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31209
+    AegisName: CPO_PET_ISIS
+    Name: Isis
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Large
+    Race: Demon
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 768
+    ClientAttackMotion: 480
+    DamageMotion: 336
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31210
+    AegisName: CPO_PET_YOYO
+    Name: Yoyo
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Small
+    Race: Brute
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 54
+    ClientAttackMotion: 360
+    DamageMotion: 384
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31211
+    AegisName: CPO_PET_SMOKIE
+    Name: Smokie
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Small
+    Race: Brute
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 576
+    ClientAttackMotion: 480
+    DamageMotion: 420
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31212
+    AegisName: CPO_PET_ROCKER
+    Name: Rocker
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Medium
+    Race: Insect
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 864
+    ClientAttackMotion: 768
+    DamageMotion: 540
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
+  - Id: 31213
+    AegisName: CPO_PET_DROPS
+    Name: Drops
+    Level: 1
+    Hp: 100
+    Attack: 1
+    Attack2: 1
+    AttackRange: 1
+    SkillRange: 1
+    ChaseRange: 12
+    Size: Medium
+    Race: Plant
+    Element: Neutral
+    ElementLevel: 1
+    WalkSpeed: 150
+    AttackDelay: 1500
+    AttackMotion: 672
+    ClientAttackMotion: 288
+    DamageMotion: 480
+    Ai: 01
+    Modes:
+      KnockBackImmune: true
