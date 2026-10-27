@@ -17,6 +17,7 @@ Your companions as a real party of people who live in this world with you. This 
 - They use the items you give them. They cure bad statuses, use Yggdrasil Seeds and Berries when they're in danger, revive the fallen with Yggdrasil Leaves when no Priest can, and drink speed potions near a boss. This needs the game's Companion inventory setting.
 - **Potions and food like a careful player:** in a fight, or while you walk on, a companion under 50% HP (a setting) uses the healing item from its bag that best fits the wound: potions, herbs, Meat, Cheese... Under 25% the strongest one. A Priest or Acolyte gets 2 seconds to heal first, and a heavy bag never stops them. Standing still after a fight, they sit and rest.
 - Hunters lay traps with a purpose: a snare in front of whatever chases the Priest or the casters, Sandman on packs, Claymore on bunched monsters.
+- **Assassins dual wield:** give an Assassin a dagger, one-handed sword or axe while their left hand is empty, and it goes in the left hand.
 - They don't buff in town when no monster is in sight.
 
 ## How they grow
@@ -31,6 +32,7 @@ Your companions as a real party of people who live in this world with you. This 
 - They talk. They greet you, react to places, call out in battle and answer you in party chat. Hundreds of conversations grow from strangers to close friends.
 - Campfire nights: after you've stood still for 3 minutes they make camp on their own, or you say `make camp`. They sit around the fire, talk and cook a meal that buffs the party, and you leave Well Rested with bonus EXP.
 - Now and then a companion brings you a gift.
+- **Pets:** when a companion reaches the Companion bond, it walks over with the little one that has been following it and asks: "Can we keep it?" Say yes and you name it; say "Not now" and it asks once more later. Each class has its own classic pet (a Lunatic for a Priest, a Baby Desert Wolf for an Archer...). Pets fight beside their companion, sleep by the campfire, cheer at MVPs, play with each other, and stay crying beside a fallen companion until they're back up. Switch each pet on or off, or rename it, in the Bag tab.
 - **Bonds:** they remember your adventures (time together, fights, MVPs, places, gifts, campfire nights), and that grows your bond with each one. Tiers: Acquaintance, Companion (+2% max HP and SP), Trusted (better gifts, camp meals last longer), Sworn (+4%), Kindred (+6%).
 - A Merchant-line companion can **appraise** your unknown items, 10 SP each, like Item Appraisal.
 - Between fights they stand loosely around you, look around and walk patrols (scouts). They sit down beside the one they feel closest to.
@@ -62,14 +64,14 @@ If Find Mods can't install it, it can't reach GitHub's downloads. That can happe
 
 ## Requirements
 
-- Ragnarok Offline 1.6.0 or newer
+- Ragnarok Offline 1.7.3 or newer
 - Pre-renewal (recommended) or renewal
 
 On renewal the mod loads and the talk, memories, campfires, gifts and window work the same. Builds, starter kits, refine levels and the party roles follow pre-renewal rules, and the 3rd classes have no tactics of their own yet.
 
 ## Settings
 
-You can turn every feature on or off in the mod's Settings window: party spacing (Close, Normal, Far), party roles, roaming, campfires, gifts, growth, sitting, chat and its colour, emotes, the purse, party loot (Off, Low, Normal, Generous), portraits (size, reading speed, small talk or callouts only), the Warp Portal's gem, memories and bonds, and more.
+You can turn every feature on or off in the mod's Settings window: party spacing (Close, Normal, Far), party roles, roaming, campfires, gifts, growth, sitting, chat and its colour, emotes, the purse, party loot (Off, Low, Normal, Generous), portraits (size, reading speed, small talk or callouts only), the Warp Portal's gem, memories and bonds, pets and how hard they hit, and more.
 
 ## Author
 
