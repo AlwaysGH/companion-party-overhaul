@@ -9,11 +9,21 @@
 //   on the bubble dismisses it all.
 //   Who's who comes from the server ("@@event clcast Name:class:sex|", L_Gather); the
 //   pictures from portraits_data.js (made by Portraits\tools\build_data.ps1).
+//   3.9.1: the game's own generic AI chat, which companions say too, is left out
+//   (app_chat.js, made by tools/make_app_chat.ps1).
 import PICS from './portraits_data.js';
+import { APP_CHAT } from './app_chat.js';
+
+// The game's lines as they are, and those with {item}, $victim etc. as patterns.
+const APP_SAME = new Set(APP_CHAT.filter(t => !/\{\w+\}|\$\w+/.test(t)));
+const APP_LIKE = APP_CHAT.filter(t => /\{\w+\}|\$\w+/.test(t)).map(t => new RegExp('^'
+    + t.split(/\{\w+\}|\$\w+/).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?') + '$'));
+const appLine = t => APP_SAME.has(t) || APP_LIKE.some(r => r.test(t));
 
 // Job id -> picture name (pre-renewal classes). Babies and the transcendent 1st classes
 // (High Novice ... High Thief) wear the same outfit as the normal class, so they use its picture.
-const CLASS_KEY = {
+// (3.9.1: shared with the party frames, frames.js.)
+export const CLASS_KEY = {
     0: 'novice', 1: 'swordman', 2: 'mage', 3: 'archer', 4: 'acolyte', 5: 'merchant', 6: 'thief',
     7: 'knight', 8: 'priest', 9: 'wizard', 10: 'blacksmith', 11: 'hunter', 12: 'assassin', 13: 'knight',
     14: 'crusader', 15: 'monk', 16: 'sage', 17: 'rogue', 18: 'alchemist', 19: 'bard', 20: 'dancer',
@@ -68,36 +78,77 @@ const ASK_STYLE = STYLE + `
 .stage { pointer-events: none; }
 .bubble { width: 290px; }
 .bubble .q { margin: 2px 0 0; }
-.btns { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.btns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.por.two.side { transform: translateX(-165px) scale(.93); transform-origin: bottom right; opacity: 1; filter: brightness(.9); z-index: 2; }
+.por.front { z-index: 3; }
 .btns button { font: 11px Tahoma, Verdana, sans-serif; color: #333; padding: 2px 10px; border-radius: 3px; border: 1px solid #7f8ea8;
   background: linear-gradient(#fdfdfd, #d7dfeb); }
 .btns button:hover { background: linear-gradient(#fff, #c5d6ee); }
 .btns button.yes { border-color: #5a8fc4; font-weight: bold; }
 .last { color: #8b8b8b; font-size: 10px; margin-top: 4px; }
+.tag { display: inline-block; float: right; font: bold 9px Tahoma, Verdana, sans-serif; letter-spacing: .04em; text-transform: uppercase;
+  color: #2f7fb8; border: 1px solid #9cc3e0; background: #eef6fc; border-radius: 3px; padding: 0 4px; margin-top: 1px; }
+.bubble.gold { background: linear-gradient(#fffaf0, #fff1cf); border-color: #c9a227; box-shadow: 0 0 0 1px rgba(201,162,39,.35), 0 2px 12px rgba(201,162,39,.55); }
+.bubble.gold::after { background: #fff1cf; border-color: #c9a227; }
+.bubble.gold .tag { color: #8a6a00; border-color: #d9b545; background: #fff3c4; }
+.bubble.don .tag { color: #b5462f; border-color: #e3a291; background: #fdf0ec; }
 `;
+const ASK_TAGS = { quiz: 'Pop quiz', gold: '✦ Golden question', don: 'Double or nothing' };
 const askWatch = new Set();   // the chat portraits' "step aside" switches
 let askOpen = null;           // { close(answer) }
 export function closeAsk() { askOpen?.close(undefined); }
 
 export function askKeep(api, { name, cls, sex, last, text }) {
+    return askChoice(api, { name, cls, sex, text, options: ['Yes', 'Not now'], note: last ? `The last time ${name} asks.` : '' })
+        .then(i => i === undefined ? undefined : i === 0);
+}
+
+// 3.9.1: the same, with two or three answers of the companion's own ("hey boss"
+// moments, client/index.js). Resolves the answer's index, or undefined. With
+// second ({ name, cls, sex }): a second portrait behind the first (a story invite:
+// two companions talking), and the bubble names them both. 3.10.2: tag (quiz, gold, don)
+// puts a small label in the corner; gold also turns the bubble golden.
+export function askChoice(api, { name, cls, sex, text, options, note = '', second = null, tag = '' }) {
     askOpen?.close(undefined);
     return new Promise(resolve => {
         const base = CLASS_KEY[cls];
         const key = base && `${base}_${sex === 1 ? 'm' : 'f'}`;
+        const base2 = second && CLASS_KEY[second.cls];
+        const key2 = base2 && `${base2}_${second.sex === 1 ? 'm' : 'f'}`;
         const host = document.createElement('div');
         const root = host.attachShadow({ mode: 'open' });
-        root.innerHTML = `<style>${ASK_STYLE}</style><div class="stage"><div class="por enter"><img alt=""></div>`
+        root.innerHTML = `<style>${ASK_STYLE}</style><div class="stage">`
+            + (key2 && PICS[key2] ? `<div class="por two enter"><img alt="" src="${PICS[key2]}"></div>` : '')
+            + `<div class="por enter"><img alt=""></div>`
             + `<div class="bubble"><div class="who"></div><div class="q"></div>`
-            + `<div class="btns"><button class="yes">Yes</button><button class="no">Not now</button></div>`
-            + (last ? `<div class="last">The last time ${name} asks.</div>` : '') + `</div></div>`;
-        const stageEl = root.querySelector('.stage'), por = root.querySelector('.por'), bubble = root.querySelector('.bubble');
-        if (key && PICS[key]) root.querySelector('img').src = PICS[key];
+            + `<div class="btns"></div><div class="last"></div></div></div>`;
+        // The answers: the first is the "yes" one (bold).
+        const btns = root.querySelector('.btns');
+        options.filter(Boolean).forEach((label, i) => {
+            const b = document.createElement('button');
+            b.textContent = label;
+            if (i === 0) b.className = 'yes';
+            b.addEventListener('click', () => close(i));
+            btns.append(b);
+        });
+        if (note) root.querySelector('.last').textContent = note;
+        else root.querySelector('.last').remove();
+        const stageEl = root.querySelector('.stage'), por = root.querySelector('.por:not(.two)'), bubble = root.querySelector('.bubble');
+        const por2 = root.querySelector('.por.two');
+        if (key && PICS[key]) por.querySelector('img').src = PICS[key];
         else por.remove();   // no picture for this class: the bubble alone
         const who = root.querySelector('.who');
-        who.textContent = name;
+        who.textContent = second ? `${name} & ${second.name}` : name;
         const small = document.createElement('small');
-        small.textContent = base ? CLASS_NAME(base) : '';
+        small.textContent = second ? '' : (base ? CLASS_NAME(base) : '');
         who.append(small);
+        if (ASK_TAGS[tag]) {
+            const t = document.createElement('span');
+            t.className = 'tag';
+            t.textContent = ASK_TAGS[tag];
+            who.append(t);
+            bubble.classList.add(tag);
+        }
         root.querySelector('.q').textContent = text;
         const fit = () => { stageEl.style.transform = `scale(${Math.min(1, (innerHeight * 0.75) / 480)})`; };
         fit();
@@ -107,6 +158,7 @@ export function askKeep(api, { name, cls, sex, last, text }) {
         document.body.appendChild(host);
         void por.offsetWidth;
         por.className = 'por front';
+        if (por2) por2.className = 'por two side';
         setTimeout(() => bubble.classList.add('on'), 260);
         askWatch.forEach(f => f(true));
 
@@ -129,14 +181,13 @@ export function askKeep(api, { name, cls, sex, last, text }) {
             for (const off of offs) { try { off?.(); } catch { /* fine */ } }
             bubble.classList.remove('on');
             por.className = 'por leave';
+            if (por2) por2.className = 'por two leave';
             setTimeout(() => host.remove(), 450);
             askWatch.forEach(f => f(false));
             if (answer !== undefined) resolve(answer);
         }
         const handle = { close };
         askOpen = handle;
-        root.querySelector('.yes').addEventListener('click', () => close(true));
-        root.querySelector('.no').addEventListener('click', () => close(false));
     });
 }
 
@@ -295,7 +346,7 @@ export default function initPortraits(parameters, api) {
         for (const n of cast.keys()) if (text.startsWith(n + ' : ')) { name = n; break; }
         if (!name) return;
         const said = text.slice(name.length + 3).trim();
-        if (!said) return;
+        if (!said || appLine(said)) return;
         const urgent = div.dataset.cpoParty === '1' || div.style.color.replace(/\s/g, '') === 'rgb(230,215,200)';
         if (!urgent && !smallTalk) return;
         const now = Date.now(), k = name + '|' + said;

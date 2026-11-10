@@ -1,12 +1,13 @@
 // companion-party-overhaul: the Companions window.
 //   Alt+N (Alt+N is the game's Achievements), or a click on the small "Companions" button, opens it.
-//   Status tab: each companion's HP and SP, level and job, and whether it is
-//   resting, fallen or on another map, refreshed every second while open.
+//   3.9.1: the Status tab (HP and SP, level, resting / fallen / away) went: the party
+//   frames show it all the time (frames.js); a click on one opens its Bag tab here.
 //   Orders tab (3.7.0): the party-chat orders as buttons: stance (Engage / Protect /
-//   Hold), focus on your target, roam (and as a group or alone), camp, Warp Portal,
-//   item appraisal; greyed out with the reason when nobody can. Asks @clorder state.
-//   Bonds tab (3.7.0, was Memories): each companion's bond tier, the perks it brings,
-//   and a few highlights of your time together.
+//   Hold), focus on your target, roam (as a group or alone; 3.11.0: Normal or MVP hunt), camp, Warp Portal,
+//   appraise / repair (3.10.2: Merchant services); greyed out with the reason when nobody can. Asks @clorder state.
+//   Bond (3.7.0 tab, was Memories; 3.13.1 a fold in the Roster's More row, the tab
+//   went to save room): each companion's bond tier, the perks it brings, a few
+//   highlights of your time together, and its Journal.
 //   Bag tab (3.5.0): one companion at a time, picked by its name tab, laid out like
 //   the game's Equip window: its gear round it and the companion drawn in the middle,
 //   then its bag as a grid of item icons. Hover a square for its details, double-click
@@ -15,11 +16,14 @@
 //   town (3.1.0).
 //   Loot tab (3.1.0): the party purse (take zeny out, put zeny in) and the party
 //   bag, what they find on party kills: click, then Take or Sell. Every 3 s while open.
-//   It asks @clstat (npc/companion_life.txt, OnCmdStat) for the first two and
-//   @clbag (OnCmdBag) for the bag and the loot.
+//   It asks @clstat (npc/companion_life.txt, OnCmdStat) for the Bond fold,
+//   @clorder for Orders and @clbag (OnCmdBag) for the bag and the loot.
 //   Drag the button to move it; it and the window remember where they were.
 //   3.2.0: companion portraits, in portraits.js (loaded on its own, so the
 //   window still works if it's missing).
+//   Roster tab (3.10.0): the app's Companions window in ours, Active / Inactive with
+//   faces, Bench / Summon, a More row, and a Hire page; the game menu's Companions
+//   button opens it (setting roster_button). Asks @clroster.
 
 const BTN_STYLE = `
 .cb { position: fixed; z-index: 8999; font: bold 11px Tahoma, sans-serif; padding: 4px 9px;
@@ -161,6 +165,7 @@ const WIN_STYLE = `
 .og h4 small { font-weight: normal; color: #6a7a92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ob { display: flex; gap: 4px; }
 .ob + .ob { margin-top: 4px; }
+.cw .ob4 button.ord { flex: 1 1 auto; padding-left: 0; padding-right: 0; white-space: nowrap; }
 .cw button.ord { flex: 1 1 0; min-width: 0; font: bold 11px Tahoma, sans-serif; color: #1f3f73; background: linear-gradient(#f4f7fd, #dde6f4);
   border: 1px solid #9fb0c8; border-radius: 3px; padding: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw button.ord:hover { border-color: #3c6fc0; }
@@ -179,6 +184,26 @@ const WIN_STYLE = `
 .perk.next { color: #6a7a92; }
 .hl { margin-top: 2px; font-size: 10px; color: #6a7a92; }
 .hl b { color: #1f3f73; font-weight: normal; }
+.jr { margin-top: 4px; border-top: 1px dashed #d6deeb; padding-top: 3px; }
+.jr > button { all: unset; cursor: pointer; font-size: 11px; color: #2f5f9e; display: flex; gap: 4px; align-items: center; }
+.jr .ar, .jc .ar { display: inline-block; font-size: 8px; transition: transform .15s; }
+.jr.open > button .ar, .jc.open > button .ar { transform: rotate(90deg); }
+.jr .cnt { color: #6a7a92; }
+.jb2 { display: grid; gap: 3px; margin-top: 4px; }
+.jh { font-size: 10.5px; color: #22324f; font-weight: bold; margin-top: 2px; }
+.jc { border: 1px solid #e3e8f0; border-radius: 3px; }
+.jc > button { all: unset; cursor: pointer; display: flex; width: 100%; box-sizing: border-box; gap: 5px; padding: 2px 6px; background: #f6f8fc; font-size: 11px; }
+.jc .tt { flex: 1; color: #22324f; }
+.jc .wh { color: #6a7a92; font-size: 10px; }
+.jc.locked > button { cursor: default; background: #fafbfd; }
+.jc.locked .tt, .jc.locked .wh { color: #a9b3c4; font-style: italic; }
+.jl { padding: 3px 8px 5px; font-size: 11px; line-height: 1.5; user-select: text; }
+.jl p { margin: 0 0 2px; }
+.jl .s { font-weight: bold; color: #2f7fb8; }
+.jl .s.b { color: #8a5ac2; }
+.jx { margin-top: 3px; padding: 3px 6px; background: #fff8e6; border-left: 3px solid #e0a12e; font-size: 10.5px; color: #6b4d00; }
+.jm { font-size: 10.5px; color: #45556f; padding: 1px 4px; }
+.jm .ja { color: #2e7d46; }
 /* 3.5.0: the Bag tab like the game's Equip window. A name tab per companion (one shown
    at a time; past five they wrap), Outfit and Hair on one row, the gear round the
    companion, then the bag and the restock row. */
@@ -203,6 +228,70 @@ const WIN_STYLE = `
 .sl.nil .lb { font-size: 7px; color: #b0bccb; pointer-events: none; }
 .cost { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-top: 2px; }
 .cost .lb { font-size: 10px; font-weight: bold; color: #6a7a92; margin-right: 3px; }
+/* 3.10.2: shadow gear, a light purple next to the gold of the costumes. */
+.cost .lb.s2 { margin-left: 10px; }
+.cost .none { font-size: 10px; color: #9aa7ba; }
+.sl.sh { border-color: #9a86c9; background: linear-gradient(#fbf9ff, #ebe4f8); }
+.sl.sh.on { border-color: #6b4fb0; box-shadow: 0 0 0 1px #6b4fb0 inset; }
+/* 3.10.0: the Roster tab: Active / Inactive cards, a More row, the Hire page. */
+.fc { position: relative; display: block; flex: none; overflow: hidden; border: 1px solid #9fb0c8; border-radius: 4px; background: #e9eef7; }
+.fc img { position: absolute; max-width: none; pointer-events: none; }
+.fc.nf { display: flex; align-items: center; justify-content: center; font: bold 11px Tahoma, sans-serif; color: #6a7a92; }
+.rh { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 4px; font: bold 12px Tahoma, sans-serif; color: #1f3f73; }
+.rh.off { color: #6a7a92; margin-top: 8px; }
+.rc { padding: 4px 5px; border: 1px solid #d6deeb; border-radius: 3px; background: #fff; margin-bottom: 4px; }
+.rc.off { background: #f1f3f7; }
+.rc.off .fc { filter: grayscale(.6); opacity: .85; }
+.rc .top { align-items: center; }
+.rc .who { flex: 1; min-width: 0; }
+.rc .who .nm { display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; }
+.rc .who .jb { display: block; }
+.role { font-size: 9px; padding: 0 5px; border-radius: 7px; color: #fff; font-weight: bold; }
+.role.r3 { background: #c0563a; } .role.r1 { background: #4a6fa8; } .role.r2 { background: #4f9a5c; }
+.cw button.act.go { color: #fff; background: #3c6fc0; border-color: #2c5aa0; }
+.cw button.act.go:hover { background: #2f5fae; }
+.cw button.act.red { color: #8a2219; background: #f8e5e3; border-color: #d9a8a2; }
+.cw button.act.on { color: #fff; background: #5a7fb8; border-color: #3c6fc0; }
+.cw button.act:disabled { color: #9aa7ba; background: #eef1f6; border-color: #d6deeb; cursor: default; }
+.cw button.dots { padding: 1px 5px; }
+.rmore { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #d6deeb; display: grid; gap: 3px; }
+.rmore .ln { display: flex; align-items: center; gap: 6px; }
+.rmore .ln .act { width: 74px; flex: none; }
+.rmore .ln span { font-size: 10px; color: #6a7a92; }
+.rmore .end { display: flex; justify-content: flex-end; }
+/* 3.10.2: the Stats fold, under its button. */
+.rst { margin: 1px 0 3px 80px; padding: 5px 6px; border: 1px solid #c9d8f0; border-radius: 3px; background: #eef4fd;
+  display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; row-gap: 1px; font-variant-numeric: tabular-nums; }
+.rst .pr { display: flex; justify-content: space-between; gap: 6px; }
+.rst .k { color: #6a7a92; } .rst .v { color: #1f3f73; font-weight: bold; text-align: right; }
+.rst .rule { grid-column: 1 / -1; border-top: 1px dotted #b9c7de; margin: 3px 0 2px; }
+.rst .ft { grid-column: 1 / -1; font-size: 9.5px; color: #6a7a92; line-height: 1.35; }
+.ask { margin-top: 4px; padding: 5px 6px; border: 1px solid #d9a8a2; border-radius: 3px; background: #fdf3f2; line-height: 1.4; }
+.ask.blue { border-color: #9fbbe8; background: #eef4fd; }
+.ask b { color: #8a2219; } .ask.blue b { color: #1f3f73; }
+.ask .ob { margin-top: 4px; }
+.me { padding: 4px 6px; margin-bottom: 5px; border: 1px solid #c9d8f0; border-radius: 3px; background: #eef4fd; line-height: 1.45; }
+.me b { color: #1f3f73; }
+.seg { display: flex; margin-bottom: 5px; }
+.seg button { flex: 1 1 0; font: bold 11px Tahoma, sans-serif; color: #4a5f80; background: #eef2f8; border: 1px solid #b9c7de; padding: 3px 0; cursor: pointer; }
+.seg button + button { border-left: none; }
+.seg button:first-child { border-radius: 3px 0 0 3px; } .seg button:last-child { border-radius: 0 3px 3px 0; }
+.seg button.on { color: #fff; background: #3c6fc0; border-color: #2c5aa0; }
+.jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 4px; }
+.jt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 1px 3px; border: 1px solid #d6deeb; border-radius: 4px;
+  background: #fff; cursor: pointer; font: bold 10px Tahoma, sans-serif; color: #1f3f73; min-width: 0; }
+.jt span.l { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jt:hover { border-color: #6d8fc2; }
+.jt.on { border-color: #3c6fc0; box-shadow: 0 0 0 1px #3c6fc0 inset; background: #eef4fd; }
+.jt.lock { cursor: default; opacity: .5; }
+.jt.lock:hover { border-color: #d6deeb; }
+.jt .lk { font: normal 9px Tahoma, sans-serif; color: #8a6a12; }
+.hb { display: flex; align-items: center; gap: 7px; margin-top: 6px; padding: 5px 6px; border: 1px solid #d8c88e; border-radius: 3px; background: #fffaf0; }
+.hb .tx { flex: 1; min-width: 0; line-height: 1.4; }
+.hb .tx b { color: #1f3f73; }
+.hb .z { color: #8a6a12; }
+.hdone { display: grid; justify-items: center; gap: 6px; padding: 14px 6px; text-align: center; }
+.hdone b { font-size: 13px; color: #1f3f73; }
 `;
 
 // 3.5.0: the Bag tab's hover details, drawn over the game (not inside the window, so
@@ -230,12 +319,12 @@ const num = n => Number(n || 0).toLocaleString('en-US');
 // "STR +3" from an option id and value.
 const optText = ([id, v]) => OPTION_NAMES[id] ? OPTION_NAMES[id].replace('%d', v).replace('%%', '%') : `Option ${id}: ${v}`;
 
-// Random option names by id (from the ROenglishRE translation by zackdreaver and llchrisll,
-// free to use; the same table Affix Forge ships), for the bag's details.
+// Random option names by id, for the bag's details. A copy of Diablorok's option name table
+// (addrandomoptionnametable.lub): every new affix there must be added here too.
 const OPTION_NAMES = {
     1:"MaxHP +%d", 2:"MaxSP +%d", 3:"STR +%d", 4:"AGI +%d", 5:"VIT +%d", 6:"INT +%d", 7:"DEX +%d", 8:"LUK +%d",
-    9:"MaxHP +%d%%", 10:"MaxSP +%d%%", 11:"HP Recovery +%d%%", 12:"SP Recovery +%d%%", 13:"ATK +%d%%",
-    14:"MATK +%d%%", 15:"ASPD +%d", 16:"ASPD -%d%%", 17:"ATK +%d", 18:"HIT +%d", 19:"MATK +%d", 20:"DEF +%d",
+    9:"MaxHP +%d%%", 10:"MaxSP +%d%%", 11:"HP Recovery +%d%%", 12:"SP Recovery +%d%%", 13:"Damage +%d%%",
+    14:"MATK +%d%%", 15:"ASPD +%d", 16:"ASPD +%d%%", 17:"ATK +%d", 18:"HIT +%d", 19:"MATK +%d", 20:"DEF +%d",
     21:"MDEF +%d", 22:"FLEE +%d", 23:"Perfect Dodge +%d", 24:"Critical +%d",
     25:"Neutral elemental resistance +%d%%", 26:"Water elemental resistance +%d%%",
     27:"Earth elemental resistance +%d%%", 28:"Fire elemental resistance +%d%%",
@@ -247,24 +336,25 @@ const OPTION_NAMES = {
     39:"ATK +%d%% against Water monster", 40:"Earth monster resistance +%d%%",
     41:"ATK +%d%% against Earth monster", 42:"Fire monster resistance +%d%%", 43:"ATK +%d%% against Fire monster",
     44:"Wind monster resistance +%d%%", 45:"ATK +%d%% against Wind monster", 46:"Poison monster resistance +%d%%",
-    47:"ATK +%d%% against Poison monster", 48:"Holy monster resistance +%d%%", 49:"ATK +%d%% against Holy monster",
-    50:"Shadow monster resistance +%d%%", 51:"ATK +%d%% against Shadow monster",
-    52:"Ghost monster resistance +%d%%", 53:"ATK +%d%% against Ghost monster",
-    54:"Undead monster resistance +%d%%", 55:"ATK +%d%% against Undead monster",
-    56:"Neutral monster magic resistance +%d%%", 57:"MATK +%d%% against Neutral monster",
-    58:"Water monster magic resistance +%d%%", 59:"MATK +%d%% against Water monster",
-    60:"Earth monster magic resistance +%d%%", 61:"MATK +%d%% against  Earth monster",
-    62:"Fire monster magic resistance +%d%%", 63:"MATK +%d%% against Fire monster",
-    64:"Wind monster magic resistance +%d%%", 65:"MATK +%d%% against Wind monster",
-    66:"Poison monster magic resistance +%d%%", 67:"MATK +%d%% against Poison monster",
-    68:"Holy monster magic resistance +%d%%", 69:"MATK +%d%% against Holy monster",
-    70:"Shadow monster magic resistance +%d%%", 71:"MATK +%d%% against Shadow monster",
-    72:"Ghost monster magic resistance +%d%%", 73:"MATK +%d%% against Ghost monster",
-    74:"Undead monster magic resistance +%d%%", 75:"MATK +%d%% against Undead monster",
-    76:"Armor Element: Neutral", 77:"Armor Element: Water", 78:"Armor Element: Earth", 79:"Armor Element: Fire",
-    80:"Armor Element: Wind", 81:"Armor Element: Poison", 82:"Armor Element: Holy", 83:"Armor Element: Shadow",
-    84:"Armor Element: Ghost", 85:"Armor Element: Undead", 87:"Formless monster resistance +%d%%",
-    88:"Undead monster resistance +%d%%", 89:"Brute monster resistance +%d%%", 90:"Plant monster resistance +%d%%",
+    47:"ATK +%d%% against Poison monster", 48:"Holy monster resistance +%d%%",
+    49:"ATK +%d%% against Holy monster", 50:"Shadow monster resistance +%d%%",
+    51:"ATK +%d%% against Shadow monster", 52:"Ghost monster resistance +%d%%",
+    53:"ATK +%d%% against Ghost monster", 54:"Undead monster resistance +%d%%",
+    55:"ATK +%d%% against Undead monster", 56:"Neutral monster magic resistance +%d%%",
+    57:"MATK +%d%% against Neutral monster", 58:"Water monster magic resistance +%d%%",
+    59:"MATK +%d%% against Water monster", 60:"Earth monster magic resistance +%d%%",
+    61:"MATK +%d%% against  Earth monster", 62:"Fire monster magic resistance +%d%%",
+    63:"MATK +%d%% against Fire monster", 64:"Wind monster magic resistance +%d%%",
+    65:"MATK +%d%% against Wind monster", 66:"Poison monster magic resistance +%d%%",
+    67:"MATK +%d%% against Poison monster", 68:"Holy monster magic resistance +%d%%",
+    69:"MATK +%d%% against Holy monster", 70:"Shadow monster magic resistance +%d%%",
+    71:"MATK +%d%% against Shadow monster", 72:"Ghost monster magic resistance +%d%%",
+    73:"MATK +%d%% against Ghost monster", 74:"Undead monster magic resistance +%d%%",
+    75:"MATK +%d%% against Undead monster", 76:"Armor Element: Neutral", 77:"Armor Element: Water",
+    78:"Armor Element: Earth", 79:"Armor Element: Fire", 80:"Armor Element: Wind", 81:"Armor Element: Poison",
+    82:"Armor Element: Holy", 83:"Armor Element: Shadow", 84:"Armor Element: Ghost", 85:"Armor Element: Undead",
+    87:"Formless monster resistance +%d%%", 88:"Undead monster resistance +%d%%",
+    89:"Brute monster resistance +%d%%", 90:"Plant monster resistance +%d%%",
     91:"Insect monster resistance +%d%%", 92:"Fish monster resistance +%d%%", 93:"Demon monster resistance +%d%%",
     94:"Demihuman monster resistance +%d%%", 95:"Angel monster resistance +%d%%",
     96:"Dragon monster resistance +%d%%", 97:"ATK +%d%% against Formless monster",
@@ -300,8 +390,8 @@ const OPTION_NAMES = {
     156:"Pierces %d%% MDEF of Boss monster", 157:"ATK +%d%% against Small size monster",
     158:"ATK +%d%% against Medium size monster", 159:"ATK +%d%% against Large size monster",
     160:"Small monster resistance +%d%%", 161:"Medium monster resistance +%d%%",
-    162:"Large monster resistance +%d%%", 163:"Nullify weapon\u0027s damage size penalty",
-    164:"Critical Damage +%d%%", 165:"Critical Damage -%d%%", 166:"Ranged Physical Damage +%d%%",
+    162:"Large monster resistance +%d%%", 163:"Nullify weapon's damage size penalty", 164:"Critical Damage +%d%%",
+    165:"Critical damage taken -%d%%", 166:"Ranged Physical Damage +%d%%",
     167:"Received Ranged Physical Damage -%d%%", 168:"Healing effectiveness +%d%%",
     169:"Recovery gained from Healing skills +%d%%", 170:"Variable Casting Time -%d%%",
     171:"After Skill Delay -%d%%", 172:"SP Consumption -%d%%", 175:"Weapon Element: Neutral",
@@ -333,14 +423,37 @@ const OPTION_NAMES = {
     230:"Undead elemental magic skill damage +%d%%", 231:"All elemental magic skill damage +%d%%",
     232:"Experience gained from Formless race monsters +%d%%",
     233:"Experience gained from Undead race monsters +%d%%",
-    234:"Experience gained from Brute race monsters +%d%%", 235:"Experience gained from Plant race monsters +%d%%",
-    236:"Experience gained from Insect race monsters +%d%%", 237:"Experience gained from Fish race monsters +%d%%",
-    238:"Experience gained from Demon race monsters +%d%%",
+    234:"Experience gained from Brute race monsters +%d%%",
+    235:"Experience gained from Plant race monsters +%d%%",
+    236:"Experience gained from Insect race monsters +%d%%",
+    237:"Experience gained from Fish race monsters +%d%%", 238:"Experience gained from Demon race monsters +%d%%",
     239:"Experience gained from Demi-Human race monsters +%d%%",
     240:"Experience gained from Angel race monsters +%d%%",
     241:"Experience gained from Dragon race monsters +%d%%", 242:"Experience gained from all race monsters +%d%%",
     243:"POW +%d", 244:"SPL +%d", 245:"STA +%d", 246:"WIS +%d", 247:"CON +%d", 248:"CRT +%d", 249:"P.ATK +%d",
-    250:"S.MATK +%d", 251:"RES +%d", 252:"MRES +%d", 253:"H.PLUS +%d", 254:"C.RATE +%d"
+    250:"S.MATK +%d", 251:"RES +%d", 252:"MRES +%d", 253:"H.PLUS +%d", 254:"C.RATE +%d",
+    300:"Double Attack chance %d%% (any weapon, best one counts)", 301:"Steal %d%% of damage as HP",
+    302:"Steal %d%% of damage as SP", 303:"%d%% chance to bleed the target", 304:"%d%% chance to stun the target",
+    305:"%d%% chance to freeze the target", 306:"%d%% chance to blind the target",
+    307:"%d%% chance to poison the target", 308:"%d%% chance to curse the target",
+    309:"%d%% chance to silence the target", 310:"5%% chance to cast Lv %d Fire Bolt on attack",
+    311:"5%% chance to cast Lv %d Cold Bolt on attack", 312:"5%% chance to cast Lv %d Lightning Bolt on attack",
+    313:"Resist stun +%d%%", 314:"Resist freeze +%d%%", 315:"Resist stone +%d%%", 316:"Resist sleep +%d%%",
+    317:"Resist silence +%d%%", 318:"Resist curse +%d%%", 319:"Resist blind +%d%%", 320:"Resist poison +%d%%",
+    321:"Heal %d HP every 5 seconds", 322:"Melee attackers take %d%% of their damage back",
+    323:"Walk speed +%d%%", 324:"Heal %d HP on each kill", 325:"Gain %d SP on each kill", 326:"Magic Find +%d%%",
+    327:"Gain up to %d extra zeny per kill (best one counts)", 330:"Bash damage +%d%%",
+    331:"Bowling Bash damage +%d%%", 332:"Brandish Spear damage +%d%%", 333:"Holy Cross damage +%d%%",
+    334:"Shield Boomerang damage +%d%%", 335:"Fire Bolt damage +%d%%", 336:"Cold Bolt damage +%d%%",
+    337:"Lightning Bolt damage +%d%%", 338:"Storm Gust damage +%d%%", 339:"Jupitel Thunder damage +%d%%",
+    340:"Heaven's Drive damage +%d%%", 341:"Double Strafe damage +%d%%", 342:"Arrow Shower damage +%d%%",
+    343:"Blitz Beat damage +%d%%", 344:"Melody Strike damage +%d%%", 345:"Slinging Arrow damage +%d%%",
+    346:"Holy Light damage +%d%%", 347:"Magnus Exorcismus damage +%d%%", 348:"Raging Trifecta Blow damage +%d%%",
+    349:"Throw Spirit Sphere damage +%d%%", 350:"Asura Strike damage +%d%%", 351:"Mammonite damage +%d%%",
+    352:"Cart Revolution damage +%d%%", 353:"Acid Terror damage +%d%%", 354:"Bomb damage +%d%%",
+    355:"Sonic Blow damage +%d%%", 356:"Grimtooth damage +%d%%", 357:"Back Stab damage +%d%%",
+    358:"Sightless Mind damage +%d%%", 359:"Tornado Kick damage +%d%%", 360:"Tracking damage +%d%%",
+    361:"Throw Huuma Shuriken damage +%d%%",
 };
 
 function parse(text) {
@@ -356,20 +469,25 @@ function parse(text) {
             places: +f[14] || 0, metMap: f[15] || '', metLv: +f[16] || 0, firstMvp: f[17] || '', sawFall: +f[18] || 0,
             closest: f[19] || '',
             // 3.7.0, Bonds: points, tier 1-5, campfire nights, gifts
-            pts: +f[20] || 0, tier: +f[21] || 1, camps: +f[22] || 0, gifts: +f[23] || 0
+            pts: +f[20] || 0, tier: +f[21] || 1, camps: +f[22] || 0, gifts: +f[23] || 0,
+            // 3.9.1: char id (the Journal asks by it), chapters of its story told
+            cid: f[24] || '', told: +f[25] || 0
         });
     }
     return out;
 }
 
 // @clorder state (3.7.0): OK|companions here|portal caster|why no portal|portal home|
-// appraiser|why no appraisal|unidentified|camp lit|roamers|roam alone|roaming on|campfire on
+// appraiser|why no appraisal|unidentified|camp lit|roamers|roam alone|roaming on|campfire on|
+// 3.10.2: smith|why no repair|broken items|3.11.0: hunt (1 MVP)|Fly Wings in their bags|"<name> found <MVP>"|
+// 3.12.0: on Stand By|3.12.7: on a shopping trip
 function parseOrders(text) {
     const f = String(text || '').split('|');
     if (f[0] !== 'OK') return null;
     return { alive: +f[1] || 0, caster: f[2] || '', warpWhy: f[3] || '', home: f[4] === '1', appraiser: f[5] || '',
         appWhy: f[6] || '', unid: +f[7] || 0, camp: f[8] === '1', roamers: +f[9] || 0, alone: f[10] === '1',
-        roamOn: f[11] === '1', campOn: f[12] === '1' };
+        roamOn: f[11] === '1', campOn: f[12] === '1', smith: f[13] || '', repWhy: f[14] || '', broken: +f[15] || 0,
+        mvp: f[16] === '1', wings: +f[17] || 0, found: f[18] || '', standby: f[19] === '1', shopping: f[20] === '1' };
 }
 
 // Bond tiers (3.7.0), as the server's .bt_need / .bt_perk.
@@ -422,13 +540,13 @@ function parseBag(text) {
 }
 
 // @clbag lootlist: P|purse|trip start|Overcharge %|finds on, then
-// L|item id|amount|found at|sell price each|name. Newest finds first.
+// L|item id|amount|found at|sell price each|card (1/0, 3.10.1)|name. Newest finds first.
 function parseLoot(text) {
     const loot = { purse: 0, trip: 0, oc: 0, on: true, items: [] };
     for (const rec of String(text || '').split('~')) {
         const f = rec.split('|');
         if (f[0] === 'P') { loot.purse = +f[1] || 0; loot.trip = +f[2] || 0; loot.oc = +f[3] || 0; loot.on = f[4] !== '0'; }
-        else if (f[0] === 'L') loot.items.push({ id: +f[1] || 0, amount: +f[2] || 0, at: +f[3] || 0, sell: +f[4] || 0, name: f.slice(5).join('|') });
+        else if (f[0] === 'L') loot.items.push({ id: +f[1] || 0, amount: +f[2] || 0, at: +f[3] || 0, sell: +f[4] || 0, card: f[5] === '1', name: f.slice(6).join('|') });
     }
     loot.items.sort((a, b) => b.at - a.at || a.name.localeCompare(b.name));
     return loot;
@@ -456,7 +574,7 @@ export default function init(parameters, api) {
     import('./portraits.js').then(m => m.default(parameters, api))
         .catch(e => console.error('[companion-party-overhaul] portraits:', e));
 
-    let win = null, body = null, tab = 'status', list = [], timer = null, busy = false;
+    let win = null, body = null, tab = 'orders', list = [], listAt = 0, timer = null, busy = false;
     let bag = null, bagAt = 0, bagMsg = null;   // the Bag tab: last answer, when, last action's result
     let loot = null, lootAt = 0;                // the Loot tab: last answer, when
     let orders = null, ordersAt = 0;            // the Orders tab (3.7.0): last @clorder state, when
@@ -470,6 +588,7 @@ export default function init(parameters, api) {
     let sel = null;                             // the picked square: "<cid>:<index>" or "<cid>:w<slots>"
     let giving = null;                          // a stack dropped on a companion: { cid, idx, id, max, name, n }
     let takeN = { key: null, n: 0 };            // how many to take of the picked stack (kept through the refresh)
+    let lootAsk = false;                        // 3.10.1: the Loot tab's "Sell all?" box is up
     // Item icons (the game's own), kept so the 3 s refresh doesn't flicker.
     const iconUrl = new Map(), iconAsk = new Set();
     function fillIcons(root) {
@@ -486,45 +605,94 @@ export default function init(parameters, api) {
         });
     }
 
-    const pct = (a, b) => (b > 0 ? Math.max(0, Math.min(100, Math.round(a * 100 / b))) : 0);
-    const label = { rest: 'Resting', dead: 'Fallen', away: 'Away', off: 'Not here' };
+    const pct = (a, b) => (b > 0 ? Math.max(0, Math.min(100, Math.round(a * 100 / b))) : 0);   // the Bag tab's weight bar
 
-    function renderStatus() {
-        if (!list.length) return '<div class="empty">No companions in your party.<br>Recruit one, or call one from the Companions window.</div>';
-        return list.map(c => {
-            const tag = label[c.state] ? `<span class="tag ${c.state}">${label[c.state]}${c.state === 'away' && c.map ? ' · ' + esc(c.map) : ''}</span>` : '';
-            const job = c.state === 'off' ? '' : `Lv ${c.lv} ${esc(c.job)} <span style="color:#9aa7ba">/ ${c.jlv}</span>`;
-            const bars = c.state === 'off' ? '' : `
-              <div class="bar hp${pct(c.hp, c.mhp) < 30 ? ' low' : ''}"><i style="width:${pct(c.hp, c.mhp)}%"></i><b>${num(c.hp)} / ${num(c.mhp)}</b></div>
-              <div class="bar sp"><i style="width:${pct(c.sp, c.msp)}%"></i><b>${num(c.sp)} / ${num(c.msp)}</b></div>`;
-            return `<div class="row ${c.state}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${job}</span>${tag}</div>${bars}</div>`;
-        }).join('');
-    }
-
-    // 3.7.0: the Bonds tab (was Memories): the tier, a bar to the next, its perks, and
-    // a few highlights instead of the counters.
-    function renderBonds() {
-        if (!list.length) return '<div class="empty">No companions in your party.</div>';
-        const top = '<div class="note">Bonds grow with all you do together: time, fights, MVPs, new places, gifts and campfire nights.</div>';
-        return top + list.map(c => {
+    // 3.7.0: the bond (was Memories): the tier, a bar to the next, its perks, and a few
+    // highlights instead of the counters. 3.13.1: one companion, folded in the Roster.
+    function bondHtml(c) {
+        {
             const t = Math.min(5, Math.max(1, c.tier || 1));
             const cur = TIERS[t], next = TIERS[t + 1];
             const pct = next ? Math.max(0, Math.min(100, Math.round((c.pts - cur.need) * 100 / (next.need - cur.need)))) : 100;
             const perks = [];
             if (BOND_HPSP[t]) perks.push(`+${BOND_HPSP[t]}% max HP and SP`);
             if (t >= 3) perks.push('better gifts, camp meals 15 minutes longer');
+            // 3.9.1: one short line of highlights (first MVP, places and counts went: they
+            // still come up in their talk), and the Journal below.
             const hl = [`Together <b>${c.days === 1 ? '1 day' : num(c.days) + ' days'}</b>`];
-            if (c.metMap) hl.push(`met in <b>${esc(c.metMap)}</b>${c.metLv ? ` at your Lv <b>${c.metLv}</b>` : ''}`);
-            if (c.firstMvp) hl.push(`first MVP <b>${esc(c.firstMvp)}</b>`);
-            if (c.camps) hl.push(`<b>${num(c.camps)}</b> campfire night${c.camps === 1 ? '' : 's'}`);
             if (c.closest) hl.push(`closest to <b>${c.closest === 'you' ? 'you &#9829;' : esc(c.closest)}</b>`);
             return `<div class="bd"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${c.job ? esc(c.job) : ''}</span>`
                 + `<span class="tier t${t}">${cur.name}</span></div>`
                 + `<div class="bar bond"><i style="width:${pct}%"></i><b>${num(c.pts)}${next ? ' / ' + num(next.need) : ''}</b></div>`
                 + (perks.length ? `<div class="perk">&#10003; ${perks.join(' &middot; ')}</div>` : '')
                 + (next ? `<div class="perk next">Next: ${next.name} at ${num(next.need)} (${next.perk})</div>` : '<div class="perk">The closest a bond can be.</div>')
-                + `<div class="hl">${hl.join(' &middot; ')}</div></div>`;
-        }).join('');
+                + `<div class="hl">${hl.join(' &middot; ')}</div>`
+                + (c.cid ? journalHTML(c) : '') + '</div>';
+        }
+    }
+
+    // 3.9.1: the Journal, folded under each companion in the Bonds tab: its life story
+    // chapter by chapter (the whole talk, who heard it; the ones still to come greyed,
+    // with when), your answer in its story and what came of it, and the moments it asked
+    // you. Fetched when opened ("@cljournal <cid>", the server's OnCmdJournal).
+    const journals = new Map();      // cid -> { data, at } | { loading: true }
+    const openJr = new Set(), openCh = new Set();
+    function parseJournal(text) {
+        const j = { told: 0, chapters: [], choice: null, moments: [] };
+        for (const rec of String(text || '').split('~')) {
+            const f = rec.split('|');
+            if (f[0] === 'J') j.told = +f[1] || 0;
+            else if (f[0] === 'C') j.chapters.push({ n: +f[1], title: f[2], who: f[3], turns: (f[4] || '').split('^').filter(Boolean).map(t => [t[0], t.slice(2)]) });
+            else if (f[0] === 'L') j.chapters.push({ n: +f[1], title: f[2], when: f[3], locked: true });
+            else if (f[0] === 'X') j.choice = { label: f[1], after: f[2] || '' };
+            else if (f[0] === 'M') j.moments.push({ q: f[1], a: f[2] });
+        }
+        return j;
+    }
+    async function loadJournal(cid) {
+        journals.set(cid, { loading: true });
+        try {
+            const reply = String(await api.server.request('cljournal', cid, { timeout: 5000 }) || '');
+            journals.set(cid, { data: reply.startsWith('ERR') ? null : parseJournal(reply), at: Date.now() });
+        } catch { journals.delete(cid); }
+        render();
+    }
+    function journalHTML(c) {
+        const open = openJr.has(c.cid);
+        const j = journals.get(c.cid);
+        let body = '';
+        if (open) {
+            if (!j || j.loading) body = '<div class="jm">Opening the journal...</div>';
+            else if (!j.data) body = '<div class="jm">Nothing written yet.</div>';
+            else {
+                const d = j.data;
+                body += `<div class="jh">${esc(c.name)}'s story</div>`;
+                for (const h of d.chapters.sort((x, y) => x.n - y.n)) {
+                    if (h.locked) {
+                        body += `<div class="jc locked"><button disabled><span class="ar">&#9654;</span><span class="tt">Chapter ${h.n}</span><span class="wh">${esc(h.when)}</span></button></div>`;
+                        continue;
+                    }
+                    const key = `${c.cid}:${h.n}`, co = openCh.has(key);
+                    body += `<div class="jc${co ? ' open' : ''}"><button data-ch="${esc(key)}"><span class="ar">&#9654;</span><span class="tt">Chapter ${h.n}: ${esc(h.title)}</span><span class="wh">told to ${esc(h.who)}</span></button>`;
+                    if (co) {
+                        body += '<div class="jl">' + h.turns.map(([s, l]) =>
+                            `<p><span class="s${s === 'A' ? '' : ' b'}">${esc(s === 'A' ? c.name : h.who)}:</span> ${esc(l)}</p>`).join('');
+                        if (h.n === 3 && d.choice)
+                            body += `<div class="jx">You told ${esc(c.name)}: <b>${esc(d.choice.label)}</b>.${d.choice.after ? ` Later: ${esc(d.choice.after)}` : ''}</div>`;
+                        body += '</div>';
+                    }
+                    body += '</div>';
+                }
+                if (d.choice && d.chapters.filter(h => !h.locked).length < 3)
+                    body += `<div class="jx">You told ${esc(c.name)}: <b>${esc(d.choice.label)}</b>.${d.choice.after ? ` Later: ${esc(d.choice.after)}` : ''}</div>`;
+                if (d.moments.length) {
+                    body += '<div class="jh">Moments</div>' + d.moments.map(m =>
+                        `<div class="jm">&middot; ${esc(m.q)} <span class="ja">You: ${esc(m.a)}</span></div>`).join('');
+                }
+            }
+        }
+        return `<div class="jr${open ? ' open' : ''}"><button data-jr="${esc(c.cid)}"><span class="ar">&#9654;</span> Journal`
+            + ` <span class="cnt">(${c.told} of 5 chapters)</span></button>${open ? `<div class="jb2">${body}</div>` : ''}</div>`;
     }
 
     // 3.7.0: the Orders tab. Each button is an order you could type in party chat;
@@ -544,16 +712,28 @@ export default function init(parameters, api) {
             + btn('focus on', 'Focus: On', 'Everyone attacks your target, and switches when you do', focus, !focusOk)
             + btn('focus off', 'Focus: Off', 'Back to choosing their own targets', !focus, !focusOk)
             + '</div>' + (focusOk ? '' : '<div class="why">Focus needs "Orders in party chat" on in the mod settings.</div>') + '</div>');
-        const noRoam = !o.roamOn;
-        out.push(`<div class="og"><h4>Roam <small>${o.roamers ? `${o.roamers} out hunting` : 'following you'}</small></h4><div class="ob">`
-            + btn('roam on', 'Go hunt', 'They roam the map and hunt on their own', false, noRoam || !o.alive)
-            + btn('roam off', 'Come back', 'They come back and follow you', false, noRoam || !o.roamers)
+        // 3.12.0: one job at a time, one click (was Roam: Go hunt, Come back, Normal, MVP).
+        // 3.12.7: a shopping trip is roaming to the engine, but no task of yours: no button lit.
+        const noRoam = !o.roamOn, out_ = o.roamers > 0, standing = out_ && o.standby, shopping = out_ && o.shopping,
+            hunting = out_ && !o.standby && !o.shopping;
+        const doing = standing ? `${o.roamers} standing by` : shopping ? `${o.roamers} out shopping` : hunting ? `${o.roamers} ${o.mvp ? 'looking for the MVP' : 'out hunting'}` : 'following you';
+        out.push(`<div class="og"><h4>Task <small>${doing}</small></h4><div class="ob ob4">`
+            + btn('roam off', 'Follow', 'They follow you', !out_, noRoam)
+            + btn('stand on', 'Stand By', 'They stay right here and wait, and only fight what attacks them', standing, noRoam || !o.alive)
+            + btn('hunt normal', 'Hunt', 'They roam the map and hunt everything, and Fly Wing on when nothing is around', hunting && !o.mvp, noRoam || !o.alive)
+            + btn('hunt mvp', 'Find MVP', 'They fly around looking for the MVP or a mini-boss, call you when they find one, and wait out of its reach', hunting && o.mvp, noRoam || !o.alive)
             + '</div>'
-            + (roamStyles ? '<div class="ob">'
-                + btn('style group', 'As a group', 'They stick together behind the tank, call for help and gather at a fallen one', !o.alone, noRoam)
-                + btn('style alone', 'Alone', 'Each one roams on its own', o.alone, noRoam) + '</div>' : '')
-            + (noRoam ? '<div class="why">Turn on Companion roaming in the app\'s Settings (Population).</div>' : '') + '</div>');
-        out.push(`<div class="og"><h4>Camp <small>${o.camp ? 'the fire is lit' : 'or they make camp after 3 minutes standing still'}</small></h4><div class="ob">`
+            // Only a Hunt has a choice here: MVP searches are always one by one.
+            + (roamStyles && hunting && !o.mvp ? '<div class="ob">'
+                + btn('style group', 'Group', 'They stick together behind the tank, call for help and gather at a fallen one', !o.alone)
+                + btn('style alone', 'Solo', 'Each one hunts on its own', o.alone) + '</div>' : '')
+            + (noRoam ? '<div class="why">Turn on Companion roaming in the app\'s Settings (Population).</div>'
+                : o.found ? `<div class="why ok">${esc(o.found)}! Right-click their party frame to Fly Wing over.</div>`
+                : standing ? '<div class="why ok">They wait here. Leave the map and they follow you again.</div>'
+                : hunting && !o.wings ? `<div class="why">No Fly Wings in their bags, so they go on foot: add some to their restock lists (Bag tab).</div>`
+                : hunting ? `<div class="why ok">${o.mvp ? 'They search and call you, no fights.' : 'They hunt everything.'} Fly Wings in their bags: ${num(o.wings)}.</div>` : '')
+            + '</div>');
+        out.push(`<div class="og"><h4>Camp <small>${o.camp ? 'the fire is lit' : 'or they make camp after 5 minutes standing still'}</small></h4><div class="ob">`
             + btn('camp on', 'Make camp', 'A campfire here: talks, a meal, and Well Rested when you leave', false, !o.campOn || o.camp || !o.alive)
             + btn('camp off', 'Pack up', 'Put the fire out', false, !o.campOn || !o.camp)
             + '</div>' + (o.campOn ? '' : '<div class="why">Campfire nights are off in the mod settings.</div>') + '</div>');
@@ -561,14 +741,343 @@ export default function init(parameters, api) {
             + btn('warp', o.home ? 'Take us back' : 'Return to the spot', o.home ? 'A portal to your save point; this spot is remembered'
                 : 'A portal back to where you left the hunt', false, !!o.warpWhy)
             + `</div><div class="why${o.warpWhy ? '' : ' ok'}">${esc(o.warpWhy || (o.home ? 'Ready: home now, back to this spot later.' : 'Ready: back to where you left the hunt.'))}</div></div>`);
-        out.push(`<div class="og"><h4>Item Appraisal <small>${esc(o.appraiser)}</small></h4><div class="ob">`
+        // 3.10.2: Merchant services: Appraise (any Merchant line) and Repair (a Blacksmith or Whitesmith).
+        const who = [...new Set([o.appraiser, o.smith].filter(Boolean))].join(' & ');
+        out.push(`<div class="og"><h4>Merchant Services <small>${esc(who)}</small></h4><div class="ob">`
             + btn('appraise', o.unid ? `Appraise ${num(o.unid)} item${o.unid === 1 ? '' : 's'}` : 'Appraise', 'Identify the unknown items in your bag, 10 SP each', false, !!o.appWhy)
-            + `</div><div class="why${o.appWhy ? '' : ' ok'}">${esc(o.appWhy || `${o.appraiser} identifies them for 10 SP each.`)}</div></div>`);
+            + btn('repair', o.broken ? `Repair ${num(o.broken)} item${o.broken === 1 ? '' : 's'}` : 'Repair', 'Fix broken gear, yours and the party\'s, 30 SP each', false, !!o.repWhy)
+            + `</div><div class="why${o.appWhy ? '' : ' ok'}">Appraise: ${esc(o.appWhy || `${o.appraiser} identifies them for 10 SP each.`)}</div>`
+            + `<div class="why${o.repWhy ? '' : ' ok'}">Repair: ${esc(o.repWhy || `${o.smith} fixes them for 30 SP each.`)}</div></div>`);
         return out.join('');
     }
 
     // An action's answer, floating over the top of the tab (it takes no room).
     const msgLine = () => `<div class="msgpin"><div class="msg ${bagMsg.ok ? 'ok' : 'err'}">${esc(bagMsg.text)}</div></div>`;
+
+    // 3.10.0: the Roster tab, the app's Companions window in ours. Everyone you have
+    // saved: Active (in your party) and Inactive (benched), each with Bench / Summon and
+    // a More row (Stats, Skills, Role, Homunculus, Rebirth, Part ways; 3.10.2: Stats took
+    // Favourite's place, at the user's call). The
+    // Hire page: your own class tier (transcendent only once you are), at your level,
+    // for a one-time fee (the first companion is free). Asks @clroster (OnCmdRoster).
+    let roster = null, rosterAt = 0, rosterRaw = '';
+    let rView = 'list', rMore = '', rAsk = null, hireSex = 'm', hireJob = '', hireDone = null;
+    let rStats = null;  // 3.10.2: the open Stats fold { name, d: numbers | null, err }
+    let rBond = '';     // 3.13.1: whose Bond fold is open (its numbers come from @clstat, `list`)
+    let faces = null;   // { PICS, KEY, CROPS, icon } once the portraits are loaded
+    Promise.all([import('./portraits_data.js'), import('./portraits.js'), import('./frames.js')])
+        .then(([d, p, f]) => { faces = { PICS: d.default || {}, KEY: p.CLASS_KEY || {}, CROPS: f.CROPS || {}, icon: f.jobIcon }; if (tab === 'roster') render(); })
+        .catch(() => {});
+    // 3.10.2: job icons for classes with no portrait, by job id ('' until it has loaded).
+    const jobUrls = new Map();
+    function jobUrl(cls) {
+        if (!cls || !faces?.icon) return '';
+        if (!jobUrls.has(cls)) {
+            jobUrls.set(cls, '');
+            faces.icon(api, cls).then(url => { if (url) { jobUrls.set(cls, url); if (tab === 'roster') render(); } });
+        }
+        return jobUrls.get(cls);
+    }
+    // The engine's duty codes (PopulationRoleType) and the order a Role click walks.
+    const ROLE = { 1: 'Tank', 2: 'Support', 3: 'Attacker' };
+    const ROLE_NEXT = { 0: 'attacker', 3: 'tank', 1: 'support', 2: 'attacker' };
+    const ROLE_CODE = { attacker: 3, tank: 1, support: 2 };
+    // Who you may hire: [the engine's draft name, label, class], and for the pairs
+    // that are one class per sex, the women's [name, label, class] after.
+    const HIRE = {
+        1: [['Swordsman', 'Swordman', 1], ['Mage', 'Mage', 2], ['Archer', 'Archer', 3], ['Acolyte', 'Acolyte', 4], ['Merchant', 'Merchant', 5],
+            ['Thief', 'Thief', 6], ['Taekwon', 'Taekwon', 4046], ['Gunslinger', 'Gunslinger', 24], ['Ninja', 'Ninja', 25]],
+        2: [['Knight', 'Knight', 7], ['Crusader', 'Crusader', 14], ['Wizard', 'Wizard', 9], ['Sage', 'Sage', 16], ['Hunter', 'Hunter', 11],
+            ['Bard', 'Bard', 19, 'Dancer', 'Dancer', 20], ['Priest', 'Priest', 8], ['Monk', 'Monk', 15], ['Blacksmith', 'Blacksmith', 10],
+            ['Alchemist', 'Alchemist', 18], ['Assassin', 'Assassin', 12], ['Rogue', 'Rogue', 17], ['StarGladiator', 'Star Gladiator', 4047],
+            ['SoulLinker', 'Soul Linker', 4049]],
+        t: [['LordKnight', 'Lord Knight', 4008], ['Paladin', 'Paladin', 4015], ['HighWizard', 'High Wizard', 4010], ['Professor', 'Professor', 4017],
+            ['Sniper', 'Sniper', 4012], ['Clown', 'Clown', 4020, 'Gypsy', 'Gypsy', 4021], ['HighPriest', 'High Priest', 4009],
+            ['Champion', 'Champion', 4016], ['Whitesmith', 'Whitesmith', 4011], ['Creator', 'Creator', 4019],
+            ['AssassinCross', 'Assassin Cross', 4013], ['Stalker', 'Stalker', 4018]],
+    };
+    // The lowest level each tier joins at (the engine's job profiles), unless a hire
+    // found a higher one for a class (the server's F lines).
+    const FLOOR = { 1: 10, 2: 40, t: 70 };
+
+    function parseRoster(text) {
+        const r = { tier: '1', lv: 0, zeny: 0, fee: 0, free: false, roamOn: false, mode: 0, comps: [], floors: {} };
+        for (const rec of String(text || '').split('~')) {
+            const f = rec.split('|');
+            if (f[0] === 'M') Object.assign(r, { tier: f[1] || '1', lv: +f[2] || 0, zeny: +f[3] || 0, fee: +f[4] || 0,
+                free: f[5] === '1', roamOn: f[6] === '1', mode: +f[7] || 0 });
+            else if (f[0] === 'C') r.comps.push({ name: f[1], cls: +f[2] || 0, sex: +f[3] || 0, lv: +f[4] || 0, jlv: +f[5] || 0,
+                on: f[6] === '1', fav: f[7] === '1', duty: +f[8] || 0, roam: f[9] === '1', hom: +f[10], reb: +f[11], job: f[12] || '' });
+            else if (f[0] === 'F') r.floors[f[1]] = +f[2] || 0;
+        }
+        return r;
+    }
+
+    // A face cut from the class portrait (frames.js's crops), else the class's job icon,
+    // else the first letters.
+    function faceHtml(cls, sex, size, label = '') {
+        const base = faces?.KEY?.[cls];
+        let key = base ? `${base}_${sex ? 'm' : 'f'}` : '';
+        if (key && !faces.PICS[key]) key = `${base}_${sex ? 'f' : 'm'}`;
+        const pic = key && faces.PICS[key], crop = key && faces.CROPS[key];
+        if (!pic || !crop) {
+            const icon = jobUrl(cls);
+            if (icon) return `<span class="fc" style="width:${size}px;height:${size}px"><img alt="" src="${esc(icon)}" style="left:0;top:0;width:100%;height:100%"></span>`;
+            return `<span class="fc nf" style="width:${size}px;height:${size}px">${esc(String(label || '?').slice(0, 2))}</span>`;
+        }
+        const s = size / crop[2];
+        return `<span class="fc" style="width:${size}px;height:${size}px"><img alt="" src="${pic}" style="width:${(320 * s).toFixed(1)}px;`
+            + `height:${(480 * s).toFixed(1)}px;left:${(-(crop[0] - crop[2] / 2) * s).toFixed(1)}px;top:${(-(crop[1] - crop[2] / 2) * s).toFixed(1)}px"></span>`;
+    }
+
+    function rosterCard(c) {
+        const n = esc(c.name), open = rMore === c.name;
+        const role = c.on && ROLE[c.duty] ? `<span class="role r${c.duty}">${ROLE[c.duty]}</span>` : '';
+        let h = `<div class="rc${c.on ? '' : ' off'}"><div class="top">${faceHtml(c.cls, c.sex, 36, c.name)}`
+            + `<div class="who"><span class="nm">${n}${role}</span>`
+            + `<span class="jb">${esc(c.job)} &middot; Lv ${c.lv} / Job ${c.jlv}</span></div>`
+            + (c.on ? `<button class="act" data-rs="bench" data-nm="${n}" title="Send ${n} to rest; summon them again any time">Bench</button>`
+                : `<button class="act go" data-rs="summon" data-nm="${n}" title="${n} joins your party">Summon</button>`)
+            + `<button class="act dots" data-rs="more" data-nm="${n}" title="More">&#8943;</button></div>`;
+        if (open) {
+            const ln = (btn, text) => `<div class="ln">${btn}<span>${text}</span></div>`;
+            h += '<div class="rmore">'
+                + ln(`<button class="act${rStats?.name === c.name ? ' on' : ''}" data-rs="stats" data-nm="${n}">Stats</button>`,
+                    c.on ? 'Their stats now, gear and buffs included.' : 'Their own points, saved while they rest.')
+                + (rStats?.name === c.name ? statsHtml(c, rStats) : '')
+                + ln(`<button class="act" data-rs="skills" data-nm="${n}">Skills</button>`, `Opens ${n}'s skill list in the game's Companions window, where you tick the skills they may use.`)
+                + (c.on ? ln(`<button class="act" data-rs="role" data-nm="${n}">Role</button>`,
+                    `Their part in a fight, now ${ROLE[c.duty] ? 'the ' + ROLE[c.duty] : 'their own pick'}. Click: Attacker, Tank, Support.`) : '')
+                + ln(`<button class="act${rBond === c.name ? ' on' : ''}" data-rs="bond" data-nm="${n}">Bond</button>`,
+                    'How close you are, its perks and their Journal. Bonds grow with time, fights, MVPs, places, gifts and campfires.')
+                + (rBond === c.name ? bondFold(c) : '')
+                + (c.hom >= 0 ? ln(`<button class="act${c.hom ? ' on' : ''}" data-rs="hom" data-arg="${c.hom ? 'off' : 'on'}" data-nm="${n}">Homunculus</button>`,
+                    c.hom ? 'Their homunculus is out. Click to put it away.' : 'Their homunculus is put away. Click to bring it back.') : '')
+                + (c.reb >= 0 ? ln(`<button class="act${c.reb ? ' go' : ''}" data-rs="rebask" data-nm="${n}"${c.reb ? '' : ' disabled'}>Rebirth</button>`,
+                    c.reb ? 'Ready! They can start over as a high class.' : 'Not yet: a 2nd job needs base 99 and job 50 first.') : '')
+                + `<div class="end"><button class="act red" data-rs="delask" data-nm="${n}">Part ways</button></div></div>`;
+        }
+        if (rAsk && rAsk.name === c.name) {
+            if (rAsk.kind === 'del') h += `<div class="ask"><b>Part ways with ${n} for good?</b><br>This can't be undone. Their level, gear, memories and bond with you go too.`
+                + `<div class="ob"><button class="ord" data-rs="cancel">Keep them</button><button class="ord" data-rs="remove" data-nm="${n}">Part ways</button></div></div>`;
+            else h += `<div class="ask blue"><b>Rebirth for ${n}?</b><br>Gear the new class can't wear comes off, and what you gave them comes back to you.`
+                + `<div class="ob"><button class="ord" data-rs="reb" data-arg="novice" data-nm="${n}" title="Back to level 1, then the full climb as a high class">High Novice</button>`
+                + `<button class="ord" data-rs="reb" data-arg="trans" data-nm="${n}" title="Keeps their level and becomes transcendent now">Transcendent now</button></div>`
+                + `<div class="ob"><button class="ord" data-rs="cancel">Not now</button></div></div>`;
+        }
+        return h + '</div>';
+    }
+
+    // 3.13.1: the Bond fold, from the @clstat list (party members only).
+    function bondFold(c) {
+        if (!c.on) return `<div class="rst"><div class="ft">${esc(c.name)}'s bond shows while they're in your party.</div></div>`;
+        const b = list.find(x => x.name === c.name);
+        if (!b) return `<div class="rst"><div class="ft">${listAt ? 'No bond found yet.' : 'Reading...'}</div></div>`;
+        return bondHtml(b);
+    }
+
+    // The Stats fold: the six points, and for one in your party the fight numbers
+    // beside them (perfect dodge comes in tenths, as the Status window shows it).
+    function statsHtml(c, s) {
+        const n = esc(c.name);
+        if (s.err) return `<div class="rst"><div class="ft">${esc(s.err)}</div></div>`;
+        if (!s.d) return '<div class="rst"><div class="ft">Reading...</div></div>';
+        const d = s.d, pr = (k, v) => `<div class="pr"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+        const left = ['STR', 'AGI', 'VIT', 'INT', 'DEX', 'LUK'].map((k, i) => pr(k, d[i]));
+        if (!s.on) return `<div class="rst">${left.slice(0, 3).map((h, i) => h + left[i + 3]).join('')}`
+            + `<div class="rule"></div><div class="ft">HIT, FLEE and the rest show once ${n} is in your party.</div></div>`;
+        const right = [pr('HIT', d[6]), pr('FLEE', `${d[7]} + ${Math.floor(d[8] / 10)}`), pr('DEF', `${d[9]} + ${d[10]}`),
+            pr('MDEF', `${d[11]} + ${d[12]}`), pr('CRIT', d[13]), pr('ASPD', d[14])];
+        return `<div class="rst">${left.map((h, i) => h + right[i]).join('')}`
+            + '<div class="rule"></div><div class="ft">STR to LUK are their own points. HIT to ASPD count their gear, cards and buffs, like your Status window.</div></div>';
+    }
+    // Asked fresh every time the fold opens.
+    async function loadStats(nm) {
+        rStats = { name: nm, d: null, err: '' };
+        render();
+        for (let i = 0; busy && i < 30; i++) await new Promise(r => setTimeout(r, 100));	// the refresh may be asking
+        let reply = '';
+        if (busy || inDialog()) reply = inDialog() ? 'ERR|Close the NPC dialog first.' : 'ERR|Busy, try again.';
+        else {
+            busy = true;
+            try { reply = String(await api.server.request('clroster', `stats ${nm}`, { timeout: 4000 }) || ''); }
+            catch { reply = 'ERR|No answer from the server. Try again in a moment.'; }
+            finally { busy = false; }
+        }
+        if (rStats?.name !== nm) return;	// folded away meanwhile
+        const f = reply.split('|');
+        if (f[0] === 'S') rStats = { name: nm, on: f[1] === '1', d: f.slice(2).map(Number), err: '' };
+        else rStats = { name: nm, d: null, err: reply.slice(reply.indexOf('|') + 1) || 'No answer from the server.' };
+        render();
+    }
+
+    // A hire tile's class for the sex picked (Bard / Dancer, Clown / Gypsy are pairs).
+    function hireView(j) {
+        if (j[3] && hireSex === 'f') return { eng: j[3], label: j[4], cls: j[5], sex: 0 };
+        if (j[3] && hireSex === 'r') return { eng: j[0], label: `${j[1]} / ${j[4]}`, cls: j[2], sex: 1 };
+        return { eng: j[0], label: j[1], cls: j[2], sex: hireSex === 'f' ? 0 : 1 };
+    }
+    function hireGroups(r) {
+        if (r.tier === '1') return [['First jobs', HIRE[1], FLOOR[1]]];
+        if (r.tier === '2') return [['Second jobs', HIRE[2], FLOOR[2]]];
+        if (r.tier === 't') return [['Transcendent', HIRE.t, FLOOR.t], ['Second jobs', HIRE[2], FLOOR[2]]];
+        return [];
+    }
+    const hireFloor = (r, j, fl) => r.floors[j[0]] || (j[3] && r.floors[j[3]]) || fl;
+
+    function renderHire() {
+        const r = roster, out = ['<button class="act" data-rs="back" style="margin-bottom:5px">&lsaquo; Back to Roster</button>'];
+        if (hireDone) {
+            const d = hireDone;
+            out.push(`<div class="hdone">${faceHtml(d.cls, d.sex, 96, d.name)}<b>${esc(d.name)} answered your call!</b>`
+                + `<span class="am">Lv ${d.lv}${d.fee ? ` &middot; paid ${num(d.fee)} z` : ''}. They joined your party and show up under Active.</span>`
+                + '<div class="ob" style="width:100%"><button class="ord" data-rs="again">Hire another</button><button class="ord" data-rs="back">Back to Roster</button></div></div>');
+            return out.join('');
+        }
+        const groups = hireGroups(r);
+        if (!groups.length) {
+            out.push('<div class="note">Hiring 3rd and 4th jobs isn\'t on this page yet. Turn off "Our Roster on the game\'s Companions button" in the mod settings and hire from the app\'s window.</div>');
+            return out.join('');
+        }
+        const what = { 1: 'first jobs', 2: 'second jobs', t: 'transcendent and second jobs' }[r.tier];
+        const next = r.tier === '1' ? ' Second jobs unlock once you change jobs yourself.' : r.tier === '2' ? ' Transcendent classes unlock once you are reborn yourself.' : '';
+        out.push(`<div class="me"><b>You can hire ${what}.</b> They join at your level, Lv ${r.lv}.${next}</div>`);
+        if (r.mode === 2) out.push('<div class="note">Your hiring rules (app Settings, Population) say companions are hired from a Companion Recruiter in town.</div>');
+        out.push('<div class="seg">' + [['m', 'Male'], ['f', 'Female'], ['r', 'Random']].map(([k, l]) =>
+            `<button class="${hireSex === k ? 'on' : ''}" data-rs="sex" data-arg="${k}">${l}</button>`).join('') + '</div>');
+        // The pick: the one clicked, else the first one open to you.
+        const all = groups.flatMap(([, list, fl]) => list.map(j => ({ j, fl })));
+        let pick = all.find(x => x.j[0] === hireJob && hireFloor(r, x.j, x.fl) <= r.lv);
+        if (!pick) pick = all.find(x => hireFloor(r, x.j, x.fl) <= r.lv);
+        for (const [title, list, fl] of groups) {
+            out.push(`<div class="rh">${title}</div><div class="jobs">` + list.map(j => {
+                const v = hireView(j), floor = hireFloor(r, j, fl), lock = floor > r.lv, on = pick && pick.j === j;
+                return `<button class="jt${on ? ' on' : ''}${lock ? ' lock' : ''}" data-rs="job" data-arg="${j[0]}"${lock ? ' disabled' : ''}`
+                    + ` title="${esc(lock ? `${v.label}: joins from Lv ${floor}` : v.label)}">${faceHtml(v.cls, v.sex, 50, v.label)}`
+                    + `<span class="l">${esc(v.label)}</span>${lock ? `<span class="lk">from Lv ${floor}</span>` : ''}</button>`;
+            }).join('') + '</div>');
+        }
+        if (!pick) {
+            out.push(`<div class="note" style="margin-top:6px">Nobody can join at Lv ${r.lv} yet. Level up a little and come back!</div>`);
+            return out.join('');
+        }
+        const v = hireView(pick.j), cost = r.mode === 1 ? 0 : r.free ? 0 : r.fee * r.lv;
+        const costText = r.mode === 1 ? "Cost: the app's hiring fee (Settings, Population)"
+            : r.free ? 'Free: your first companion' : `Cost: ${num(cost)} z (you have ${num(r.zeny)} z)`;
+        const sexText = hireSex === 'r' ? 'Male or female: the world decides' : v.sex ? 'Male' : 'Female';
+        const blocked = r.mode === 2 || r.zeny < cost;
+        out.push(`<div class="hb">${faceHtml(v.cls, v.sex, 44, v.label)}<div class="tx"><b>${esc(v.label)} &middot; Lv ${r.lv}</b><br>`
+            + `<span class="am">${sexText}</span><br><span class="z">${esc(costText)}</span></div>`
+            + `<button class="act go" data-rs="dohire" data-arg="${pick.j[0]}"${blocked ? ' disabled' : ''}>Hire</button></div>`);
+        return out.join('');
+    }
+
+    function renderRoster() {
+        if (!roster) return '<div class="empty">Asking for your companions...</div>';
+        const out = [];
+        if (bagMsg) out.push(msgLine());
+        if (rView === 'hire') return out.join('') + renderHire();
+        const on = roster.comps.filter(c => c.on), off = roster.comps.filter(c => !c.on);
+        out.push(`<div class="rh"><span>Active (${on.length})</span><button class="act go" data-rs="hire">+ Hire</button></div>`);
+        out.push(on.length ? on.map(rosterCard).join('')
+            : '<div class="am" style="padding:2px 2px 6px">Nobody with you right now. Summon someone below, or hire someone new.</div>');
+        out.push(`<div class="rh off"><span>Inactive (${off.length})</span></div>`);
+        out.push(off.length ? off.map(rosterCard).join('') : '<div class="am" style="padding:2px">Nobody is resting. Everyone is with you.</div>');
+        return out.join('');
+    }
+
+    // One @clroster action, then a fresh list. okText: the line to show when it worked
+    // ('' for none), else the server's own answer.
+    async function rosterAction(args, okText) {
+        for (let i = 0; busy && i < 30; i++) await new Promise(r => setTimeout(r, 100));	// the refresh may be asking
+        if (busy || inDialog()) { bagMsg = { ok: false, text: inDialog() ? 'Close the NPC dialog first.' : 'Busy, try again.' }; render(); return null; }
+        busy = true;
+        let reply = '';
+        try { reply = String(await api.server.request('clroster', args, { timeout: 8000 }) || ''); }
+        catch { reply = 'ERR|No answer from the server. Try again in a moment.'; }
+        finally { busy = false; }
+        const cut = reply.indexOf('|'), ok = reply.startsWith('OK'), said = cut >= 0 ? reply.slice(cut + 1) : reply;
+        const text = said === 'roaming off' ? "Turn on Companion roaming in the app's Settings (Population)." : said;
+        bagMsg = ok && okText !== undefined ? (okText ? { ok, text: okText } : null) : (text ? { ok, text } : null);
+        rosterAt = 0;
+        rosterRaw = '';
+        await refresh();
+        render();
+        return ok ? said : null;
+    }
+
+    function rosterClick(act, nm, arg) {
+        if (act === 'hire') { rView = 'hire'; hireDone = null; bagMsg = null; render(); }
+        else if (act === 'back') { rView = 'list'; hireDone = null; bagMsg = null; render(); }
+        else if (act === 'again') { hireDone = null; render(); }
+        else if (act === 'sex') { hireSex = arg; render(); }
+        else if (act === 'job') { hireJob = arg; render(); }
+        else if (act === 'more') { rMore = rMore === nm ? '' : nm; rAsk = null; rStats = null; rBond = ''; render(); }
+        else if (act === 'bond') { rBond = rBond === nm ? '' : nm; if (rBond) { listAt = 0; refresh(); } render(); }
+        else if (act === 'stats') { if (rStats?.name === nm) { rStats = null; render(); } else loadStats(nm); }
+        else if (act === 'cancel') { rAsk = null; render(); }
+        else if (act === 'delask') { rAsk = { kind: 'del', name: nm }; render(); }
+        else if (act === 'rebask') { rAsk = { kind: 'reb', name: nm }; render(); }
+        else if (act === 'remove') { rAsk = null; rMore = ''; rosterAction(`remove ${nm}`); }
+        else if (act === 'reb') { rAsk = null; rosterAction(`reb ${arg} ${nm}`); }
+        else if (act === 'bench' || act === 'summon') rosterAction(`${act} ${nm}`);
+        else if (act === 'hom') rosterAction(`hom ${arg} ${nm}`);
+        else if (act === 'skills') openAppWindow(nm);
+        else if (act === 'role') {
+            // The engine takes a role only as a party-chat line ("<name> tank"), the way
+            // the app's own window sends it.
+            const c = roster?.comps.find(x => x.name === nm), next = ROLE_NEXT[c?.duty || 0];
+            if (!partySay(`${nm} ${next}`)) { bagMsg = { ok: false, text: 'Close the NPC dialog first.' }; render(); return; }
+            if (c) c.duty = ROLE_CODE[next];
+            rosterRaw = '';
+            bagMsg = { ok: true, text: `${nm} will fight as ${next === 'attacker' ? 'an Attacker' : next === 'tank' ? 'a Tank' : 'Support'}.` };
+            render();
+        }
+        else if (act === 'dohire') {
+            const j = Object.values(HIRE).flat().find(x => x[0] === arg);
+            if (!j) return;
+            const v = hireView(j);
+            rosterAction(`hire ${v.eng} ${hireSex}`, '').then(said => {
+                if (!said) return;
+                const [name, lv, fee] = said.split('|');
+                hireDone = { name, lv: +lv || 0, fee: +fee || 0, cls: v.cls, sex: v.sex };
+                const got = roster?.comps.find(x => x.name === name);
+                if (got) { hireDone.cls = got.cls; hireDone.sex = got.sex; }
+                render();
+            });
+        }
+    }
+
+    // Skills live in the app's own Companions window (its skill list reaches only it):
+    // open it once, past our hold on the menu button, then press that companion's
+    // "Choose skills" on its Skills page (drawn even while another page shows), so the
+    // picker pops up at once. Its rows fill in after the window asks for the roster.
+    function openAppWindow(nm) {
+        const shown = () => { const h = document.getElementById('CompanionPanel'); return !!h && h.isConnected && h.style.display !== 'none'; };
+        const tip = { ok: true, text: `In the game's Companions window, press Skills on ${nm}'s row.` };
+        const pick = (tries) => {
+            lockAppWindow();
+            if (tries === 30) document.getElementById('CompanionPanel')?.shadowRoot?.querySelector('.tab[data-tab="skills"]')?.click();
+            const rows = document.getElementById('CompanionPanel')?.shadowRoot?.querySelectorAll('.page[data-page="skills"] .row') || [];
+            const row = [...rows].find(r => r.querySelector('.nm')?.textContent.replace(/^★\s*/, '') === nm);
+            const btn = row?.querySelector('button');
+            if (btn) { btn.click(); bagMsg = { ok: true, text: `${nm}'s skills are open in the game's Companions window.` }; render(); return; }
+            if (tries > 0) setTimeout(() => pick(tries - 1), 100);
+        };
+        if (shown()) { bagMsg = tip; render(); pick(30); return; }
+        if (!menuBtn?.isConnected) { bagMsg = { ok: false, text: "Open the game menu's Companions button with our Roster setting off to reach Skills." }; render(); return; }
+        const press = type => {
+            bypass = true;
+            try { menuBtn.dispatchEvent(new MouseEvent(type, { bubbles: true, composed: true, cancelable: true, button: 0, view: window })); }
+            finally { bypass = false; }
+        };
+        press('mousedown');
+        press('mouseup');
+        setTimeout(() => { if (!shown()) press('click'); }, 150);
+        bagMsg = tip;
+        render();
+        pick(30);
+    }
 
     // 3.1.0: the Loot tab. The party purse, then the party bag: everything the
     // party found on its kills, newest first; what this trip found is marked new.
@@ -583,8 +1092,18 @@ export default function init(parameters, api) {
             + `<button class="act" data-act="deposit" title="From your wallet">Put in</button></div>`);
         const worth = loot.items.reduce((z, it) => z + it.sell * it.amount, 0);
         const fresh = loot.items.filter(it => loot.trip && it.at >= loot.trip).length;
+        // 3.10.1: Sell all, everything but cards (the server keeps those too).
+        const selling = loot.items.filter(it => !it.card);
+        const sellWorth = selling.reduce((z, it) => z + it.sell * it.amount, 0);
+        const cards = loot.items.length - selling.length;
+        if (!selling.length) lootAsk = false;
         out.push(`<div class="bag"><div class="lh"><span class="nm">Party bag</span>`
-            + `<span class="am">${loot.items.length ? `${num(loot.items.length)} kind${loot.items.length === 1 ? '' : 's'}${fresh ? ` · ${fresh} new` : ''} · sells for ${num(worth)} z` : ''}</span></div>`);
+            + `<span class="am">${loot.items.length ? `${num(loot.items.length)} kind${loot.items.length === 1 ? '' : 's'}${fresh ? ` · ${fresh} new` : ''} · sells for ${num(worth)} z` : ''}</span>`
+            + (selling.length ? `<button class="act sell" data-act="lsellask" title="Sell everything but cards, the zeny into the party purse">Sell all</button>` : '')
+            + '</div>');
+        if (lootAsk) out.push(`<div class="ask blue"><b>Sell ${num(selling.reduce((n, it) => n + it.amount, 0))} things for ${num(sellWorth)} z?</b><br>`
+            + `The zeny goes into the party purse.${cards ? ` ${cards === 1 ? 'The card stays' : `The ${cards} cards stay`} in the bag.` : ''}`
+            + `<div class="ob"><button class="ord" data-act="lsellno">Keep them</button><button class="ord" data-act="lsellall">Sell all</button></div></div>`);
         if (!loot.items.length) {
             out.push(`<div class="am" style="padding:4px 0">${loot.on
                 ? 'Empty. Things the party finds on its kills land here: from the monster\'s own drops, on top of the normal ones.'
@@ -626,12 +1145,18 @@ export default function init(parameters, api) {
     // wrap), laid out like the game's Equip window: its gear round it, the companion
     // in the middle (drawn by the game, api.screens.stage), then the bag and the
     // restock row. Hover a square for its details (showTip); a click takes it.
-    // Equip window order: left top / mid / weapon / garment / accessory, right lower /
+    // Equip window order: left top / lower / weapon / garment / accessory, right mid /
     // armour / shield / shoes / accessory (EQP_* bits; EQP_ACC_L 128, EQP_ACC_R 8).
-    const DOLL_L = [[0x100, 'top'], [0x200, 'mid'], [0x002, 'weapon'], [0x004, 'robe'], [0x080, 'acc']];
-    const DOLL_R = [[0x001, 'lower'], [0x010, 'armor'], [0x020, 'shield'], [0x040, 'shoes'], [0x008, 'acc']];
+    const DOLL_L = [[0x100, 'top'], [0x001, 'lower'], [0x002, 'weapon'], [0x004, 'robe'], [0x080, 'acc']];
+    const DOLL_R = [[0x200, 'mid'], [0x010, 'armor'], [0x020, 'shield'], [0x040, 'shoes'], [0x008, 'acc']];
     const DOLL_ORDER = [...DOLL_L, ...DOLL_R].map(([bit]) => bit);
     const COSTUME = 0x3C00;
+    // 3.10.2: shadow gear (EQP_SHADOW_*, renewal), in the order weapon, shield, armor, shoes,
+    // right and left accessory. The Shadow label shows for renewal classes (job id 4054 and
+    // up: 3rd jobs and later); another class only gets it while wearing some, so nothing
+    // worn is ever out of sight.
+    const SHADOW = 0x10000;
+    const SHADOW_ORDER = [0x20000, 0x40000, 0x10000, 0x80000, 0x100000, 0x200000];
     // The companion picked in the Bag tab (its char id); the first one when it's gone.
     let pickCid = null;
     const picked = () => bag?.comps.find(x => x.cid === pickCid) || bag?.comps[0] || null;
@@ -678,6 +1203,12 @@ export default function init(parameters, api) {
             return square(it, 'worn' + (first ? '' : ' ghost'));
         };
         const costumes = c.items.filter(it => it.worn && (it.worn & COSTUME));
+        const sOrd = it => { const i = SHADOW_ORDER.findIndex(b => it.worn & b); return i < 0 ? 9 : i; };
+        const shadows = c.items.filter(it => it.worn >= SHADOW).sort((a, b) => sOrd(a) - sOrd(b));
+        const showShadow = shadows.length > 0 || (c.look?.job || 0) >= 4054;
+        let cost = costumes.length ? `<span class="lb">Costume</span>${costumes.map(it => square(it, 'worn')).join('')}` : '';
+        if (showShadow) cost += `<span class="lb${cost ? ' s2' : ''}">Shadow</span>`
+            + (shadows.length ? shadows.map(it => square(it, 'worn sh')).join('') : '<span class="none">none worn</span>');
         const bagIt = c.items.filter(it => !it.worn || it.worn === AMMO);
         let cells = bagIt.map(it => square(it, it.worn ? 'use' : '')).join('');
         if (bag.inv) cells += '<div class="sl nil"></div>'.repeat(Math.max(0, 8 - bagIt.length));
@@ -741,7 +1272,7 @@ export default function init(parameters, api) {
             + `<div class="doll"><div class="col">${DOLL_L.map(slotFor).join('')}</div>`
             + `<div class="stg" data-stage></div>`
             + `<div class="col">${DOLL_R.map(slotFor).join('')}</div></div>`
-            + (costumes.length ? `<div class="cost"><span class="lb">Costume</span>${costumes.map(it => square(it, 'worn')).join('')}</div>` : '')
+            + (cost ? `<div class="cost">${cost}</div>` : '')
             + `<div class="sub">Bag</div>${rows}${rs}${pt}</div>`);
         return out.join('');
     }
@@ -815,6 +1346,7 @@ export default function init(parameters, api) {
         const cardName = id => api.items?.get?.(id)?.name || `Card #${id}`;
         const desc = String(api.items?.get?.(it.id)?.description || '').trim();
         const hint = it.own ? 'Their own gear: it stays on.'
+            : it.worn >= SHADOW ? 'Double-click to take it back. Shadow gear given through the app comes back as the whole set.'
             : it.worn && it.worn !== AMMO ? 'Double-click to take it back.'
             : it.worn ? 'In use: they come off with the gear they\'re for.'
             : !bag.inv ? ''
@@ -855,8 +1387,8 @@ export default function init(parameters, api) {
         const active = pane.getRootNode().activeElement || document.activeElement;
         if ((tab === 'bag' || tab === 'loot') && active && pane.contains(active) && active.matches('input')) return;
         const keep = pane.scrollTop;
-        pane.innerHTML = tab === 'status' ? renderStatus() : tab === 'orders' ? renderOrders() : tab === 'bag' ? renderBag()
-            : tab === 'loot' ? renderLoot() : renderBonds();
+        pane.innerHTML = tab === 'orders' ? renderOrders() : tab === 'bag' ? renderBag()
+            : tab === 'loot' ? renderLoot() : renderRoster();
         // The answer line is sticky, so it shows wherever you are scrolled,
         // and it goes away by itself: "done" after 4 s, a problem after 8 s.
         pane.scrollTop = keep;
@@ -907,11 +1439,27 @@ export default function init(parameters, api) {
                 orders = parseOrders(await api.server.request('clorder', 'state', { timeout: 4000 })) || orders;
                 ordersAt = Date.now();
             } else {
-                list = parse(await api.server.request('clstat', 'list', { timeout: 4000 }));
+                // 3.10.0: the Roster, every 3 s, and redrawn only when something changed
+                // (the faces are big pictures; no need to lay them out every second).
+                // 3.13.1: an open Bond fold also asks @clstat, every 5 s.
+                let changed = false;
+                if (rBond && Date.now() - listAt >= 5000) {
+                    list = parse(await api.server.request('clstat', 'list', { timeout: 4000 }));
+                    listAt = Date.now();
+                    changed = true;
+                }
+                if (Date.now() - rosterAt >= 3000) {
+                    const reply = String(await api.server.request('clroster', 'list', { timeout: 4000 }) || '');
+                    rosterAt = Date.now();
+                    if (reply !== rosterRaw) { rosterRaw = reply; roster = parseRoster(reply); changed = true; }
+                }
+                if (!changed) return;
             }
             render();
         }
-        catch { quietUntil = Date.now() + 10000; /* busy or between maps: try again in a while */ }
+        // Busy or between maps: try again shortly. 3.10.2: 3 s (was 10; at login, when the
+        // server is still bringing the companions in, a tab sat on "Opening..." that long).
+        catch { quietUntil = Date.now() + 3000; }
         finally { busy = false; }
     }
 
@@ -976,8 +1524,9 @@ export default function init(parameters, api) {
         }
         for (let i = 0; busy && i < 30; i++) await new Promise(r => setTimeout(r, 100));	// the 1 s refresh may be asking
         if (busy || inDialog()) { bagMsg = { ok: false, text: inDialog() ? 'Close the NPC dialog first.' : 'Busy, try again.' }; render(); return; }
-        const ask = kind === 'roam' ? ['clroam', `${arg} tab`] : kind === 'style' ? ['clorder', arg] : kind === 'camp' ? ['clcamp', arg]
-            : kind === 'warp' ? ['clwarp', 'tab'] : ['clorder', 'appraise'];
+        const ask = kind === 'roam' ? ['clroam', `${arg} tab`] : kind === 'style' ? ['clorder', arg] : kind === 'hunt' ? ['clhunt', `${arg} task`]
+            : kind === 'stand' ? ['clstand', 'task'] : kind === 'camp' ? ['clcamp', arg]
+            : kind === 'warp' ? ['clwarp', 'tab'] : ['clorder', kind === 'repair' ? 'repair' : 'appraise'];
         busy = true;
         try {
             const reply = String(await api.server.request(ask[0], ask[1], { timeout: 4000 }) || '');
@@ -985,8 +1534,10 @@ export default function init(parameters, api) {
             const said = cut >= 0 ? reply.slice(cut + 1) : reply;
             const ok = reply.startsWith('OK');
             let text = ORDER_ERR[said] || said;
-            if (ok && kind === 'roam') text = arg === 'on' ? 'Off they go, hunting.' : 'They are coming back to you.';
-            else if (ok && kind === 'style') text = arg === 'alone' ? 'When they roam, each goes alone.' : 'When they roam, they stick together.';
+            if (ok && kind === 'roam') text = 'They are coming back to you.';
+            else if (ok && kind === 'style') text = arg === 'alone' ? 'They hunt solo.' : 'They hunt as a group.';
+            else if (ok && kind === 'hunt') text = arg === 'mvp' ? 'They are off to find the MVP.' : 'Off they go, hunting.';
+            else if (ok && kind === 'stand') text = 'They will wait here for you.';
             else if (ok && kind === 'camp') text = said === '1' ? 'The campfire is lit.' : arg === 'on' ? 'They could not make camp here.' : 'The fire is out.';
             else if (ok && kind === 'warp') text = `${said} is opening a portal.`;
             bagMsg = { ok, text };
@@ -1176,6 +1727,74 @@ export default function init(parameters, api) {
         } catch { /* the Bag tab still shows it, with Rename */ }
     }
 
+    // 3.9.1: "hey boss" moments: "@@event clmoment cid|moment|name|class|sex|question|
+    // answer 1|answer 2|answer 3" (answer 3 may be empty), "@@event clmoment -" when the
+    // server gave up waiting. The answer goes back as "@clmoment <cid> <moment> <1-3>".
+    // 3.10.2: a pop quiz adds a 10th field, the bubble's look: quiz, gold or don.
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'clmoment') return;
+        import('./portraits.js').then(m => {
+            if (text === '-') { m.closeAsk(); return; }
+            const [cid, id, name, cls, sex, question, ...opts] = String(text || '').split('|');
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: question, options: opts.slice(0, 3), tag: opts[3] || '' })
+                .then(i => {
+                    if (i === undefined) return;
+                    Promise.resolve(api.server.request('clmoment', `${cid} ${id} ${i + 1}`, { timeout: 4000 })).catch(() => {});
+                });
+        }).catch(e => console.error('[companion-party-overhaul] moment:', e));
+    });
+
+    // 3.10.1: the shopping ask: "@@event clshop cid|name|class|sex|question|yes|no", and
+    // "@@event clshop -" when the server stopped waiting. The answer: "@clshop yes|no".
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'clshop') return;
+        import('./portraits.js').then(m => {
+            if (text === '-') { m.closeAsk(); return; }
+            const [, name, cls, sex, question, yes, no] = String(text || '').split('|');
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: question, options: [yes, no] })
+                .then(i => {
+                    if (i === undefined) return;
+                    Promise.resolve(api.server.request('clshop', i === 0 ? 'yes' : 'no', { timeout: 4000 })).catch(() => {});
+                });
+        }).catch(e => console.error('[companion-party-overhaul] shop:', e));
+    });
+
+    // 3.11.0: an MVP found: "@@event clhunt cid|name|class|sex|line|<answers>", and
+    // "@@event clhunt -" when the wait is over. 3.13.0: three answers, Engage together
+    // ("@clhunt engage"), Stand by, I'll solo ("@clhunt solo"), both flying you to the finder
+    // with one of your Fly Wings and everyone to you; Retreat ("@clhunt skip", 3.12.7's Not
+    // now): they come back and follow you, the mark stays.
+    const HUNT_ANSWERS = ['engage', 'solo', 'skip'];
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'clhunt') return;
+        import('./portraits.js').then(m => {
+            if (text === '-') { m.closeAsk(); return; }
+            const [, name, cls, sex, line, ...options] = String(text || '').split('|');
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: line, options: options.slice(0, 3) })
+                .then(i => {
+                    const a = HUNT_ANSWERS[i];
+                    if (a) Promise.resolve(api.server.request('clhunt', a, { timeout: 4000 })).catch(() => {});
+                });
+        }).catch(e => console.error('[companion-party-overhaul] hunt:', e));
+    });
+
+    // 3.9.1: a story invite: "@@event clstory teller|class|sex|listener|class|sex|text",
+    // both portraits, Listen / Not now ("@clstory yes|no"); "@@event clstory -" when the
+    // server stopped waiting. No click: nothing is sent, the server lets it wait.
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'clstory') return;
+        import('./portraits.js').then(m => {
+            if (text === '-') { m.closeAsk(); return; }
+            const [a, ac, as, b, bc, bs, ...rest] = String(text || '').split('|');
+            m.askChoice(api, { name: a, cls: Number(ac), sex: Number(as), text: rest.join('|'), options: ['Listen', 'Not now'],
+                second: { name: b, cls: Number(bc), sex: Number(bs) } })
+                .then(i => {
+                    if (i === undefined) return;
+                    Promise.resolve(api.server.request('clstory', i === 0 ? 'yes' : 'no', { timeout: 4000 })).catch(() => {});
+                });
+        }).catch(e => console.error('[companion-party-overhaul] story:', e));
+    });
+
     // 3.9.0: "Can we keep it?": the companion's portrait asks (client/portraits.js),
     // "@@event clask cid|name|class|sex|ask (1, 2)|what it is|the question", and
     // "@@event clask -" when the server gave up waiting (a fight, it fell, 2 minutes).
@@ -1211,8 +1830,8 @@ export default function init(parameters, api) {
         if (win) return win;
         win = api.ui.window({ id: 'companions', title: 'Companions', width: 320, height: 360, resizable: true });
         win.body.innerHTML = `<style>${WIN_STYLE}</style><div class="cw"><div class="tabs">`
-            + `<button data-tab="status">Status</button><button data-tab="orders">Orders</button><button data-tab="bonds">Bonds</button>`
-            + `<button data-tab="bag">Bag</button><button data-tab="loot">Loot</button></div>`
+            + `<button data-tab="orders">Orders</button>`
+            + `<button data-tab="bag">Bag</button><button data-tab="loot">Loot</button><button data-tab="roster">Roster</button></div>`
             + `<div class="pane"></div></div>`;
         // 3.6.2: the game's resize grip is an invisible 12 px corner (and its
         // resize cursor never shows under the game's own cursor), so nobody
@@ -1227,6 +1846,25 @@ export default function init(parameters, api) {
         }
         body = win.body;
         body.addEventListener('click', event => {
+            // 3.10.0: the Roster tab's buttons.
+            const rb = event.target.closest('button[data-rs]');
+            if (rb) { if (!rb.disabled) rosterClick(rb.dataset.rs, rb.dataset.nm || '', rb.dataset.arg || ''); return; }
+            // 3.9.1: the Journal folds (3.13.1: in the Roster's Bond fold). Opening one fetches it fresh.
+            const jb = event.target.closest('button[data-jr]');
+            if (jb) {
+                const cid = jb.dataset.jr;
+                if (openJr.has(cid)) openJr.delete(cid);
+                else { openJr.add(cid); loadJournal(cid); }
+                render();
+                return;
+            }
+            const cb = event.target.closest('button[data-ch]');
+            if (cb) {
+                const key = cb.dataset.ch;
+                if (openCh.has(key)) openCh.delete(key); else openCh.add(key);
+                render();
+                return;
+            }
             const ob = event.target.closest('button[data-ord]');
             if (ob) { if (!ob.disabled) order(ob.dataset.ord); return; }
             const a = event.target.closest('button[data-act]');
@@ -1266,6 +1904,9 @@ export default function init(parameters, api) {
                     takeN = { key: null, n: 0 };
                     bagAction(`${a.dataset.act} ${a.dataset.id} ${n}`);
                 }
+                else if (a.dataset.act === 'lsellask') { lootAsk = true; render(); }
+                else if (a.dataset.act === 'lsellno') { lootAsk = false; render(); }
+                else if (a.dataset.act === 'lsellall') { lootAsk = false; sel = null; bagAction('lsellall'); }
                 else if (a.dataset.act === 'nogive') { giving = null; render(); }
                 else if (a.dataset.act === 'gearback') bagAction(`gearback ${a.dataset.cid} ${a.dataset.eq}`);
                 else if (a.dataset.act === 'pet') {
@@ -1345,6 +1986,9 @@ export default function init(parameters, api) {
             bagAt = 0;
             lootAt = 0;
             ordersAt = 0;
+            rosterAt = 0;
+            rosterRaw = '';
+            quietUntil = 0;	// a click asks now, even after a missed answer
             render();
             refresh();
         });
@@ -1478,6 +2122,85 @@ export default function init(parameters, api) {
         if (win?.isOpen()) { win.hide(); stopTimer(); hideTip(); dropStage(); try { api.preferences.set('open', false); } catch { /* fine */ } }
         else open();
     }
+    // 3.9.1: a click on a party frame (frames.js): the Bag tab, with that companion picked.
+    function openBag(cid) {
+        pickCid = String(cid);
+        tab = 'bag';
+        hideTip();
+        bagMsg = null;
+        giving = null;
+        bagAt = 0;
+        if (win?.isOpen()) { render(); refresh(); }
+        else open();
+    }
+    import('./frames.js').then(m => m.default(parameters, api, { openBag }))
+        .catch(e => console.error('[companion-party-overhaul] frames:', e));
+
+    // 3.10.0: the Roster tab; a second press of the menu button closes the window.
+    function openRoster() {
+        if (win?.isOpen() && tab === 'roster') { toggle(); return; }
+        tab = 'roster';
+        rView = 'list';
+        hireDone = null;
+        hideTip();
+        dropStage();
+        bagMsg = null;
+        rosterAt = 0;
+        rosterRaw = '';
+        if (win?.isOpen()) { render(); refresh(); }
+        else open();
+    }
+    // The game menu's Companions button (Basic Info, #companion: the app's own window)
+    // opens our Roster instead (setting roster_button), and wears our icon: two
+    // friends, so it no longer looks like the Party button. The press is caught on the
+    // way down (window, capture), before the game's own handler hears it. Skills still
+    // opens the app's window through it (openAppWindow, bypass).
+    const rosterOn = setOn('roster_button');
+    let menuBtn = null, bypass = false;
+    // 3.13.3: with our Roster on, the app's window is only reached for Skills, so its Summon
+    // tab goes: it drafts any job at any level (free on the app's default hiring), round our
+    // Roster's tier, level and fee (angespirit's report). Setting off: the window is untouched.
+    function lockAppWindow() {
+        if (!rosterOn) return;
+        const r = document.getElementById('CompanionPanel')?.shadowRoot;
+        if (!r || r.querySelector('style[data-cpo-lock]')) return;
+        const st = document.createElement('style');
+        st.dataset.cpoLock = '1';
+        st.textContent = '.tab[data-tab="summon"], .page[data-page="summon"] { display: none !important; }';
+        r.appendChild(st);
+    }
+    const ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><defs>'
+        + '<linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9cc0f5"/><stop offset="1" stop-color="#2b4f9a"/></linearGradient>'
+        + '<linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f6fc4"/><stop offset="1" stop-color="#1b3570"/></linearGradient></defs>'
+        + '<rect x=".5" y=".5" width="35" height="35" rx="5" fill="url(#a)" stroke="#132652"/><rect x="3" y="3" width="30" height="30" rx="3.5" fill="url(#b)"/>'
+        + '<circle cx="12" cy="13.5" r="4" fill="#8fe0d0" stroke="#0f3b3a"/><path d="M5.5 28c0-5 3-8 6.5-8s6.5 3 6.5 8z" fill="#3fb3a0" stroke="#0f3b3a"/>'
+        + '<circle cx="23" cy="12.5" r="4.6" fill="#ffd9a8" stroke="#5a2d0c"/><path d="M15.5 29c0-6 3.4-9.2 7.5-9.2s7.5 3.2 7.5 9.2z" fill="#f08a3c" stroke="#5a2d0c"/></svg>';
+    const ICON_CSS = `#companion { background-image: url("data:image/svg+xml,${encodeURIComponent(ICON)}") !important;`
+        + ' background-size: 100% 100% !important; background-repeat: no-repeat !important; background-position: center !important; }';
+    api.on('ui:append', component => {
+        if (/^CompanionPanel/i.test(component?.name || '')) { lockAppWindow(); return; }
+        if (!/^BasicInfo/i.test(component?.name || '')) return;
+        const btn = component.root?.querySelector?.('#companion');
+        if (!btn) return;
+        menuBtn = btn;
+        if (rosterOn && !component.root.querySelector('style[data-cpo-roster]')) {
+            const st = document.createElement('style');
+            st.dataset.cpoRoster = '1';
+            st.textContent = ICON_CSS;
+            component.root.appendChild(st);
+        }
+    }, { replay: true });
+    if (rosterOn) {
+        const grab = event => {
+            if (bypass || !menuBtn?.isConnected || event.button !== 0) return;
+            if (!event.composedPath().includes(menuBtn)) return;
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            if (event.type === 'mousedown') openRoster();
+        };
+        for (const type of ['mousedown', 'mouseup', 'click']) addEventListener(type, grab, true);
+        api.cleanup(() => { for (const type of ['mousedown', 'mouseup', 'click']) removeEventListener(type, grab, true); });
+    }
 
     const onKey = event => {
         if (!event.altKey || event.ctrlKey || event.shiftKey || event.metaKey || event.repeat) return;
@@ -1584,6 +2307,15 @@ export default function init(parameters, api) {
     const WARP = ['take us back', 'warp us back', 'take us home', 'warp us home', 'open a portal', 'portal us'];
     // 3.9.0: companions with a pet out show it off.
     const PET_SHOW = ['show me your pet', 'show your pet', 'show me the pet', 'let me see your pet', 'your pets', 'pet show'];
+    // 3.10.1: a shopping trip in town (the server says so when it's not one).
+    const SHOP = ['go shopping', 'shopping time', 'time to shop'];
+    // 3.11.0: MVP hunts: the hunt is set and they go roaming (wins over "go hunt").
+    const HUNT_MVP = ['hunt the mvp', 'find the mvp', 'mvp hunt', 'hunt mvp', 'find mvp', 'hunt the boss', 'find the boss', 'boss hunt'];
+    const HUNT_ALL = ['hunt everything', 'normal hunt', 'hunt anything'];
+    // 3.12.0: Stand By: they stay where they are until told otherwise.
+    const STAND = ['stand by', 'standby', 'wait here', 'stay here'];
+    // 3.13.0: during a solo (Stand by, I'll solo on an MVP find): they all join in.
+    const HELP = ['help me', 'need help', 'help us', 'assist me'];
     // 3.0.1: companions' lines in their own colour (setting chat_colour, 0 = white as
     // before), everyday talk (public chat) and battle callouts (party chat) alike. The
     // server sends their names as "@@event clnames A|B|" whenever they change. The words
@@ -1626,14 +2358,26 @@ export default function init(parameters, api) {
             const now = Date.now();
             if (now - (seen.get(said) || 0) < 2000) return;
             // 3.0.0: campfire nights (setting campfire): light or put out.
-            const camp = CAMP_ON.some(w => said.includes(w)) ? 'on'
+            // "let's go shopping" is a shopping trip, not "let's go" (camp off).
+            const shop = SHOP.some(w => said.includes(w));
+            const camp = shop ? '' : CAMP_ON.some(w => said.includes(w)) ? 'on'
                 : CAMP_OFF.some(w => said.includes(w)) ? 'off' : '';
             const warp = WARP.some(w => said.includes(w));
-            const on = !warp && ROAM_ON.some(w => said.includes(w));
-            const off = !warp && !on && ROAM_OFF.some(w => said.includes(w));
+            const hunt = HUNT_MVP.some(w => said.includes(w)) ? 'mvp' : HUNT_ALL.some(w => said.includes(w)) ? 'normal' : '';
+            const stand = !warp && !shop && !hunt && STAND.some(w => said.includes(w));
+            const on = !warp && !shop && !hunt && !stand && ROAM_ON.some(w => said.includes(w));
+            const off = !warp && !on && !shop && !hunt && !stand && ROAM_OFF.some(w => said.includes(w));
             const pets = PET_SHOW.some(w => said.includes(w));
-            if (!on && !off && !camp && !warp && !pets) return;
+            // The server ignores it when no solo is on (and then it's just chat).
+            if (HELP.some(w => said.includes(w))) {
+                seen.set(said, now);
+                Promise.resolve(api.server.request('clhunt', 'help', { timeout: 4000 })).catch(() => {});
+            }
+            if (!on && !off && !camp && !warp && !pets && !shop && !hunt && !stand) return;
             seen.set(said, now);
+            if (hunt) Promise.resolve(api.server.request('clhunt', `${hunt} ${said}`, { timeout: 4000 })).catch(() => {});
+            if (stand) Promise.resolve(api.server.request('clstand', said, { timeout: 4000 })).catch(() => {});
+            if (shop) Promise.resolve(api.server.request('clshop', 'go', { timeout: 4000 })).catch(() => {});
             if (pets) Promise.resolve(api.server.request('clbag', 'petshow', { timeout: 4000 })).catch(() => {});
             if (warp) Promise.resolve(api.server.request('clwarp', 'go', { timeout: 4000 })).catch(() => {});
             if (camp) Promise.resolve(api.server.request('clcamp', camp, { timeout: 4000 })).catch(() => {});

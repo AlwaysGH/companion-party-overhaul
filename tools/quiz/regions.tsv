@@ -1,0 +1,71 @@
+# Spawn map prefix (digits and a trailing _ cut off) -> the place name the quiz uses.
+# Prefixes with the same name are one place. Maps not listed are left out.
+prt_fild	the Prontera fields
+prt_sewb	the Prontera Culverts
+prt_maze	the Labyrinth Forest
+gef_fild	the Geffen fields
+gef_dun	the Geffen Dungeon
+pay_fild	the Payon forest
+pay_dun	the Payon Cave
+moc_fild	the Morroc desert
+moc_pryd	the Pyramids
+in_sphinx	the Sphinx
+iz_dun	Byalan Island
+orcsdun	the Orc Dungeon
+anthell	Ant Hell
+mjolnir	Mt. Mjolnir
+mjo_dun	the Mjolnir Coal Mine
+cmd_fild	the Comodo fields
+beach_dun	the Comodo caves
+c_tower	the Clock Tower
+alde_dun	the Clock Tower
+gl_cas	Glast Heim
+gl_chyard	Glast Heim
+gl_church	Glast Heim
+gl_dun	Glast Heim
+gl_in	Glast Heim
+gl_knt	Glast Heim
+gl_prison	Glast Heim
+gl_sew	Glast Heim
+gl_step	Glast Heim
+xmas_dun	Lutie
+xmas_fild	Lutie
+tur_dun	Turtle Island
+um_fild	the Umbala jungle
+um_dun	the Umbala dungeon
+nif_fild	Niflheim
+niflheim	Niflheim
+yuno_fild	the Juno fields
+mag_dun	the Magma Dungeon
+ama_fild	Amatsu
+ama_dun	Amatsu
+gon_fild	Kunlun
+gon_dun	Kunlun
+lou_fild	Louyang
+lou_dun	Louyang
+ayo_dun	Ayothaya
+ein_fild	the Einbroch fields
+ein_dun	the Einbroch Mine
+lhz_fild	the Lighthalzen fields
+lhz_dun	the Lighthalzen Bio Lab
+hu_fild	the Hugel fields
+abbey	the Nameless Island abbey
+tha_t	Thanatos Tower
+odin_tem	Odin's Temple
+kh_dun	Kiel's Dungeon
+kh_kiehl	Kiel's Dungeon
+juperos	the Juperos ruins
+jupe_core	the Juperos ruins
+ra_fild	the Rachel fields
+ra_san	the Rachel Sanctuary
+ice_dun	the Ice Cave
+ve_fild	the Veins fields
+thor_v	Thor's Volcano
+abyss	the Abyss Lakes
+gefenia	Gefenia
+man_fild	the Manuk fields
+spl_fild	the Splendide fields
+mosk_dun	the Moscovia forest
+nyd_dun	Nidhogg's Nest
+yggdrasil	the World Tree
+brasilis	Brasilis

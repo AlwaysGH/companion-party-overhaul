@@ -48,12 +48,18 @@ Body:
           - Name: cl_rookie_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Ooh, I feel smarter already! Thank you!"
             Channel: area
             Cooldown: 600000
           - Name: cl_rookie_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Whoa, I'm so fast now!"
             Channel: area
             Cooldown: 600000
@@ -116,12 +122,18 @@ Body:
           - Name: cl_guardian_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "A blessing. I am grateful."
             Channel: area
             Cooldown: 600000
           - Name: cl_guardian_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Swift as the wind. Thank you."
             Channel: area
             Cooldown: 600000
@@ -184,12 +196,18 @@ Body:
           - Name: cl_scholar_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Ah, sharper focus. Excellent."
             Channel: area
             Cooldown: 600000
           - Name: cl_scholar_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "My casting hand feels lighter."
             Channel: area
             Cooldown: 600000
@@ -252,12 +270,18 @@ Body:
           - Name: cl_wanderer_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Ooh, thanks for the boost!"
             Channel: area
             Cooldown: 600000
           - Name: cl_wanderer_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Now I'm FAST. Love it!"
             Channel: area
             Cooldown: 600000
@@ -321,12 +345,18 @@ Body:
           - Name: cl_healer_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "The goddess's light is with us."
             Channel: area
             Cooldown: 600000
           - Name: cl_healer_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Light on my feet. I'll keep up now."
             Channel: area
             Cooldown: 600000
@@ -390,12 +420,18 @@ Body:
           - Name: cl_brawler_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "My fists feel stronger! Thanks!"
             Channel: area
             Cooldown: 600000
           - Name: cl_brawler_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Speed! Yes! Let's GO!"
             Channel: area
             Cooldown: 600000
@@ -458,12 +494,18 @@ Body:
           - Name: cl_rogue_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Huh. Thanks."
             Channel: area
             Cooldown: 600000
           - Name: cl_rogue_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Faster. I like it."
             Channel: area
             Cooldown: 600000
@@ -526,12 +568,18 @@ Body:
           - Name: cl_merchant_fx_bless
             Priority: 150
             On: { Event: status_gained, Status: SC_BLESSING }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "A free blessing? Best deal all day!"
             Channel: area
             Cooldown: 600000
           - Name: cl_merchant_fx_agi
             Priority: 150
             On: { Event: status_gained, Status: SC_INCREASEAGI }
+            Target: owner
+            Hold: true
+            Claim: { Name: cl_thanks, For: 60000 }
             Say: "Faster hands, faster sales!"
             Channel: area
             Cooldown: 600000

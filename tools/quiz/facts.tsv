@@ -1,0 +1,73 @@
+# Hand-checked pre-renewal facts: question (lowercase start, ends with ?) TAB right answer TAB wrong TAB wrong.
+# Two answers only (true or false): leave the last column out. A topic letter first:
+# j jobs, s skills, c cards and monsters. Every line is checked against pre-re rAthena.
+j	what does a Knight start out as?	Swordman	Mage	Thief
+j	what does a Crusader start out as?	Swordman	Acolyte	Merchant
+j	what does a Wizard start out as?	Mage	Acolyte	Archer
+j	what does a Sage start out as?	Mage	Acolyte	Merchant
+j	what does a Hunter start out as?	Archer	Thief	Merchant
+j	what does a Bard start out as?	Archer	Mage	Acolyte
+j	what does a Dancer start out as?	Archer	Thief	Mage
+j	what does a Priest start out as?	Acolyte	Mage	Swordman
+j	what does a Monk start out as?	Acolyte	Swordman	Thief
+j	what does a Blacksmith start out as?	Merchant	Swordman	Thief
+j	what does an Alchemist start out as?	Merchant	Mage	Acolyte
+j	what does an Assassin start out as?	Thief	Archer	Swordman
+j	what does a Rogue start out as?	Thief	Archer	Merchant
+j	what does a Super Novice start out as?	Novice	Swordman	Taekwon
+j	what does a Gunslinger start out as?	Novice	Archer	Thief
+j	what does a Ninja start out as?	Novice	Thief	Assassin
+j	which class becomes a Soul Linker?	Taekwon	Ninja	Gunslinger
+j	which class becomes a Star Gladiator?	Taekwon	Swordman	Monk
+j	what does a Knight become after rebirth?	Lord Knight	Paladin	Champion
+j	what does a Crusader become after rebirth?	Paladin	Lord Knight	High Priest
+j	what does a Wizard become after rebirth?	High Wizard	Professor	Creator
+j	what does a Sage become after rebirth?	Professor	High Wizard	Clown
+j	what does a Hunter become after rebirth?	Sniper	Stalker	Clown
+j	what does a Bard become after rebirth?	Clown	Gypsy	Sniper
+j	what does a Dancer become after rebirth?	Gypsy	Clown	Stalker
+j	what does a Priest become after rebirth?	High Priest	Champion	Paladin
+j	what does a Monk become after rebirth?	Champion	High Priest	Lord Knight
+j	what does a Blacksmith become after rebirth?	Whitesmith	Creator	Champion
+j	what does an Alchemist become after rebirth?	Creator	Whitesmith	Professor
+j	what does an Assassin become after rebirth?	Assassin Cross	Stalker	Sniper
+j	what does a Rogue become after rebirth?	Stalker	Assassin Cross	Whitesmith
+j	which class can only be a woman?	Dancer	Bard	Sage
+j	which class can only be a man?	Bard	Dancer	Hunter
+j	which class fights with a falcon?	Hunter	Bard	Rogue
+j	which of these can ride a Peco Peco?	Crusader	Monk	Hunter
+j	which class pushes a cart around?	Merchant	Thief	Acolyte
+j	which class brews potions?	Alchemist	Blacksmith	Sage
+j	which class forges weapons?	Blacksmith	Alchemist	Knight
+s	which class opens a Warp Portal?	Acolyte	Mage	Merchant
+s	which class learns Asura Strike?	Monk	Knight	Assassin
+s	which class learns Storm Gust?	Wizard	Sage	Priest
+s	which class learns Sanctuary?	Priest	Monk	Crusader
+s	which class learns Grand Cross?	Crusader	Knight	Priest
+s	which class learns Sonic Blow?	Assassin	Rogue	Hunter
+s	which class learns Mammonite?	Merchant	Thief	Swordman
+s	which class learns Bowling Bash?	Knight	Crusader	Monk
+s	which class learns Blitz Beat?	Hunter	Bard	Dancer
+s	which class learns Meteor Storm?	Wizard	Sage	High Priest
+s	which class learns Magnificat?	Priest	Monk	Sage
+s	which class learns Steal Coin?	Rogue	Assassin	Merchant
+s	true or false: Rogues can fight with a dagger in each hand?	False	True
+s	true or false: Assassins can fight with a weapon in each hand?	True	False
+s	true or false: Crusaders can ride a Peco Peco?	True	False
+s	true or false: a Bard can be a woman?	False	True
+s	true or false: Monks fight with spirit spheres?	True	False
+s	true or false: Hunters lay traps?	True	False
+s	true or false: Wizards learn Heal?	False	True
+s	true or false: Sages can cast Dispell?	True	False
+s	true or false: Priests can bring the fallen back with Resurrection?	True	False
+s	true or false: a Mage can wield a two-handed sword?	False	True
+c	which card makes you immune to Freeze?	Marc	Orc Hero	Ghostring
+c	which card makes you immune to Stun?	Orc Hero	Marc	Evil Druid
+c	what element does a Ghostring Card turn your armor into?	Ghost	Undead	Holy
+c	what element does an Angeling Card turn your armor into?	Holy	Ghost	Water
+c	what element does an Evil Druid Card turn your armor into?	Undead	Shadow	Ghost
+c	which Poring has angel wings?	Angeling	Deviling	Mastering
+c	which Poring has devil wings?	Deviling	Angeling	Ghostring
+c	who's the giant Poring boss?	Mastering	Angeling	Poporing
+c	which MVP haunts Glast Heim's churchyard?	Dark Lord	Baphomet	Osiris
+c	who rules the bottom of the Sphinx?	Pharaoh	Osiris	Phreeoni

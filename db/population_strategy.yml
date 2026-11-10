@@ -188,14 +188,18 @@ Body:
             Hold: true
           # A boss teleported away: one says so, everyone regroups on the owner. Here
           # rather than under Mob: Boss, whose plan has stopped applying by then.
+          # 3.11.3: not for roamers. "Vanished" only means it is out of sight, so one walking
+          # past a boss said this over and over and turned back to you.
           - Name: boss_gone_say
             Priority: 96
             On: { Event: encounter_ended, Reason: vanished }
-            Say: "It teleported, back to you, {owner}."
+            When: not_self_entry_queue_apply_delay
+            Say: "It escaped! Regrouping with everyone."
             OnePerParty: true
           - Name: boss_gone_regroup
             Priority: 95
             On: { Event: encounter_ended, Reason: vanished }
+            When: not_self_entry_queue_apply_delay
             Retreat: owner
           # A tank provokes what is hitting someone else, the healer first, and keeps it.
           - Name: peel
@@ -206,6 +210,55 @@ Body:
             When: not_enemy_provoke
             SetTarget: true
             OnePerParty: true
+
+      # 3.11.0: MVP hunts and Fly Wing hops while roaming (npc/companion_life.txt,
+      # L_HuntTick). The script marks a roamer with harmless statuses: Reuse_Limit_A
+      # "fly on now", B "look, but start no fight", C "an MVP is found: keep out of its
+      # reach until the owner comes". A companion with no Fly Wing doesn't have ct_hunt_fly.
+      - Job: All
+        Build: ct_hunt
+        Rules:
+          - Name: ct_hunt_fly
+            Priority: 140
+            When: self_reuse_limit_a
+            UseItem: Wing_Of_Fly
+            Cooldown: 4000
+          - Name: ct_hunt_wait_away
+            Priority: 139
+            When: self_reuse_limit_c
+            Target: { Enemy: boss, Range: 14 }
+            KeepDistance: { Min: 8, Max: 12 }
+          - Name: ct_hunt_look
+            Priority: 20
+            When: self_reuse_limit_b
+            Absent: { Enemy: attacking, Who: self }
+            Hold: true
+          # 3.13.0: waiting at a find (C), nobody on it: stand, above every fight rule. A
+          # KeepDistance that's already far enough passes the turn on, so ct_hunt_look (20)
+          # alone let a Wizard's bolt_the_boss (41) or a tank's hold_the_boss (70) open on it.
+          - Name: ct_hunt_wait_still
+            Priority: 138
+            When: self_reuse_limit_c
+            Absent: { Enemy: attacking, Who: self }
+            Hold: true
+          # 3.13.0: Stand by, I'll solo (D, L_SoloTick): clear of the boss and out of the
+          # fight (no attacks, heals or buffs) unless something attacks it.
+          - Name: ct_solo_away
+            Priority: 142
+            When: self_reuse_limit_d
+            Target: { Enemy: boss, Range: 14 }
+            KeepDistance: { Min: 8, Max: 12 }
+          - Name: ct_solo_still
+            Priority: 141
+            When: self_reuse_limit_d
+            Absent: { Enemy: attacking, Who: self }
+            Hold: true
+          # 3.13.0: Engage together / "help me" (E, L_HuntCharge): the boss is the target.
+          - Name: ct_hunt_engage
+            Priority: 137
+            When: self_reuse_limit_e
+            Target: { Enemy: boss, Range: 14 }
+            SetTarget: true
 
   # --- Any boss: everyone ------------------------------------------------------
   # Mob: Boss applies while a boss-class monster is near (the one it fights, else the

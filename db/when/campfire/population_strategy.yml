@@ -29,17 +29,23 @@ Body:
         Build: ct_camp_watch
         Start: idle
         Strategies:
+          # The switches carry Priority 135 (3.10.2): with none they ranked below the watch
+          # Hold (24), which ends the turn, so the two minutes never ended and a scout stood
+          # by the fire all night (Serawen, trace 2026-10-31: ct_cw_hold every turn).
           - Name: idle
             Rules:
               - Name: ct_cw_start
+                Priority: 135
                 When: self_reuse_limit_g
                 Switch: watch
           - Name: watch
             Rules:
               - Name: ct_cw_end
+                Priority: 135
                 When: not_self_reuse_limit_g
                 Switch: idle
               - Name: ct_cw_done
+                Priority: 135
                 InStrategy: { AtLeast: 120000 }
                 Switch: rest
               - Name: ct_cw_hold
@@ -50,5 +56,6 @@ Body:
           - Name: rest
             Rules:
               - Name: ct_cw_reset
+                Priority: 135
                 When: not_self_reuse_limit_g
                 Switch: idle

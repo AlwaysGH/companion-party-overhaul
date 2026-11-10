@@ -100,15 +100,18 @@ const CARDS = [
   { cls: 'battle', title: 'In battle', blurb: 'Each class in its part, your orders, and your items.',
     rows: ['party_roles', 'roam_together', 'chat_orders', 'warp_gem', 'use_items', 'drink_hp', 'town_calm'] },
   { cls: 'talk', title: 'Talk & personality', blurb: 'What they say, to you and to each other.',
-    rows: ['titles', 'everyday_chatter', 'combat_callouts', 'chat_replies', 'banter_minutes', 'chat_colour'] },
+    rows: ['titles', 'everyday_chatter', 'combat_callouts', 'moments', 'quiz', 'banter_minutes', 'chat_colour'] },
   // 3.2.0: portraits.
   { cls: 'talk', title: 'Portraits', blurb: 'Their class portrait and a speech bubble at the bottom right when they talk.',
     rows: ['portraits', 'portrait_small_talk', 'portrait_speed', 'portrait_size'] },
+  // 3.9.1: party frames.
+  { cls: 'talk', title: 'Party frames', blurb: 'Their portraits with HP and SP always on screen, like a party list.',
+    rows: ['party_frames', 'party_frames_size'] },
   { cls: 'purse', title: 'Bag, loot & purse', blurb: 'Gearing your companions, what they find, and the party purse.',
-    rows: ['gifts', 'starter_kit', 'purse_per_level', 'loot_finds', 'restock_gems'] },
+    rows: ['gifts', 'starter_kit', 'purse_per_level', 'loot_finds', 'shopping', 'restock_gems'] },
   { cls: 'care', title: 'Growth & care', blurb: 'How they grow, what they remember, and how they are looked after.',
     rows: ['companion_growth', 'memories', 'companion_return', 'companion_announce'] },
-  { cls: 'general', title: 'Window', rows: ['window_button'] },
+  { cls: 'general', title: 'Window', rows: ['window_button', 'roster_button'] },
 ];
 const SPACING = [
   { id: 'off', label: 'Off', hint: "The game's own tight follow: they stand 1-2 cells from you." },
@@ -119,7 +122,7 @@ const SPACING = [
 const SEGS = {
   spacing: { label: 'Party spacing', hint: 'How far from you they stand between fights.' },
 };
-const UNITS = { drink_hp: '%', banter_minutes: 'min', purse_per_level: 'zeny', portrait_size: '%', pet_strength: '%' };
+const UNITS = { drink_hp: '%', banter_minutes: 'min', quiz: 'min', purse_per_level: 'zeny', portrait_size: '%', pet_strength: '%', party_frames_size: '%' };
 // loot_finds (a number 0-3) drawn as a four-way choice.
 const LEVELS = {
   loot_finds: [
@@ -127,6 +130,17 @@ const LEVELS = {
     { label: 'Low', hint: 'Low: a tenth of each drop\'s rate. A 1% drop turns up about once in 1,000 party kills.' },
     { label: 'Normal', hint: 'Normal: a quarter of each drop\'s rate. A 1% drop, about once in 400 party kills.' },
     { label: 'Generous', hint: 'Generous: half of each drop\'s rate. A 1% drop, about once in 200 party kills.' },
+  ],
+  // 3.10.1: the shopping trip (L_ShopTick).
+  shopping: [
+    { label: 'Off', hint: 'Off: no restock in town. Their lists wait.' },
+    { label: 'Silent', hint: 'Silent: back in town, they restock their lists from the purse, as before.' },
+    { label: 'Ask', hint: 'Ask: back in town, one asks to go shopping. Yes: they restock and roam the town for up to 3 minutes, then come back with the supplies. Not now: no shopping this visit.' },
+  ],
+  party_frames: [
+    { label: 'Off', hint: 'Off: no frames on screen.' },
+    { label: 'Top row', hint: 'Top row: side by side along the top, starting right of the Basic Info window.' },
+    { label: 'Left column', hint: 'Left column: one under the other down the left edge, below the Basic Info window.' },
   ],
   portrait_speed: [
     { label: 'Slow', hint: 'Slow: each line stays up about a third longer.' },
@@ -144,11 +158,12 @@ const DEFAULTS = {
   spacing_close: false, spacing_normal: true, spacing_far: false, look_around: true, idle_sit: true, campfire: true,
   pets: true, pet_strength: 100,
   party_roles: true, roam_together: true, chat_orders: true, warp_gem: true, use_items: true, drink_hp: 50, town_calm: true,
-  titles: 'Boss,Captain,Leader', everyday_chatter: true, combat_callouts: true, chat_replies: true,
-  banter_minutes: 4, chat_colour: 1, purse_per_level: 2, loot_finds: 1, restock_gems: false, gifts: true, starter_kit: true,
-  memories: true, companion_growth: true, companion_return: true, companion_announce: true,
-  window_button: true,
+  titles: 'Boss,Captain,Leader', everyday_chatter: true, combat_callouts: true,
+  banter_minutes: 4, chat_colour: 1, purse_per_level: 2, loot_finds: 1, shopping: 2, restock_gems: false, gifts: true, starter_kit: true,
+  memories: true, moments: true, quiz: 12, companion_growth: true, companion_return: true, companion_announce: true,
+  window_button: true, roster_button: true,
   portraits: true, portrait_small_talk: true, portrait_speed: 1, portrait_size: 100,
+  party_frames: 1, party_frames_size: 100,
 };
 
 let byKey = {};

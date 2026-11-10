@@ -56,9 +56,14 @@ Body:
                 When: [not_self_entry_queue_apply_delay, not_self_reuse_limit_h]
                 Sit: true
 
-      # Archers, Hunters, Bards, Dancers, Gunslingers: scouts. They keep checking
-      # the perimeter (scout_patrol walks them in laps around the party) and only
-      # sit after three minutes.
+      # Archers, Hunters, Bards, Dancers, Gunslingers: scouts. 3.9.1, the lookout
+      # round (scout_patrol, npc/companion_life.txt L_Patrol): they walk to lookout
+      # spots round the party and stand watch at each about 10 s (the script's
+      # Reuse_Limit_F marker: the Hold below keeps them there, so the party's follow
+      # can't pull them back), one or two rounds, then sit like everyone else.
+      # Was: up to 3 minutes of no monster at all within 14 cells before sitting, so in
+      # most places they never sat. Now only a monster attacking the party keeps them
+      # up, and a minute of calm is enough.
       - Job: [Archer, Gunslinger]
         Disable: [ct_lounge_sit]
         Build: ct_scout
@@ -66,16 +71,24 @@ Body:
         Strategies:
           - Name: up
             Rules:
+              - Name: ct_scout_post_up
+                Priority: 140
+                When: self_reuse_limit_f
+                Hold: true
               - Name: ct_scout_quiet
                 Priority: 135
-                Count: { Enemy: any, Range: 14, Below: 1 }
+                Count: { Enemy: attacking, Range: 12, Below: 1 }
                 When: master_distance_le7
                 Switch: calm
           - Name: calm
             Rules:
+              - Name: ct_scout_post_calm
+                Priority: 140
+                When: self_reuse_limit_f
+                Hold: true
               - Name: ct_scout_stir
                 Priority: 135
-                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Count: { Enemy: attacking, Range: 12, AtLeast: 1 }
                 Switch: up
               - Name: ct_scout_moved
                 Priority: 135
@@ -83,13 +96,17 @@ Body:
                 Switch: up
               - Name: ct_scout_a_while
                 Priority: 135
-                InStrategy: { AtLeast: 180000 }
+                InStrategy: { AtLeast: 60000 }
                 Switch: lounging
           - Name: lounging
             Rules:
+              - Name: ct_scout_post_lounge
+                Priority: 140
+                When: self_reuse_limit_f
+                Hold: true
               - Name: ct_scout_get_up
                 Priority: 135
-                Count: { Enemy: any, Range: 14, AtLeast: 1 }
+                Count: { Enemy: attacking, Range: 12, AtLeast: 1 }
                 Switch: up
               - Name: ct_scout_follow
                 Priority: 135
@@ -97,6 +114,6 @@ Body:
                 Switch: up
               - Name: ct_scout_sit
                 Priority: 21
-                When: [not_self_entry_queue_apply_delay, not_self_reuse_limit_h]
+                When: [not_self_entry_queue_apply_delay, not_self_reuse_limit_h, not_self_reuse_limit_f]
                 Sit: true
 

@@ -7,9 +7,10 @@
 #   silenced or blinded      Green Potion, Panacea or Royal Jelly
 #   confused, cursed, hallucinating   Panacea or Royal Jelly; cursed: Holy Water too
 #   under 20% HP and being hit       Yggdrasil Seed, then Yggdrasil Berry
-#   someone down within 9 cells      Yggdrasil Leaf (you too), but only when no
-#                            living Priest is in the party to do it for free; a
-#                            Priest uses one itself when it lacks the SP (60)
+#   someone down             every Leaf carrier heads for the body (you too), and the
+#                            first within 9 cells uses a Yggdrasil Leaf, so the
+#                            closest one revives; a Priest keeps to Resurrection and
+#                            uses a Leaf itself only when it lacks the SP (60)
 #   a boss nearby            its speed potion: Berserk, Awakening or Concentration
 #                            (each class can only drink the ones it's allowed)
 #
@@ -51,20 +52,34 @@ Body:
             Present: { Enemy: attacking, Who: self }
             Cooldown: 10000
           # Yggdrasil Leaf (610): Resurrection Lv1 on whoever fell, you included.
-          # Not while a living Priest is with you (its Resurrection costs only SP);
-          # OnePerParty keeps two companions from spending two leaves on one body.
+          # 3.12.2: the closest carrier revives, Priest near or not. The engine can't compare
+          # two companions' distances, so all carriers walk and the first in reach uses
+          # one; OnePerParty keeps a second from spending a leaf on the same body.
           - Name: ct_item_leaf
             Priority: 103
             UseItem: 610
             Target: dead_ally
             Present: { Ally: dead, Range: 9 }
-            Absent: { Ally: nearest, Job: Priest }
             OnePerParty: true
             Cooldown: 3000
-      # A Priest revives with its own Resurrection (main plan, priority 106). With
-      # too little SP for it, a leaf instead, if it carries one.
+          # In sight: keep walking every turn until the body is in reach.
+          - Name: ct_item_leaf_go
+            Priority: 102
+            Requires: { Items: [610] }
+            Target: { Ally: dead, NotSelf: true }
+            KeepDistance: { Min: 1, Max: 8 }
+          # Beyond sight (14 cells), where no selector looks: the death itself starts the walk.
+          - Name: ct_item_leaf_far
+            Priority: 101
+            Requires: { Items: [610] }
+            On: { Event: party_member_died, Within: 30000 }
+            Target: event
+            When: ally_distance_gt8
+            MoveTo: event
+      # A Priest revives with its own Resurrection (main plan, priority 106) and walks there
+      # itself. With too little SP for it, a leaf instead, if it carries one.
       - Job: Priest
-        Disable: [ct_item_leaf]
+        Disable: [ct_item_leaf, ct_item_leaf_go, ct_item_leaf_far]
         Rules:
           - Name: ct_item_leaf_priest
             Priority: 105

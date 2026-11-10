@@ -2,19 +2,23 @@
 -- client's own bonfire sprite under a mod id, since this client has no row for the stock
 -- 4_BONFIRE id. 3.2.0: the companion pets (db/mob_db.yml 31201-31213) use the real
 -- monsters' sprites. Only these rows; the app merges them into the client's own table by id.
+-- 3.10.1: the pets use quiet copies in data/sprite/<monster>/cpo_pet_*.spr/.act (the stock
+-- sprites with the stand and walk frames' sounds removed; attack, hurt and die keep theirs).
+-- The client mutes real pets, but ours are monsters, so the idle sounds played nonstop.
+-- Made by tools/make_quiet_pets.ps1 from the client's data.grf.
 JobNameTable = {
 	[19420] = "4_BONFIRE",
-	[31201] = "DESERT_WOLF_B",
-	[31202] = "LUNATIC",
-	[31203] = "DEVIRUCHI",
-	[31204] = "CHONCHON",
-	[31205] = "PECOPECO",
-	[31206] = "PORING",
-	[31207] = "STEEL_CHONCHON",
-	[31208] = "SPORE",
-	[31209] = "ISIS",
-	[31210] = "YOYO",
-	[31211] = "SMOKIE",
-	[31212] = "ROCKER",
-	[31213] = "DROPS",
+	[31201] = "CPO_PET_DESERT_WOLF_B",
+	[31202] = "CPO_PET_LUNATIC",
+	[31203] = "CPO_PET_DEVIRUCHI",
+	[31204] = "CPO_PET_CHOCHO",
+	[31205] = "CPO_PET_PECOPECO",
+	[31206] = "CPO_PET_PORING",
+	[31207] = "CPO_PET_STEEL_CHOCHO",
+	[31208] = "CPO_PET_SPORE",
+	[31209] = "CPO_PET_ISIS",
+	[31210] = "CPO_PET_YOYO",
+	[31211] = "CPO_PET_SMOKIE",
+	[31212] = "CPO_PET_ROCKER",
+	[31213] = "CPO_PET_DROPS",
 }

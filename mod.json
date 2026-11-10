@@ -1,9 +1,9 @@
 {
   "name": "companion-party-overhaul",
-  "version": "3.9.0",
+  "version": "3.13.3",
   "author": "Always",
-  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, one-click orders (stance, focus, roam, camp, Warp Portal, item appraisal), your bonds with each of them (tiers that grow into small perks), bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
-  "requires": { "app": ">=1.7.3", "era": "any" },
+  "description": "Your companions as a real party of people who live in this world with you. Companion Life and Companion Tactics in one. How they fight: each class in its part, the way players play: auto-attacks normally and SP saved for the bad moments, healers that heal the right one at the right time, casters that freeze and burst, the back line protected, with orders in party chat and the items you give them. How they grow: builds like real players, gear refined as they level, transcendent when you are. How they live: they talk (greetings, reactions, callouts, about 200 conversations that grow from strangers to close friends), remember your adventures, stand around loosely between fights, look around, and sit beside the one they feel closest to. A Companions window (Alt+N) shows their status, one-click orders (stance, focus, tasks: follow, stand by, hunt or find the MVP, camp, Warp Portal, appraise and repair), your bonds with each of them (tiers that grow into small perks), bags (with a weight bar and a restock list they shop for in town), the gear you gave and their colours, and a Loot tab: the party purse and the party bag, where everything they find on your trips goes. When they speak, their class portrait slides in with the line in a speech bubble. Options are grouped in the Settings window.",
+  "requires": { "app": ">=1.7.8", "era": "any" },
   "tags": ["companions", "population", "combat", "dialogue", "immersion"],
   "settingsPage": "settings/index.html",
   "settings": [
@@ -47,7 +47,7 @@
       "type": "boolean",
       "default": true,
       "label": "Campfire nights",
-      "description": "They make camp on their own once you stand still 3 minutes, or on \"make camp\" (Orders tab or party chat). A bonfire, campfire talks, a meal from food in your bags (a 30-minute party buff), and Well Rested (+10% base EXP, faster regen) after 5+ minutes. Walking away or \"time to go\" puts it out. Changing this restarts the server."
+      "description": "They make camp on their own once you stand still 5 minutes, or on \"make camp\" (Orders tab or party chat). A bonfire, campfire talks, a meal from food in your bags (a 30-minute party buff), and Well Rested (+10% base EXP, faster regen) after 5+ minutes. Walking away or \"time to go\" puts it out. Changing this restarts the server."
     },
     {
       "key": "pets",
@@ -139,13 +139,6 @@
       "description": "Battle cries, calls for heals, low SP, big hits, a fallen ally, you in danger, spotting and beating a boss, the undead, bad statuses, thanks for Blessing and Agi Up, broken gear, with RO emotes (HP!, SP!, sweat, tears; at most one every 12 seconds each). Changing this restarts the server."
     },
     {
-      "key": "chat_replies",
-      "type": "boolean",
-      "default": true,
-      "label": "They answer you in party chat",
-      "description": "Say something in party chat and your companions answer in character: hello, good morning, good night, thanks, good job, let's go, how are you, lol, brb, I'm back, sorry, love you, take a break, who are you, hungry. Changing this restarts the server."
-    },
-    {
       "key": "banter_minutes",
       "type": "number",
       "default": 4,
@@ -176,6 +169,24 @@
       "default": true,
       "label": "Portraits for small talk too",
       "description": "Off: portraits only for battle callouts and calls for help (their party-chat lines), not for everyday talk."
+    },
+    {
+      "key": "party_frames",
+      "type": "number",
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "label": "Party frames",
+      "description": "Your companions' portraits with their HP and SP always on screen: 0 Off, 1 a row along the top (right of Basic Info), 2 a column down the left (below it). Drag them to move, drag the corner to resize; click one to open its Bag tab. They flash red under your potion mark."
+    },
+    {
+      "key": "party_frames_size",
+      "type": "number",
+      "default": 100,
+      "min": 60,
+      "max": 160,
+      "label": "Party frame size",
+      "description": "In percent. Dragging the frames' corner in the game changes it too, until you change it here."
     },
     {
       "key": "portrait_speed",
@@ -214,6 +225,15 @@
       "description": "A monster the party beats (yours or a companion's) can also turn up one thing from its own drop list, into the party bag (Loot tab, no weight limit): Take it or Sell it into the purse. 0 off, 1 Low (a tenth of its drop rate), 2 Normal (a quarter), 3 Generous (half)."
     },
     {
+      "key": "shopping",
+      "type": "number",
+      "default": 2,
+      "min": 0,
+      "max": 2,
+      "label": "Shopping in town",
+      "description": "Back in town from a field or dungeon. 0 Off: no restock. 1 Silent: they restock their lists from the purse. 2 Ask: one asks if the party can go shopping; Yes = they roam the town until you say \"come back\", leave town, or 3 minutes pass, then Fly Wing back with the supplies. Say \"go shopping\" in party chat any time in town."
+    },
+    {
       "key": "restock_gems",
       "type": "boolean",
       "default": false,
@@ -242,6 +262,22 @@
       "description": "Each companion remembers your time together: the day and place you met, time spent together, monsters and MVPs beaten together, places seen, gifts, campfire nights. They bring it up now and then and celebrate anniversaries, and it all grows your bond (the Bonds tab): Companion +2% max HP/SP, Trusted better gifts and longer camp meals, Sworn +4%, Kindred +6%. Kept with your character."
     },
     {
+      "key": "moments",
+      "type": "boolean",
+      "default": true,
+      "label": "Hey boss moments",
+      "description": "In a calm moment, now and then (every 20-30 minutes at most), a companion comes to ask you something: a party vote, advice, a choice in their life story, or how you are. Your answers grow your bond and they remember them. Needs Memories and bonds."
+    },
+    {
+      "key": "quiz",
+      "type": "number",
+      "default": 12,
+      "min": 0,
+      "max": 60,
+      "label": "Pop quiz",
+      "description": "About this often (minutes, ±25%), in a calm moment, a companion asks you something about the game: a monster nearby, an argument or bet between two of them, and now and then a golden question. Right: 30 Cash Points, bond, and a streak (5 = Old Card Album, 10 = Mystical). 0 turns it off. Needs Memories and bonds."
+    },
+    {
       "key": "companion_growth",
       "type": "boolean",
       "default": true,
@@ -268,6 +304,13 @@
       "default": true,
       "label": "Companions button",
       "description": "A small Companions button on screen (drag it anywhere) that opens the Companions window: everyone's HP, SP, level and state, a Memories tab, a Bag tab (each companion's bag, weight, gear you gave, restock list, outfit and hair colour) and a Loot tab (the party purse and the party bag). Alt+N opens it too, with or without the button."
+    },
+    {
+      "key": "roster_button",
+      "type": "boolean",
+      "default": true,
+      "label": "Our Roster on the game's Companions button",
+      "description": "The Companions button in the game menu opens our Roster tab instead of the app's window: hire, summon, bench and part ways, with portraits. Off: the button opens the app's own window again."
     }
   ]
 }

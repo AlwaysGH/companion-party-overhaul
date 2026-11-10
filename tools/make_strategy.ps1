@@ -1,13 +1,15 @@
 # companion-party-overhaul: writes the companion strategy tables (app 1.5.4+).
-#   db/when/chat_replies/population_strategy.yml        answers to what you say in party chat
 #   db/when/combat_callouts/population_strategy.yml     bosses, statuses, buffs, broken gear
 # Edit the lines below and run:  powershell -ExecutionPolicy Bypass -File tools\make_strategy.ps1
 # Then Apply (restart the server) in the app.
 # No header-only db/population_strategy.yml: the app can't combine a table with no
 # entries with these, and the when/ tables load fine on their own.
 #
-# Every rule only speaks (Say): none of them moves, casts or holds, so they never change
-# how a companion fights. Lines appear over the companion's head, like player chat.
+# Every rule only speaks (Say), and never casts or moves, so they don't change how a companion
+# fights. The Blessing/Agi Up thanks also hold for one turn (see below). Lines appear over the
+# companion's head, like player chat.
+# 3.10.1: the party-chat answers (db/when/chat_replies, setting chat_replies) were removed at
+# the user's call; the Moments prompts talk with you now. Old lines: mod-backups.
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -24,122 +26,6 @@ $pers = @(
 	@{ k = 'rogue';    job = '[Thief, Ninja]';                    exact = $false },
 	@{ k = 'merchant'; job = 'Merchant';                          exact = $false }
 )
-
-# ---------------------------------------------------------------------------
-# Party chat: what you type (any case, anywhere in the line) -> their answer.
-# Placeholders: {name} the companion, {hp} its HP %.
-# ---------------------------------------------------------------------------
-$chatTriggers = [ordered]@{
-	hello   = @('hello', 'hiya', 'howdy')
-	morning = @('good morning')
-	night   = @('good night', 'goodnight')
-	thanks  = @('thank', 'thx', 'tyvm')
-	praise  = @('good job', 'gj', 'well done', 'nice work', 'great job')
-	go      = @("let's go", 'lets go')
-	howru   = @('how are you', 'you ok', 'everyone ok', 'status report')
-	laugh   = @('lol', 'haha', 'lmao')
-	brb     = @('brb', 'be right back')
-	back    = @("i'm back", 'im back')
-	sorry   = @('sorry', 'my bad')
-	love    = @('love you', '<3')
-	rest    = @('take a break', "let's rest", 'lets rest')
-	who     = @('who are you', 'introduce yourself')
-	hungry  = @('hungry', 'snack')
-	follow  = @('assist me', 'focus')
-	regroup = @('regroup', 'fall back')
-	free    = @('free fight', 'at will')
-}
-
-$chat = @{
-	rookie = @{
-		hello = "H-hello! I'm here! I'm ready!"; morning = "Good morning! I barely slept, I was too excited!"
-		night = "Good night... can I keep the torch lit?"; thanks = "Y-you're thanking ME? Wow..."
-		praise = "Really?! I did good? I'm telling everyone!"; go = "Right behind you! Wait for me!"
-		howru = "I'm at {hp}%! Still standing! Mostly!"; laugh = "Hehe! What's funny? I want to laugh too!"
-		brb = "I'll guard this spot! Nobody gets past me!"; back = "You're back! I didn't move. Not even once!"
-		sorry = "No no, it's okay! I mess up all the time!"; love = "W-what?! I... I'll do my best for you!"
-		rest = "Phew... my legs were shaking anyway."; who = "I'm {name}! Future hero! Currently... learning."
-		hungry = "I have half a Sweet Potato. You can have it!"
-		follow = "Y-yes! I'll hit what you hit!"; regroup = "Coming! Wait for me!"; free = "On my own? O-okay! I can do this!"
-	}
-	guardian = @{
-		hello = "Well met. I stand ready."; morning = "Good morning. The watch passed quietly."
-		night = "Sleep. I will keep watch until dawn."; thanks = "No thanks needed. It is my duty."
-		praise = "You honor me. The credit is yours."; go = "Shields up. Forward, together."
-		howru = "{hp}% and holding. My blade is yours."; laugh = "Heh. It is good to hear laughter on the road."
-		brb = "Go. I will hold this ground."; back = "Welcome back. Nothing passed my guard."
-		sorry = "There is nothing to forgive. We stand together."; love = "My loyalty is yours, now and always."
-		rest = "A wise call. Even steel needs rest."; who = "{name}. Sword and shield, sworn to your side."
-		hungry = "Rations are in my pack. Eat first, I insist."
-		follow = "Your target is my target."; regroup = "Falling back to you. Shields up."; free = "Understood. I choose my foes."
-	}
-	scholar = @{
-		hello = "Hello. You interrupted a fascinating thought."; morning = "Morning. I've been up for hours. Reading, of course."
-		night = "Good night. I'll study the stars a while longer."; thanks = "You're welcome. It was the logical choice."
-		praise = "Naturally. But thank you, I suppose."; go = "Very well. Try to keep up with my theories."
-		howru = "Vitals at {hp}%. Mana permitting, I'm fine."; laugh = "Was that humor? I'll make a note."
-		brb = "Take your time. I have a book."; back = "Ah, back. I finished two chapters."
-		sorry = "Apology recorded. And accepted."; love = "That is... statistically unexpected. Thank you."
-		rest = "Finally. My mana could use the quiet."; who = "{name}. Student of the arcane, and of you, frankly."
-		hungry = "Food helps concentration. Studies agree."
-		follow = "Focusing fire. Efficient."; regroup = "Retreating to your position."; free = "Finally, some autonomy."
-	}
-	wanderer = @{
-		hello = "Hey hey! Good to hear your voice."; morning = "Morning! The sky looks great today."
-		night = "Night! I'll hum you something soft."; thanks = "Anytime! Add it to my song."
-		praise = "Told you I never miss. Well, rarely."; go = "Road's calling. Let's move!"
-		howru = "{hp}% and still smiling!"; laugh = "Haha! See, this is why I stick around."
-		brb = "Sure thing. I'll tune my strings."; back = "There you are! I wrote a verse while you were gone."
-		sorry = "Eh, water under the bridge."; love = "Aw, careful, I'll write a ballad about that."
-		rest = "Now you're speaking my language."; who = "{name}! Wanderer, song-maker, terrible cook."
-		hungry = "I know a great skewer stand. Somewhere. Probably."
-		follow = "Got it, aiming where you aim!"; regroup = "On my way back!"; free = "Free to roam? My favorite."
-	}
-	healer = @{
-		hello = "Hello! Are you eating properly?"; morning = "Good morning! May the goddess bless your day."
-		night = "Good night. Rest well, I'll pray for you."; thanks = "You're welcome. Please stay safe for me."
-		praise = "Thank you... but please be careful too!"; go = "Coming! Stay in range of my heals."
-		howru = "I'm at {hp}%. More importantly, how are YOU?"; laugh = "Hehe. It's good to see you smile."
-		brb = "Of course. Drink some water while you're there."; back = "Welcome back! Did you rest a little?"
-		sorry = "It's alright. Everyone makes mistakes."; love = "The goddess and I both care for you."
-		rest = "Thank goodness. Sit, let me look at your wounds."; who = "{name}. I heal, I bless, and I worry about you."
-		hungry = "I packed bread and apples. Here, take some."
-		follow = "I'll keep you standing while you lead."; regroup = "Coming! Stay where I can reach you."; free = "Alright. I'll watch everyone."
-	}
-	brawler = @{
-		hello = "Yo! Ready to hit something?"; morning = "Morning! I already did 300 push-ups!"
-		night = "Night! Tomorrow we train harder!"; thanks = "Ha! Don't mention it!"
-		praise = "That's right! Did you see that combo?!"; go = "FINALLY. Let's go, let's go!"
-		howru = "{hp}%! I can keep going all day!"; laugh = "HAHA! Good one!"
-		brb = "I'll do squats till you're back."; back = "There you are! I did 200 squats!"
-		sorry = "Bah! Forget it. Let's fight!"; love = "Ha! You're alright too. Now let's spar!"
-		rest = "Rest? Fine. Stretching counts as training."; who = "{name}! Fists of steel, stomach of a dragon!"
-		hungry = "FOOD. Did someone say food?!"
-		follow = "Point and I punch!"; regroup = "Fine, fine, coming back!"; free = "HA! Let me at them!"
-	}
-	rogue = @{
-		hello = "Hey. Didn't see you there. Kidding, I always see you."; morning = "Morning. Too bright. Way too bright."
-		night = "Night. I'll be around. You won't see me."; thanks = "Hm. Yeah. Don't make it weird."
-		praise = "Obviously. But... thanks."; go = "Fine. I'll take the shadows."
-		howru = "{hp}%. I've had worse."; laugh = "Heh. Okay, that was funny."
-		brb = "Sure. Nobody touches your stuff. Except me. Joking."; back = "Back already? Didn't notice. Much."
-		sorry = "Whatever. It's fine."; love = "...Don't say stuff like that out loud."
-		rest = "Good. My feet hate you right now."; who = "{name}. That's all you need to know."
-		hungry = "I might have 'found' some meat. Don't ask."
-		follow = "Your mark. Got it."; regroup = "Yeah, yeah. Coming."; free = "Finally."
-	}
-	merchant = @{
-		hello = "Hello hello! Ready to make some zeny?"; morning = "Morning! Markets open early, you know!"
-		night = "Good night! I'll count today's earnings."; thanks = "My pleasure! I'll add it to your tab. Kidding!"
-		praise = "Excellent work makes excellent profit!"; go = "Let's go! Time is zeny!"
-		howru = "{hp}%! Still in business!"; laugh = "Haha! Laughter's free. Best deal around!"
-		brb = "Take your time. I'll sort the loot."; back = "Welcome back! I appraised everything while you were gone."
-		sorry = "No harm done! No refunds either, haha."; love = "Aw! You're my favorite business partner!"
-		rest = "Good. Resting is cheaper than potions."; who = "{name}! Merchant, haggler, your best investment."
-		hungry = "I've got snacks! Ten zeny each. For you, free."
-		follow = "Your target, our profit!"; regroup = "Retreating! Protect the merchandise!"; free = "Freelancing! Even better."
-	}
-}
 
 # ---------------------------------------------------------------------------
 # Battle reactions. Placeholders: {name}, {hp}.
@@ -236,26 +122,19 @@ function Rule([string]$name, [string]$on, [string]$extra, [string]$say, [int]$cd
 
 $header = "# Generated by tools/make_strategy.ps1 -- edit that, not this.`nHeader:`n  Type: POPULATION_STRATEGY_DB`n  Version: 1`n"
 
-# ---- chat replies ----
-$y = $header + "`nBody:`n  - Mob: All`n    Jobs:`n"
-foreach ($p in $pers) {
-	$y += JobHead $p
-	foreach ($cat in $chatTriggers.Keys) {
-		$i = 0
-		foreach ($m in $chatTriggers[$cat]) {
-			$i++
-			$on = "{ Event: party_chat, Match: $(Q $m), From: owner, Within: 5000 }"
-			$y += Rule "cl_$($p.k)_chat_$($cat)_$i" $on '' $chat[$p.k][$cat] 15000
-		}
-	}
-}
-
 # ---- battle reactions ----
+# 3.10.1: one thank-you per buff round. A Priest's Blessing + Agi Up lands on everyone at
+# once, and every companion thanked you. The first to speak claims you (the owner) for 60 s
+# under one shared name, so the others, whatever their personality, stay quiet. A Claim is
+# only recorded when the rule acts (Say alone doesn't count), hence the one-turn Hold.
+# OnePerParty wouldn't do: it is per rule, and each personality has its own rule.
+$thanks = "            Target: owner`n            Hold: true`n            Claim: { Name: cl_thanks, For: 60000 }`n"
 $z = $header + "`nBody:`n  - Mob: All`n    Jobs:`n"
 foreach ($p in $pers) {
 	$z += JobHead $p
 	foreach ($ev in $fightEvents.Keys) {
-		$z += Rule "cl_$($p.k)_fx_$ev" $fightEvents[$ev][0] '' $fight[$p.k][$ev] $fightEvents[$ev][1]
+		$extra = if ($ev -eq 'bless' -or $ev -eq 'agi') { $thanks } else { '' }
+		$z += Rule "cl_$($p.k)_fx_$ev" $fightEvents[$ev][0] $extra $fight[$p.k][$ev] $fightEvents[$ev][1]
 	}
 }
 $z += "  - Mob: Boss`n    Jobs:`n"
@@ -277,5 +156,4 @@ function Put([string]$rel, [string]$text) {
 	[IO.File]::WriteAllText($path, $text.Replace("`r`n", "`n"), $utf8)
 	"wrote $rel"
 }
-Put 'db\when\chat_replies\population_strategy.yml' $y
 Put 'db\when\combat_callouts\population_strategy.yml' $z
