@@ -2,23 +2,26 @@
 -- client's own bonfire sprite under a mod id, since this client has no row for the stock
 -- 4_BONFIRE id. 3.2.0: the companion pets (db/mob_db.yml 31201-31213) use the real
 -- monsters' sprites. Only these rows; the app merges them into the client's own table by id.
--- 3.10.1: the pets use quiet copies in data/sprite/<monster>/cpo_pet_*.spr/.act (the stock
+-- 3.10.1: the pets use quiet copies (data/sprite/cpo/cpo_pet_*.spr/.act since 3.13.4) (the stock
 -- sprites with the stand and walk frames' sounds removed; attack, hurt and die keep theirs).
 -- The client mutes real pets, but ours are monsters, so the idle sounds played nonstop.
 -- Made by tools/make_quiet_pets.ps1 from the client's data.grf.
+-- 3.13.4: they live in data/sprite/cpo/, not the Korean monster folder: the client asks for
+-- data/sprite/<monster>/ + this name, and "../cpo/" steps out to the plain-English folder.
+-- A Korean folder name made the mod's zip fail to install (Windows tar can't write it).
 JobNameTable = {
 	[19420] = "4_BONFIRE",
-	[31201] = "CPO_PET_DESERT_WOLF_B",
-	[31202] = "CPO_PET_LUNATIC",
-	[31203] = "CPO_PET_DEVIRUCHI",
-	[31204] = "CPO_PET_CHOCHO",
-	[31205] = "CPO_PET_PECOPECO",
-	[31206] = "CPO_PET_PORING",
-	[31207] = "CPO_PET_STEEL_CHOCHO",
-	[31208] = "CPO_PET_SPORE",
-	[31209] = "CPO_PET_ISIS",
-	[31210] = "CPO_PET_YOYO",
-	[31211] = "CPO_PET_SMOKIE",
-	[31212] = "CPO_PET_ROCKER",
-	[31213] = "CPO_PET_DROPS",
+	[31201] = "../cpo/cpo_pet_desert_wolf_b",
+	[31202] = "../cpo/cpo_pet_lunatic",
+	[31203] = "../cpo/cpo_pet_deviruchi",
+	[31204] = "../cpo/cpo_pet_chocho",
+	[31205] = "../cpo/cpo_pet_pecopeco",
+	[31206] = "../cpo/cpo_pet_poring",
+	[31207] = "../cpo/cpo_pet_steel_chocho",
+	[31208] = "../cpo/cpo_pet_spore",
+	[31209] = "../cpo/cpo_pet_isis",
+	[31210] = "../cpo/cpo_pet_yoyo",
+	[31211] = "../cpo/cpo_pet_smokie",
+	[31212] = "../cpo/cpo_pet_rocker",
+	[31213] = "../cpo/cpo_pet_drops",
 }

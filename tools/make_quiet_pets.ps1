@@ -1,5 +1,7 @@
-# Writes data/sprite/<monster>/cpo_pet_<name>.spr/.act: the pets' stock sprites with the
+# Writes data/sprite/cpo/cpo_pet_<name>.spr/.act: the pets' stock sprites with the
 # sounds taken off the stand and walk frames (attack, hurt and die keep theirs).
+# 3.13.4: an English folder name (it was the Korean monster folder, which made the release
+# zip fail to install: Windows tar can't write Hangul names). jobname.lub says "../cpo/...".
 #
 # 3.10.1: the client mutes real pets, but ours are monsters (db/mob_db.yml 31201-31213), so
 # a PecoPeco's idle squawks and footsteps played nonstop. System/jobname.lub points the pet
@@ -12,7 +14,7 @@ $names = 'desert_wolf_b','lunatic','deviruchi','chocho','pecopeco','poring','ste
 	'spore','isis','yoyo','smokie','rocker','drops'
 $cp = [Text.Encoding]::GetEncoding(949)
 $monster = -join [char[]](0xBAAC, 0xC2A4, 0xD130)
-$out = Join-Path $root "data\sprite\$monster"
+$out = Join-Path $root "data\sprite\cpo"
 New-Item -ItemType Directory -Force $out | Out-Null
 
 function Inflate([byte[]]$b, [int]$n) {
