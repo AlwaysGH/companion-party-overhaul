@@ -181,6 +181,12 @@ const WIN_STYLE = `
 .bar.bond { height: 10px; }
 .bar.bond i { background: linear-gradient(#ffd98a, #e0a12e); }
 .perk { font-size: 10px; color: #2e7d46; }
+.trt { margin-top: 5px; border: 1px solid #e3cf8f; background: #fffaf0; border-radius: 3px; padding: 4px 6px; display: grid; gap: 2px; }
+.trh { font-size: 10px; font-weight: bold; letter-spacing: .04em; text-transform: uppercase; color: #8a6a00; }
+.tri { display: flex; gap: 6px; align-items: baseline; font-size: 11px; }
+.tri b { color: #6b4f00; white-space: nowrap; }
+.tri span { color: #4f6a8f; }
+.trn { font-size: 10px; color: #8b8b8b; }
 .perk.next { color: #6a7a92; }
 .hl { margin-top: 2px; font-size: 10px; color: #6a7a92; }
 .hl b { color: #1f3f73; font-weight: normal; }
@@ -259,9 +265,11 @@ const WIN_STYLE = `
 .rmore .ln .act { width: 74px; flex: none; }
 .rmore .ln span { font-size: 10px; color: #6a7a92; }
 .rmore .end { display: flex; justify-content: flex-end; }
-/* 3.10.2: the Stats fold, under its button. */
-.rst { margin: 1px 0 3px 80px; padding: 5px 6px; border: 1px solid #c9d8f0; border-radius: 3px; background: #eef4fd;
-  display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; row-gap: 1px; font-variant-numeric: tabular-nums; }
+/* 3.10.2: the Stats fold, under its button. 3.14.3: full width (was indented 80px under
+   the description), so a narrow window doesn't wrap "36 + 34" onto two lines. */
+.rst { margin: 1px 0 3px; padding: 5px 8px; border: 1px solid #c9d8f0; border-radius: 3px; background: #eef4fd;
+  display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; row-gap: 1px; font-variant-numeric: tabular-nums; }
+.rst .v { white-space: nowrap; }
 .rst .pr { display: flex; justify-content: space-between; gap: 6px; }
 .rst .k { color: #6a7a92; } .rst .v { color: #1f3f73; font-weight: bold; text-align: right; }
 .rst .rule { grid-column: 1 / -1; border-top: 1px dotted #b9c7de; margin: 3px 0 2px; }
@@ -471,7 +479,9 @@ function parse(text) {
             // 3.7.0, Bonds: points, tier 1-5, campfire nights, gifts
             pts: +f[20] || 0, tier: +f[21] || 1, camps: +f[22] || 0, gifts: +f[23] || 0,
             // 3.9.1: char id (the Journal asks by it), chapters of its story told
-            cid: f[24] || '', told: +f[25] || 0
+            cid: f[24] || '', told: +f[25] || 0,
+            // 3.14.0: traits, "Name Rank:what it gives" joined by ^
+            traits: (f[26] || '').split('^').filter(Boolean).map(t => { const k = t.indexOf(':'); return { name: k < 0 ? t : t.slice(0, k), what: k < 0 ? '' : t.slice(k + 1) }; })
         });
     }
     return out;
@@ -627,8 +637,23 @@ export default function init(parameters, api) {
                 + (perks.length ? `<div class="perk">&#10003; ${perks.join(' &middot; ')}</div>` : '')
                 + (next ? `<div class="perk next">Next: ${next.name} at ${num(next.need)} (${next.perk})</div>` : '<div class="perk">The closest a bond can be.</div>')
                 + `<div class="hl">${hl.join(' &middot; ')}</div>`
+                + traitsHtml(c, t)
                 + (c.cid ? journalHTML(c) : '') + '</div>';
         }
+    }
+
+    // 3.14.0: "Shaped by you": the traits your answers gave them (they rank up with the bond),
+    // and how many talks are still to come (one at each tier from Companion to Kindred).
+    function traitsHtml(c, t) {
+        const got = c.traits || [];
+        const open = Math.max(0, Math.min(4, t - 1) - got.length);   // tiers reached, talks not had yet
+        const later = 4 - Math.min(4, t - 1);
+        if (!got.length && t < 2) return '<div class="trt"><div class="trh">Shaped by you</div><div class="trn">Their first question comes at the Companion bond.</div></div>';
+        return '<div class="trt"><div class="trh">Shaped by you</div>'
+            + got.map(x => `<div class="tri"><b>${esc(x.name)}</b><span>${esc(x.what)}</span></div>`).join('')
+            + (open ? `<div class="trn">${open === 1 ? 'A talk is' : open + ' talks are'} waiting: they'll ask you soon.</div>` : '')
+            + (later ? `<div class="trn">${later} more at the next ${later === 1 ? 'tier' : 'tiers'}.</div>` : '')
+            + '</div>';
     }
 
     // 3.9.1: the Journal, folded under each companion in the Bonds tab: its life story
@@ -676,7 +701,7 @@ export default function init(parameters, api) {
                     body += `<div class="jc${co ? ' open' : ''}"><button data-ch="${esc(key)}"><span class="ar">&#9654;</span><span class="tt">Chapter ${h.n}: ${esc(h.title)}</span><span class="wh">told to ${esc(h.who)}</span></button>`;
                     if (co) {
                         body += '<div class="jl">' + h.turns.map(([s, l]) =>
-                            `<p><span class="s${s === 'A' ? '' : ' b'}">${esc(s === 'A' ? c.name : h.who)}:</span> ${esc(l)}</p>`).join('');
+                            `<p><span class="s${s === 'A' ? '' : ' b'}">${esc(s === 'A' ? c.name : (h.who === 'you' ? 'You' : h.who))}:</span> ${esc(l)}</p>`).join('');
                         if (h.n === 3 && d.choice)
                             body += `<div class="jx">You told ${esc(c.name)}: <b>${esc(d.choice.label)}</b>.${d.choice.after ? ` Later: ${esc(d.choice.after)}` : ''}</div>`;
                         body += '</div>';
@@ -790,7 +815,7 @@ export default function init(parameters, api) {
         2: [['Knight', 'Knight', 7], ['Crusader', 'Crusader', 14], ['Wizard', 'Wizard', 9], ['Sage', 'Sage', 16], ['Hunter', 'Hunter', 11],
             ['Bard', 'Bard', 19, 'Dancer', 'Dancer', 20], ['Priest', 'Priest', 8], ['Monk', 'Monk', 15], ['Blacksmith', 'Blacksmith', 10],
             ['Alchemist', 'Alchemist', 18], ['Assassin', 'Assassin', 12], ['Rogue', 'Rogue', 17], ['StarGladiator', 'Star Gladiator', 4047],
-            ['SoulLinker', 'Soul Linker', 4049]],
+            ['SoulLinker', 'Soul Linker', 4049], ['Gunslinger', 'Gunslinger', 24], ['Ninja', 'Ninja', 25]],	// 3.14.3: no 2nd job, so here too
         t: [['LordKnight', 'Lord Knight', 4008], ['Paladin', 'Paladin', 4015], ['HighWizard', 'High Wizard', 4010], ['Professor', 'Professor', 4017],
             ['Sniper', 'Sniper', 4012], ['Clown', 'Clown', 4020, 'Gypsy', 'Gypsy', 4021], ['HighPriest', 'High Priest', 4009],
             ['Champion', 'Champion', 4016], ['Whitesmith', 'Whitesmith', 4011], ['Creator', 'Creator', 4019],
@@ -807,7 +832,7 @@ export default function init(parameters, api) {
             if (f[0] === 'M') Object.assign(r, { tier: f[1] || '1', lv: +f[2] || 0, zeny: +f[3] || 0, fee: +f[4] || 0,
                 free: f[5] === '1', roamOn: f[6] === '1', mode: +f[7] || 0 });
             else if (f[0] === 'C') r.comps.push({ name: f[1], cls: +f[2] || 0, sex: +f[3] || 0, lv: +f[4] || 0, jlv: +f[5] || 0,
-                on: f[6] === '1', fav: f[7] === '1', duty: +f[8] || 0, roam: f[9] === '1', hom: +f[10], reb: +f[11], job: f[12] || '' });
+                on: f[6] === '1', fav: f[7] === '1', duty: +f[8] || 0, roam: f[9] === '1', hom: +f[10], reb: +f[11], job: f[12] || '', peco: f[13] === undefined ? -1 : +f[13] });
             else if (f[0] === 'F') r.floors[f[1]] = +f[2] || 0;
         }
         return r;
@@ -853,6 +878,9 @@ export default function init(parameters, api) {
                 + (rBond === c.name ? bondFold(c) : '')
                 + (c.hom >= 0 ? ln(`<button class="act${c.hom ? ' on' : ''}" data-rs="hom" data-arg="${c.hom ? 'off' : 'on'}" data-nm="${n}">Homunculus</button>`,
                     c.hom ? 'Their homunculus is out. Click to put it away.' : 'Their homunculus is put away. Click to bring it back.') : '')
+                // 3.14.3: Knight / Crusader families: ride the Peco or walk (kept after warps).
+                + (c.peco >= 0 ? ln(`<button class="act${c.peco ? ' on' : ''}" data-rs="peco" data-arg="${c.peco ? 'off' : 'on'}" data-nm="${n}">Peco Peco</button>`,
+                    c.peco ? 'They ride their Peco Peco. Click to have them walk.' : 'They walk on foot (slower; no Brandish Spear). Click to ride again.') : '')
                 + (c.reb >= 0 ? ln(`<button class="act${c.reb ? ' go' : ''}" data-rs="rebask" data-nm="${n}"${c.reb ? '' : ' disabled'}>Rebirth</button>`,
                     c.reb ? 'Ready! They can start over as a high class.' : 'Not yet: a 2nd job needs base 99 and job 50 first.') : '')
                 + `<div class="end"><button class="act red" data-rs="delask" data-nm="${n}">Part ways</button></div></div>`;
@@ -888,8 +916,17 @@ export default function init(parameters, api) {
             + `<div class="rule"></div><div class="ft">HIT, FLEE and the rest show once ${n} is in your party.</div></div>`;
         const right = [pr('HIT', d[6]), pr('FLEE', `${d[7]} + ${Math.floor(d[8] / 10)}`), pr('DEF', `${d[9]} + ${d[10]}`),
             pr('MDEF', `${d[11]} + ${d[12]}`), pr('CRIT', d[13]), pr('ASPD', d[14])];
-        return `<div class="rst">${left.map((h, i) => h + right[i]).join('')}`
-            + '<div class="rule"></div><div class="ft">STR to LUK are their own points. HIT to ASPD count their gear, cards and buffs, like your Status window.</div></div>';
+        // 3.14.1: base and job EXP (tenths of a %; -1 = max level).
+        const xp = (lv, t) => `${lv} · ${t < 0 ? 'max' : (t / 10).toFixed(1) + '%'}`;	// short: the column is narrow
+        const exp = d.length >= 19 ? pr('Base', xp(d[15], d[16])) + pr('Job', xp(d[17], d[18])) : '';
+        // 3.14.3: ATK as the pre-re Status window (stats + weapon, then refine) and MATK min ~ max.
+        // MATK is worked out from their own INT (a script can't read the gear/buff part yet,
+        // issue #782), so it says so; full-width rows, the columns are too narrow for the mark.
+        const wide = (k, v) => `<div class="pr" style="grid-column:1 / -1"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+        const atk = d.length >= 24 ? wide('ATK', `${d[19] + d[20]} + ${d[21]}`)
+            + wide('MATK <span style="font-weight:normal;font-size:9.5px">(base INT)</span>', `${d[22]} ~ ${d[23]}`) + '<div class="rule"></div>' : '';
+        return `<div class="rst">${atk}${left.map((h, i) => h + right[i]).join('')}`
+            + (exp ? `<div class="rule"></div>${exp}` : '') + '</div>';
     }
     // Asked fresh every time the fold opens.
     async function loadStats(nm) {
@@ -919,8 +956,11 @@ export default function init(parameters, api) {
     }
     function hireGroups(r) {
         if (r.tier === '1') return [['First jobs', HIRE[1], FLOOR[1]]];
-        if (r.tier === '2') return [['Second jobs', HIRE[2], FLOOR[2]]];
-        if (r.tier === 't') return [['Transcendent', HIRE.t, FLOOR.t], ['Second jobs', HIRE[2], FLOOR[2]]];
+        // 3.14.3: Gunslinger / Ninja sit with the 2nd jobs too (no 2nd job of their own). The
+        // server bends the app's tier rule for them on mode 1; mode 2 hires at the Recruiter.
+        const h2 = r.mode === 2 ? HIRE[2].filter(j => j[2] !== 24 && j[2] !== 25) : HIRE[2];
+        if (r.tier === '2') return [['Second jobs', h2, FLOOR[2]]];
+        if (r.tier === 't') return [['Transcendent', HIRE.t, FLOOR.t], ['Second jobs', h2, FLOOR[2]]];
         return [];
     }
     const hireFloor = (r, j, fl) => r.floors[j[0]] || (j[3] && r.floors[j[3]]) || fl;
@@ -1022,6 +1062,7 @@ export default function init(parameters, api) {
         else if (act === 'reb') { rAsk = null; rosterAction(`reb ${arg} ${nm}`); }
         else if (act === 'bench' || act === 'summon') rosterAction(`${act} ${nm}`);
         else if (act === 'hom') rosterAction(`hom ${arg} ${nm}`);
+        else if (act === 'peco') rosterAction(`peco ${arg} ${nm}`);
         else if (act === 'skills') openAppWindow(nm);
         else if (act === 'role') {
             // The engine takes a role only as a party-chat line ("<name> tank"), the way
@@ -1778,6 +1819,51 @@ export default function init(parameters, api) {
         }).catch(e => console.error('[companion-party-overhaul] hunt:', e));
     });
 
+    // 3.13.11: a companion losing a fight away from you: "@@event cldanger cid|name|class|sex|
+    // line|Retreat|Send help (or Engage together)", answered "@cldanger retreat|help";
+    // "@@event cldanger -" when it's over (closes only a danger box: an MVP find may have
+    // taken the box over).
+    const DANGER_ANSWERS = ['retreat', 'help'];
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'cldanger') return;
+        import('./portraits.js').then(m => {
+            if (text === '-') { m.closeAsk('danger'); return; }
+            const [, name, cls, sex, line, ...options] = String(text || '').split('|');
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: line, options: options.slice(0, 2), tag: 'danger' })
+                .then(i => {
+                    const a = DANGER_ANSWERS[i];
+                    if (a) Promise.resolve(api.server.request('cldanger', a, { timeout: 4000 })).catch(() => {});
+                });
+        }).catch(e => console.error('[companion-party-overhaul] danger:', e));
+    });
+
+    // 3.14.2: a life-story chapter told to you: each of its lines in the bubble, and the
+    // friend's line that follows as your one reply button ("Go on" when it says two in a
+    // row, "Close" after the last). Closing the box (a warp, an MVP find) stops it; the
+    // chapter is in the Journal either way.
+    async function playStoryToYou(m, reply) {
+        const [kind, name, cls, sex, ...rest] = reply.split('|');
+        if (kind !== 'S') return;
+        const turns = rest.join('|').split('^').map(t => [t.charAt(0), t.slice(2)]).filter(([, l]) => l);
+        let say = '';
+        for (let k = 0; k < turns.length; k++) {
+            const [s, line] = turns[k];
+            if (s !== 'A') {
+                if (!say) say = '...';
+                const i = await m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: say, options: ['You: ' + line], tag: 'story' });
+                if (i === undefined) return;
+                say = '';
+                continue;
+            }
+            if (say) {
+                const i = await m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: say, options: ['Go on'], tag: 'story' });
+                if (i === undefined) return;
+            }
+            say = line;
+        }
+        if (say) await m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: say, options: ['Close'], tag: 'story' });
+    }
+
     // 3.9.1: a story invite: "@@event clstory teller|class|sex|listener|class|sex|text",
     // both portraits, Listen / Not now ("@clstory yes|no"); "@@event clstory -" when the
     // server stopped waiting. No click: nothing is sent, the server lets it wait.
@@ -1786,11 +1872,16 @@ export default function init(parameters, api) {
         import('./portraits.js').then(m => {
             if (text === '-') { m.closeAsk(); return; }
             const [a, ac, as, b, bc, bs, ...rest] = String(text || '').split('|');
-            m.askChoice(api, { name: a, cls: Number(ac), sex: Number(as), text: rest.join('|'), options: ['Listen', 'Not now'],
-                second: { name: b, cls: Number(bc), sex: Number(bs) } })
-                .then(i => {
+            // 3.14.2: no listener (b empty) = told to you: one portrait, and on "I'm listening"
+            // the reply carries the chapter ("S|name|class|sex|A:text^B:text"), played here.
+            const me = !b;
+            m.askChoice(api, { name: a, cls: Number(ac), sex: Number(as), text: rest.join('|'),
+                options: me ? ["I'm listening", 'Not now'] : ['Listen', 'Not now'], tag: 'story',
+                second: me ? null : { name: b, cls: Number(bc), sex: Number(bs) } })
+                .then(async i => {
                     if (i === undefined) return;
-                    Promise.resolve(api.server.request('clstory', i === 0 ? 'yes' : 'no', { timeout: 4000 })).catch(() => {});
+                    const reply = await Promise.resolve(api.server.request('clstory', i === 0 ? 'yes' : 'no', { timeout: 4000 })).catch(() => '');
+                    if (me && i === 0) playStoryToYou(m, String(reply || ''));
                 });
         }).catch(e => console.error('[companion-party-overhaul] story:', e));
     });

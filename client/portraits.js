@@ -67,7 +67,66 @@ const STYLE = `
 .who small { font-weight: normal; color: #8b8b8b; margin-left: 4px; }
 .bubble.urgent { border-color: #c0392b; }
 .bubble.urgent .who { color: #c0392b; }
+.bubble.plain, .bubble.plain * { cursor: default !important; }
 `;
+
+// 3.13.10: the game picks its cursor from the map cell under the mouse, and a mod's box
+// can't tell it the mouse is on a box (its own windows can), so over a wall or the black
+// edge of the map the box showed the game's "can't walk there" cursor. Over a box: the
+// game's cursor hides and the plain arrow shows; back on leaving. Returns the "back" switch
+// (call it when the box goes, as the mouse may never leave it).
+// 3.14.1 (user: the game's own cursor, without the "can't walk" cross): a mod window
+// (api.ui.window) gets the client's hover guard, which stops the map reading the cell under
+// the mouse while it's over the window. A box borrows it: one small window, never shown,
+// whose host hears our mouseenter/mouseleave. The game's cursor then stays as it was and
+// stops following the cells. No window possible: the old way (the plain arrow).
+let _guard = null;
+function guardHost(api) {
+    if (_guard !== null) return _guard;
+    _guard = false;
+    try {
+        const w = api && api.ui && api.ui.window({ id: 'cursor-guard', title: 'Companions', width: 120, height: 120, resizable: false });
+        const h = w && w.body && w.body.getRootNode && w.body.getRootNode().host;
+        if (h) _guard = h;
+    } catch (e) { console.warn('[companion-party-overhaul] cursor guard:', e); }
+    return _guard;
+}
+function plainCursor(el, api) {
+    let on = false, how = '';
+    const game = () => document.querySelector('.cursor');
+    el.addEventListener('mouseenter', () => {
+        if (on) return;
+        const g = guardHost(api);
+        if (g) {
+            on = true; how = 'guard';
+            g.dispatchEvent(new Event('mouseenter'));
+            return;
+        }
+        const c = game();
+        if (!c || getComputedStyle(c).display === 'none') return;   // the game's cursor is off: the arrow shows anyway
+        on = true; how = 'hide';
+        c.style.visibility = 'hidden';
+        el.classList.add('plain');
+    });
+    const back = () => {
+        if (!on) return;
+        on = false;
+        if (how === 'guard') {
+            if (_guard) _guard.dispatchEvent(new Event('mouseleave'));   // the map reads the cells again
+            return;
+        }
+        const c = game();
+        if (c) c.style.visibility = '';
+        el.classList.remove('plain');
+    };
+    el.addEventListener('mouseleave', back);
+    // A box that fades out under a still mouse never hears it leave: the map must read the
+    // cells again at once, or a click on the ground would do nothing.
+    if (typeof MutationObserver === 'function')
+        new MutationObserver(() => { if (on && !el.classList.contains('on')) back(); })
+            .observe(el, { attributes: true, attributeFilter: ['class'] });
+    return back;
+}
 
 // 3.9.0 "Can we keep it?": a companion asks you, its portrait at the bottom right as for
 // its chat lines, with Yes / Not now in the bubble. Shown even with portraits switched off
@@ -92,11 +151,24 @@ const ASK_STYLE = STYLE + `
 .bubble.gold::after { background: #fff1cf; border-color: #c9a227; }
 .bubble.gold .tag { color: #8a6a00; border-color: #d9b545; background: #fff3c4; }
 .bubble.don .tag { color: #b5462f; border-color: #e3a291; background: #fdf0ec; }
+.bubble.danger { border-color: #c0392b; box-shadow: 0 0 0 1px rgba(192,57,43,.35), 0 2px 12px rgba(192,57,43,.5); }
+.bubble.danger::after { border-color: #c0392b; }
+.bubble.danger .who { color: #c0392b; }
+.bubble.danger .tag { color: #fff; border-color: #c0392b; background: #c0392b; }
+.btns button.two { display: block; width: 100%; padding: 4px 10px; font-weight: normal; text-align: left; }
+.btns button.two b { font-weight: bold; }
+.btns button.two small { font-size: 10px; color: #4f6a8f; margin-left: 4px; }
+.bubble.trait { border-color: #b8860b; }
+.bubble.trait .tag { color: #8a6a00; border-color: #d9b545; background: #fff3c4; }
+.bubble.story { border-color: #b8860b; }
+.bubble.story .tag { color: #8a6a00; border-color: #d9b545; background: #fff3c4; }
+.bubble.story .btns button { text-align: left; }
 `;
-const ASK_TAGS = { quiz: 'Pop quiz', gold: '✦ Golden question', don: 'Double or nothing' };
+const ASK_TAGS = { quiz: 'Pop quiz', gold: '✦ Golden question', don: 'Double or nothing', danger: 'Danger', trait: 'Shaped by you', story: 'Life story' };
 const askWatch = new Set();   // the chat portraits' "step aside" switches
 let askOpen = null;           // { close(answer) }
-export function closeAsk() { askOpen?.close(undefined); }
+// 3.13.11: tag given: only a box with that tag (a danger box's close mustn't close an MVP find).
+export function closeAsk(tag) { if (!tag || askOpen?.tag === tag) askOpen?.close(undefined); }
 
 export function askKeep(api, { name, cls, sex, last, text }) {
     return askChoice(api, { name, cls, sex, text, options: ['Yes', 'Not now'], note: last ? `The last time ${name} asks.` : '' })
@@ -126,8 +198,22 @@ export function askChoice(api, { name, cls, sex, text, options, note = '', secon
         const btns = root.querySelector('.btns');
         options.filter(Boolean).forEach((label, i) => {
             const b = document.createElement('button');
-            b.textContent = label;
-            if (i === 0) b.className = 'yes';
+            // 3.14.0: "Name Rank^what it gives" (a trait talk). 3.14.1: one clean line,
+            // "Steadfast (Rank IV · Takes 5% less damage)", both answers alike, full width.
+            const [main, sub] = String(label).split('^');
+            if (sub) {
+                const m = /^(.*?)\s+(I|II|III|IV)$/.exec(main);
+                const nm = document.createElement('b');
+                nm.textContent = m ? m[1] : main;
+                const eff = sub.charAt(0).toUpperCase() + sub.slice(1);
+                const s = document.createElement('small');
+                s.textContent = '(' + (m ? `Rank ${m[2]} · ` : '') + eff + ')';
+                b.append(nm, s);
+                b.className = 'two';
+            } else {
+                b.textContent = main;
+                if (i === 0) b.className = 'yes';
+            }
             b.addEventListener('click', () => close(i));
             btns.append(b);
         });
@@ -155,6 +241,7 @@ export function askChoice(api, { name, cls, sex, text, options, note = '', secon
         addEventListener('resize', fit);
         host.style.cssText = 'position: fixed; z-index: 39;';
         for (const type of ['mousedown', 'mouseup', 'click', 'contextmenu']) bubble.addEventListener(type, e => e.stopPropagation());
+        const cursorBack = plainCursor(bubble, api);
         document.body.appendChild(host);
         void por.offsetWidth;
         por.className = 'por front';
@@ -180,13 +267,14 @@ export function askChoice(api, { name, cls, sex, text, options, note = '', secon
             bodyWatch.disconnect();
             for (const off of offs) { try { off?.(); } catch { /* fine */ } }
             bubble.classList.remove('on');
+            cursorBack();
             por.className = 'por leave';
             if (por2) por2.className = 'por two leave';
             setTimeout(() => host.remove(), 450);
             askWatch.forEach(f => f(false));
             if (answer !== undefined) resolve(answer);
         }
-        const handle = { close };
+        const handle = { close, tag };
         askOpen = handle;
     });
 }
@@ -227,8 +315,9 @@ export default function initPortraits(parameters, api) {
     stageEl.style.transform = `scale(${size})`;
     host.style.cssText = 'position: fixed; z-index: 39;';   // under the game's NPC cutin (40)
     for (const type of ['mousedown', 'mouseup', 'click', 'contextmenu']) bubble.addEventListener(type, e => e.stopPropagation());
+    const cursorBack = plainCursor(bubble, api);
     document.body.appendChild(host);
-    api.cleanup(() => host.remove());
+    api.cleanup(() => { cursorBack(); host.remove(); });
 
     const els = new Map();     // name -> portrait element
     let stage = [];            // names, most recent speaker first
@@ -308,6 +397,7 @@ export default function initPortraits(parameters, api) {
         clearTimeout(timer); clearTimeout(lingerTimer); clearTimeout(bubbleTimer); clearInterval(typeTimer);
         current = null; queue = []; stage = [];
         bubble.classList.remove('on');
+        cursorBack();
         for (const d of els.values()) d.className = 'por leave';
         const gone = [...els.entries()];
         setTimeout(() => { for (const [name, d] of gone) if (els.get(name) === d && !stage.includes(name)) { d.remove(); els.delete(name); } }, 500);

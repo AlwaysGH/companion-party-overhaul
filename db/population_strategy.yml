@@ -89,8 +89,11 @@ Body:
           # walking every turn until it is within reach. An event rule is answered by its
           # first step, and the positioning rules below then pulled the healer straight
           # back (Phreeoni playtest 6: the owner lay 10 cells off and was never revived).
+          # CPO 3.14.1: not during your MVP solo (the script's Reuse_Limit_D): a body by the
+          # boss pulled the Priest in after it (Amon Ra wipe); the revive run fetches it after.
           - Name: close_to_the_fallen
             Priority: 104
+            When: not_self_reuse_limit_d
             Target: { Ally: dead, NotSelf: true }
             KeepDistance: { Min: 1, Max: 8 }
           # Beyond sight (14 cells), where no selector looks: the death itself starts the walk.
@@ -98,7 +101,7 @@ Body:
             Priority: 103
             On: { Event: party_member_died, Within: 30000 }
             Target: event
-            When: ally_distance_gt8
+            When: [ally_distance_gt8, not_self_reuse_limit_d]
             MoveTo: event
           # Petrified, frozen or stunned members cannot come to it. Status Recovery cures
           # a Stone Curse already while it sets in (SC_STONEWAIT).
@@ -223,11 +226,14 @@ Body:
             When: self_reuse_limit_a
             UseItem: Wing_Of_Fly
             Cooldown: 4000
+          # 3.13.5: out of its sight while you decide (was 8-12, close enough for its
+          # slaves): a boss within 14 cells sends them further off. The finder walks
+          # 16-18 cells away first (L_HuntAway).
           - Name: ct_hunt_wait_away
             Priority: 139
             When: self_reuse_limit_c
             Target: { Enemy: boss, Range: 14 }
-            KeepDistance: { Min: 8, Max: 12 }
+            KeepDistance: { Min: 16, Max: 20 }
           - Name: ct_hunt_look
             Priority: 20
             When: self_reuse_limit_b
@@ -241,18 +247,9 @@ Body:
             When: self_reuse_limit_c
             Absent: { Enemy: attacking, Who: self }
             Hold: true
-          # 3.13.0: Stand by, I'll solo (D, L_SoloTick): clear of the boss and out of the
-          # fight (no attacks, heals or buffs) unless something attacks it.
-          - Name: ct_solo_away
-            Priority: 142
-            When: self_reuse_limit_d
-            Target: { Enemy: boss, Range: 14 }
-            KeepDistance: { Min: 8, Max: 12 }
-          - Name: ct_solo_still
-            Priority: 141
-            When: self_reuse_limit_d
-            Absent: { Enemy: attacking, Who: self }
-            Hold: true
+          # 3.13.5: Stand by, I'll solo is the real Stand By now (L_HuntGo), so the
+          # 3.13.0 rules ct_solo_away/ct_solo_still (D) are gone: each one stepping
+          # away from the boss on its own scattered them.
           # 3.13.0: Engage together / "help me" (E, L_HuntCharge): the boss is the target.
           - Name: ct_hunt_engage
             Priority: 137

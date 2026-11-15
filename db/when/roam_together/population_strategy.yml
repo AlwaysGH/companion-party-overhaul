@@ -14,7 +14,9 @@
 #                          so, walks to the body and guards it within 6 cells; the Priest
 #                          revives (base table), else whoever carries a Yggdrasil Leaf
 #                          (use_items). Grouping waits meanwhile. Back to roaming 20 s after
-#                          no body is in sight, or once it's back with you.
+#                          no body is in sight, or once it's back with you. Not while the
+#                          script holds them near an MVP (Reuse_Limit_B, 3.13.8), nor during
+#                          your solo (Reuse_Limit_D, 3.13.11).
 # Companions that follow you are never moved by these rules.
 
 Header:
@@ -49,8 +51,8 @@ Body:
             When: self_entry_queue_notify_admission_time_out
             Count: { Enemy: attacking, Who: self, Range: 5, AtLeast: 3 }
             Signal: ct.help
-            Say: "Too many on me, help!"
-            Channel: party
+            # 3.14.1: no "Too many on me, help!" in party chat any more (each one every 8 s was
+            # spam in a crowded dungeon); the call for help stays, and the danger box asks you.
             Cooldown: 8000
           - Name: ct_rh_help
             Priority: 65
@@ -61,11 +63,15 @@ Body:
           - Name: roam
             Rules:
               # 2.5.2: a companion busy fighting when someone fell went once nothing was on it.
+              # 3.13.8: not near an MVP: the script's Reuse_Limit_B (look but start no fight,
+              # MVP hunts; waiting on a find; Stand By and the solo) keeps them from walking
+              # into a boss to reach a body beside it. That fall is the find (L_HuntTick).
+              # 3.13.11: nor Reuse_Limit_D, kept on the whole solo (a dodge walk takes B off).
               - Name: ct_rh_to_rally
                 Priority: 70
                 On: { Event: party_member_died, Within: 30000 }
                 Target: event
-                When: self_entry_queue_notify_admission_time_out
+                When: [self_entry_queue_notify_admission_time_out, not_self_reuse_limit_b, not_self_reuse_limit_d]
                 Absent: { Enemy: attacking, Who: self }
                 MoveTo: event
                 Switch: rally
@@ -97,6 +103,7 @@ Body:
                 Switch: roam
               - Name: ct_rh_guard_body
                 Priority: 68
+                When: [not_self_reuse_limit_b, not_self_reuse_limit_d]
                 Target: { Ally: dead, NotSelf: true, Range: 30 }
                 KeepDistance: { Min: 1, Max: 6 }
 

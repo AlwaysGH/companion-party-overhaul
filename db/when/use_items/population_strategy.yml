@@ -63,9 +63,12 @@ Body:
             OnePerParty: true
             Cooldown: 3000
           # In sight: keep walking every turn until the body is in reach.
+          # 3.14.1: neither walk during your MVP solo (Reuse_Limit_D): a body by the boss
+          # pulled the leaf carrier in after it (Amon Ra wipe).
           - Name: ct_item_leaf_go
             Priority: 102
             Requires: { Items: [610] }
+            When: not_self_reuse_limit_d
             Target: { Ally: dead, NotSelf: true }
             KeepDistance: { Min: 1, Max: 8 }
           # Beyond sight (14 cells), where no selector looks: the death itself starts the walk.
@@ -74,7 +77,7 @@ Body:
             Requires: { Items: [610] }
             On: { Event: party_member_died, Within: 30000 }
             Target: event
-            When: ally_distance_gt8
+            When: [ally_distance_gt8, not_self_reuse_limit_d]
             MoveTo: event
       # A Priest revives with its own Resurrection (main plan, priority 106) and walks there
       # itself. With too little SP for it, a leaf instead, if it carries one.

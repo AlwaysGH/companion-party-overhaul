@@ -119,6 +119,7 @@ OnInit:
 	bindatcmd "clroam", strnpcinfo(3) + "::OnCmdRoam", 0, 99;
 	// 3.11.0: MVP hunts (Normal / MVP, "hunt the MVP") and a Fly Wing to a companion.
 	bindatcmd "clhunt", strnpcinfo(3) + "::OnCmdHunt", 0, 99;
+	bindatcmd "cldanger", strnpcinfo(3) + "::OnCmdDanger", 0, 99;	// 3.13.11: Retreat / Send help
 	bindatcmd "clstand", strnpcinfo(3) + "::OnCmdStand", 0, 99;	// 3.12.0: Stand By
 	bindatcmd "clgoto", strnpcinfo(3) + "::OnCmdGoto", 0, 99;
 	// 3.13.2: the Debug recorder, typed in game: @cldebug on|live|off|show [n]|clear (OnCmdDebug).
@@ -129,7 +130,9 @@ OnInit:
 	// the one-time fee per your base level, and the lowest level each tier joins at
 	// (the engine's job profiles; a higher one learned on a hire is kept in $cpo_hf*).
 	.rs_t1$ = " Swordsman Mage Archer Acolyte Merchant Thief Taekwon Gunslinger Ninja ";
-	.rs_t2$ = " Knight Crusader Wizard Sage Hunter Bard Dancer Priest Monk Blacksmith Alchemist Assassin Rogue StarGladiator SoulLinker ";
+	// 3.14.3: Gunslinger and Ninja have no 2nd job (pre-re), so they're offered from the 2nd-job
+	// tier on too (they vanished from the Hire page once you were a 2nd job or transcendent).
+	.rs_t2$ = " Knight Crusader Wizard Sage Hunter Bard Dancer Priest Monk Blacksmith Alchemist Assassin Rogue StarGladiator SoulLinker Gunslinger Ninja ";
 	.rs_tt$ = " LordKnight Paladin HighWizard Professor Sniper Clown Gypsy HighPriest Champion Whitesmith Creator AssassinCross Stalker ";
 	.rs_fee1 = 100;
 	.rs_fee2 = 500;
@@ -629,6 +632,79 @@ OnInit:
 	setarray .mvphelp_5$, "MY TURN! FINALLY!", "Say no more! I'm IN!";
 	setarray .mvphelp_6$, "Knew it. Coming.", "Hold on, {t}. I've got you.";
 	setarray .mvphelp_7$, "Rescue's on the house this time, {t}! Coming!", "Coming! Protect the investment!";
+	// 3.13.7: the boss came too close to the ones standing by (L_SoloDodge): they get clear.
+	setarray .mvpdodge_0$, "Eep! {a}'s coming this way! Everybody run!", "Too close, too close! Back back back!";
+	setarray .mvpdodge_1$, "Fall back! {a} draws near. Regroup!", "It comes for us. Withdraw, keep together!";
+	setarray .mvpdodge_2$, "It's within casting range. Retreating is the clever option.", "Fascinating. Also lethal. Move.";
+	setarray .mvpdodge_3$, "Exit, stage left! {a}'s crashing our show!", "Run now, sing about it later!";
+	setarray .mvpdodge_4$, "It's coming! Everyone, get back, please!", "Too close! Back away, all of you!";
+	setarray .mvpdodge_5$, "Whoa whoa, NOPE! Back up, dumbasses, it's coming!", "Save yourselves! I'll punch it later!";
+	setarray .mvpdodge_6$, "It's coming. Move, or don't. Your funeral.", "Back off. Now.";
+	setarray .mvpdodge_7$, "Nope! Not dying for free! Fall back!", "Bad deal, too close! Everybody, move!";
+	// 3.13.8: one of yours fell beside an MVP (a Fly Wing put it there): that's the find
+	// (L_HuntFound). {d} the fallen one.
+	setarray .mvpbody_0$, "{t}! {d} went down... {a}'s right there! What do we do?!", "{d}'s down! It's {a}! {t}, help!";
+	setarray .mvpbody_1$, "{d} has fallen, {t}. {a} stands over the body. Your orders?", "{a} struck {d} down. We hold back, {t}, until you say.";
+	setarray .mvpbody_2$, "{d}'s down, and the reason is {a}. Instructive, if grim.", "Found {a}. Regrettably, {d} found it first.";
+	setarray .mvpbody_3$, "A sad verse: {d} fell to {a}. Shall we write the next one, {t}?", "{d}'s down! {a}'s the villain of this song!";
+	setarray .mvpbody_4$, "{d}'s down! {a}'s too close to reach them, {t}... what do we do?", "Oh no, {d}! It's {a}! {t}, please, we need you!";
+	setarray .mvpbody_5$, "{a} DROPPED {d}! Let me at it, {t}!", "{d}'s down and {a}'s laughing! Say the word!";
+	setarray .mvpbody_6$, "{d}'s down. {a} did it. Your call.", "{a}. It got {d}.";
+	setarray .mvpbody_7$, "{d}'s down! {a}'s sitting on our investment, {t}!", "Bad news: {d}'s down. Good news: it's {a}!";
+	// 3.13.9 (D): one of yours fell out of the others' sight; the rescuer flies over (L_Rescue). {a} the fallen one.
+	setarray .mvpres_0$, "{a}! Hang on, I'm coming!", "Don't worry, {a}, I'll get you up!";
+	setarray .mvpres_1$, "{a} is down. I go to them. Hunt on without me a moment.", "I'll bring {a} back. Wait for me.";
+	setarray .mvpres_2$, "{a} is down across the map. Relocating.", "A short trip to fetch {a}. Back shortly.";
+	setarray .mvpres_3$, "Fear not, {a}! The rescue verse begins!", "Hold on, {a}! Your hero's on the way!";
+	setarray .mvpres_4$, "{a}! I'm coming, please hold on!", "Oh no, {a}! Wait for me, I'll get you up!";
+	setarray .mvpres_5$, "{a} went down?! Coming, you idiot!", "On my way, {a}! Don't you dare stay down!";
+	setarray .mvpres_6$, "{a}'s down. Going.", "Getting {a}.";
+	setarray .mvpres_7$, "{a}! Hold on, a free rescue's coming!", "Coming, {a}! I don't leave stock on the floor!";
+	// The rescue didn't work out (or nobody could go): hunting carries on, the body waits for you.
+	setarray .mvpresno_0$, "{t}... I couldn't get {a} up. They're waiting for you.", "I'm sorry, {a}... {t}, they need you!";
+	setarray .mvpresno_1$, "We couldn't revive {a}, {t}. The body waits for you; we hunt on.", "{a} needs you, {t}. We carry on meanwhile.";
+	setarray .mvpresno_2$, "Revival failed. {a} awaits your attention, {t}.", "{a} remains down. Logically, that's your job now, {t}.";
+	setarray .mvpresno_3$, "Alas, {a} still sleeps. A {t}-shaped hero is needed!", "{a}'s verse waits for you, {t}.";
+	setarray .mvpresno_4$, "I'm sorry, I couldn't help {a}... please go to them, {t}!", "{a} is still down... {t}, can you get them?";
+	setarray .mvpresno_5$, "Couldn't get {a} up! Go grab them, {t}, we keep smashing!", "{a}'s napping on the job! Your turn, {t}!";
+	setarray .mvpresno_6$, "{a}'s still down. Yours, {t}.", "Couldn't. {a} waits for you.";
+	setarray .mvpresno_7$, "Couldn't save {a}, {t}. Go collect them, we keep earning!", "{a}'s down for the count, {t}. Your pickup!";
+	// 3.13.11: losing a fight away from you, it asks (L_DangerTick): Retreat / Send help.
+	setarray .dgask_0$, "{t}... I don't think I can win this one!", "{t}, there's too many! What do I do?!";
+	setarray .dgask_1$, "{t}, I'm overwhelmed. I can't hold this alone.", "I'm losing this fight, {t}. Your orders?";
+	setarray .dgask_2$, "The odds have turned against me, {t}. Badly.", "By my count I lose this one, {t}. Advice?";
+	setarray .dgask_3$, "{t}! This verse ends badly unless you write a better one!", "Too many, {t}! I'm about to be a tragedy!";
+	setarray .dgask_4$, "{t}, please... I can't win this! Help me!", "I'm scared, {t}... there's too many of them!";
+	setarray .dgask_5$, "{t}! Little help?! There's WAY too many!", "Okay, okay, I bit off too much! {t}!";
+	setarray .dgask_6$, "{t}. Losing. Badly.", "Can't win this. {t}?";
+	setarray .dgask_7$, "{t}, this is a losing trade! Bail me out?", "Bad deal, {t}! I'm getting robbed here!";
+	// It got out (your Retreat, or on its own under 15%).
+	setarray .dgout_0$, "Phew! Made it out! Thank you, {t}!", "I'm out! That was way too close!";
+	setarray .dgout_1$, "I withdrew. Forgive me, {t}. I'll fight again soon.", "Falling back to you, {t}.";
+	setarray .dgout_2$, "Strategic retreat complete. Live to calculate another day.", "I'm out. A sensible choice, all things considered.";
+	setarray .dgout_3$, "Exit, pursued by monsters! I'm safe, {t}!", "A dramatic escape! Bards will sing of it!";
+	setarray .dgout_4$, "I-I made it... thank you, {t}...", "I'm safe now. Sorry for worrying you, {t}.";
+	setarray .dgout_5$, "Nope, I'm out! I'll punch them later!", "Tactical run away! Totally on purpose!";
+	setarray .dgout_6$, "Out. Fine.", "Made it. Next time.";
+	setarray .dgout_7$, "Nope, I'm out! Not dying for free!", "Cut my losses! I'm out!";
+	// 3.14.1: healed after a retreat, back out roaming (L_DangerRejoin).
+	setarray .dgback_0$, "All patched up! Back out there!", "Good as new! Thanks, {t}!";
+	setarray .dgback_1$, "My strength has returned. I rejoin the hunt.", "Thank you, {t}. Back to my post.";
+	setarray .dgback_2$, "Vitals restored. Resuming the search.", "Recovered. Returning to the field.";
+	setarray .dgback_3$, "The hero rises again! Back into the fray!", "Act two begins! Off I go!";
+	setarray .dgback_4$, "Th-thank you, {t}... I'll try again.", "I feel better now. I'll go help the others.";
+	setarray .dgback_5$, "Okay, I'm good! Round two!", "Healed up! Let me at 'em!";
+	setarray .dgback_6$, "Better. Going.", "Back out.";
+	setarray .dgback_7$, "Free healing, best deal all day! Back to work!", "Topped up! Time to earn it back!";
+	// 3.14.1: no answer in 5 s = an escape: a random hop somewhere else on the map, still hunting.
+	setarray .dgesc_0$, "Whoa, too many! Hopping out, I'll keep looking over here!", "Escaped! New spot, same fun!";
+	setarray .dgesc_1$, "Too many to hold. I'll regroup elsewhere and fight on.", "I withdrew to safer ground, {t}. Still hunting.";
+	setarray .dgesc_2$, "Unfavourable odds. Relocating.", "Recalculated. A different corner of the map, then.";
+	setarray .dgesc_3$, "And with a flourish, I vanish! On to the next scene!", "Gone in a flash! Let them search for me!";
+	setarray .dgesc_4$, "T-too many... I flew away. I'm okay, I think.", "I ran... I'll be more careful over here.";
+	setarray .dgesc_5$, "Tch, too many! Fine, I'll find easier ones!", "Bailed! Somewhere else to punch now!";
+	setarray .dgesc_6$, "Too many. Moved.", "Gone. Still hunting.";
+	setarray .dgesc_7$, "Bad deal! Taking my business elsewhere!", "Not worth it! Off to better hunting!";
 	setarray .mvpsolowin_0$, "YOU DID IT! All by yourself! That was AMAZING, {t}!";
 	setarray .mvpsolowin_1$, "A true victory, {t}. I am honoured to have witnessed it.";
 	setarray .mvpsolowin_2$, "Remarkable. I'll need several pages for that one.";
@@ -2856,6 +2932,144 @@ OnInit:
 	callsub L_MoAdd, "quiz", -1, 0, 0, "", "", "", "", "", "", "", "", "";
 
 	// ======================================================================
+	// 3.14.0: traits, "Shaped by you". At each bond tier from Companion to Kindred a companion
+	// asks your advice about who to become (4 talks, moments of kind "trait", extra 1 = the
+	// slot 0-3, asked at tier slot+2). Your answer is a passive trait on the bond buff
+	// (L_BondBuff), its rank the bond: Companion I .. Kindred IV. Added last: answers are
+	// stored by moment number, so the ones before keep theirs.
+	// Effects: .tre_b$ the bonus script ({v} the value), .tre_d$ how it reads, .tre_v the value
+	// at ranks I-IV (e*4 + rank-1). Pre-renewal: bAtkRate does nothing, so "+damage" is
+	// bAddRace RC_ALL (physical) or bMagicAddRace RC_ALL (magic).
+	setarray .tre_b$,
+		"bonus2 bSubRace,RC_ALL,{v};",	// 0 less damage
+		"bonus2 bAddRace,RC_ALL,{v};",	// 1 physical damage
+		"bonus2 bMagicAddRace,RC_ALL,{v};",	// 2 magic damage
+		"bonus2 bAddRace,RC_ALL,{v}; bonus2 bMagicAddRace,RC_ALL,{v};",	// 3 all damage
+		"bonus bMaxHPrate,{v};",	// 4
+		"bonus bMaxSPrate,{v};",	// 5
+		"bonus bAspdRate,{v};",	// 6
+		"bonus bCastrate,-{v};",	// 7
+		"bonus bHealPower,{v};",	// 8
+		"bonus bUseSPrate,-{v};",	// 9
+		"bonus bSPrecovRate,{v};",	// 10
+		"bonus bHPrecovRate,{v};",	// 11
+		"bonus bHit,{v};",	// 12
+		"bonus bFlee,{v};",	// 13
+		"bonus bCritical,{v};",	// 14
+		"bonus bCritAtkRate,{v};",	// 15
+		"bonus bDef,{v};",	// 16
+		"bonus bMdef,{v};",	// 17
+		"bonus2 bAddClass,CLASS_BOSS,{v}; bonus2 bMagicAddClass,CLASS_BOSS,{v};",	// 18 boss damage
+		"bonus2 bSubClass,CLASS_BOSS,{v};",	// 19 less boss damage
+		"bonus bLongAtkRate,{v};",	// 20
+		"bonus bFlee2,{v};",	// 21 perfect dodge
+		"bonus2 bAddRace,RC_UNDEAD,{v}; bonus2 bAddRace,RC_DEMON,{v}; bonus2 bMagicAddRace,RC_UNDEAD,{v}; bonus2 bMagicAddRace,RC_DEMON,{v};";	// 22
+	setarray .tre_d$, "takes {v}% less damage", "+{v}% damage", "+{v}% magic damage", "+{v}% damage", "+{v}% max HP", "+{v}% max SP",
+		"+{v}% attack speed", "-{v}% cast time", "+{v}% heal power", "-{v}% SP cost", "+{v}% SP recovery", "+{v}% HP recovery",
+		"+{v} HIT", "+{v} FLEE", "+{v} CRIT", "+{v}% critical damage", "+{v} DEF", "+{v} MDEF", "+{v}% damage to bosses",
+		"takes {v}% less damage from bosses", "+{v}% ranged damage", "+{v} perfect dodge", "+{v}% damage to Undead and Demons";
+	setarray .tre_v,
+		2,3,4,5, 2,3,4,5, 2,3,4,5, 2,3,4,5, 2,3,4,5, 2,3,4,5,	// 0-5
+		2,3,4,5, 2,3,4,5, 3,4,5,6, 3,4,5,6, 5,10,15,20, 5,10,15,20,	// 6-11
+		3,4,5,6, 3,4,5,6, 1,2,3,4, 3,5,7,9, 2,3,4,5, 2,3,4,5,	// 12-17
+		2,3,4,5, 3,4,5,6, 2,3,4,5, 1,2,3,4, 3,4,5,6;	// 18-22
+	// Sets (L_TraitSet): 1 Knight, 2 Crusader, 3 Wizard, 4 Sage, 5 Hunter, 6 Bard/Dancer,
+	// 7 Priest, 8 Monk, 9 Blacksmith, 10 Alchemist, 11 Assassin, 12 Rogue, 13 the rest (first
+	// classes take their line's first set). Per set and slot the question (.tr_q$, (set-1)*4 +
+	// slot), per answer (.tr_*, (set-1)*8 + slot*2 + answer) the name, effect and lean (0
+	// careful, 1 bold; .tr_pref by personality: a fit is +4 bond, a clash -4, on top of the 8).
+	setarray .tr_pref, 1, 0, 0, 1, 0, 1, 1, 0;	// Rookie bold, Guardian careful, Scholar careful, Wanderer bold, Healer careful, Brawler bold, Rogue bold, Merchant careful
+	setarray .tr_q$,
+		"{t}, should I keep my guard up more, or strike harder?", "When a fight turns, should I hold my ground or charge in?",
+		"Should I fight with my head or with my heart, {t}?", "Would you trust me to face the biggest monsters for you?",
+		"{t}, should I keep my shield up more, or strike harder?", "Should I hold the line, or chase whatever threatens the others?",
+		"Faith or steel, {t}. Which should I lean on?", "Would you trust me to stand between you and anything?",
+		"{t}, should I cast faster, or hit harder?", "Should I guard my strength, or have more of it to pour out?",
+		"Should I stay behind the others, or stand at the front with them?", "What should my magic be for, {t}?",
+		"{t}, should I study faster casting, or stronger spells?", "Books or battle, {t}?",
+		"Should I keep my distance, or stand with the others?", "What is knowledge for, in the end?",
+		"Steady aim or quick draw, {t}?", "Should I stay close to the group, or keep my distance?",
+		"Should I play it safe, or aim for weak spots?", "When it's all over... will you still need me, {t}?",
+		"{t}, should I play for them, or fight with them?", "A slow song or a fast one, {t}?",
+		"Should I stay at the back, or dance right into it?", "Who should my music be for, {t}?",
+		"{t}, should I focus on healing more, or healing faster?", "When things go wrong, should I protect myself first, or keep everyone else up?",
+		"Should I stand behind the line, or carry the light into it?", "{t}... what should I be, to you?",
+		"Spirit or fists, {t}?", "Should I toughen up, or speed up?",
+		"Should I let them come to me, or chase them down?", "When I go all in... will you be there, {t}?",
+		"{t}, should I swing heavier, or swing faster?", "Better gear for me, or save the zeny for all of us?",
+		"Is a hammer for building things, or breaking them?", "What should I forge for you, {t}?",
+		"{t}, should I trust my potions or my blade?", "Careful experiments, or bold ones?",
+		"Should I keep steady hands, or keep moving?", "What's the greatest thing I could make, {t}?",
+		"{t}, dance through blades, or strike from the shadows?", "A hundred quick blows, or one perfect one?",
+		"Should I come back for the others, or finish the job?", "Is there anyone you'd want me to take down, {t}?",
+		"{t}, fight fair, or fight smart?", "When it's bad, should I run, or stay?",
+		"Blade or bow, {t}?", "Do you trust me, {t}? Really?",
+		"{t}, should I get tougher, or get stronger?", "Should I move faster, or think faster?",
+		"Should I look after myself, or after you?", "Do you think I'm ready for the big ones, {t}?";
+	setarray .tr_nm$,
+		"Guarded", "Fierce", "Bulwark", "Vanguard", "Tactician", "Berserker", "Oathbound", "Giantbane",	// 1 Knight
+		"Guarded", "Fierce", "Bulwark", "Vanguard", "Faithful", "Ironclad", "Oathbound", "Crusader",	// 2 Crusader
+		"Swift", "Potent", "Wellspring", "Deep Well", "Warded", "Battlemage", "Shelter", "Stormcaller",	// 3 Wizard
+		"Swift", "Potent", "Scholar", "Battle Sage", "Warded", "Battlemage", "Shelter", "Stormcaller",	// 4 Sage
+		"Steady", "Quick", "Nimble", "Far Sight", "Wary", "Marksman", "Wind Step", "Keen Eye",	// 5 Hunter
+		"Encore", "Showstopper", "Lingering", "Tempo", "Backstage", "Spotlight", "Ballad", "Finale",	// 6 Bard/Dancer
+		"Devoted", "Swift", "Steadfast", "Selfless", "Serene", "Zealous", "Guardian Angel", "Light of Hope",	// 7 Priest
+		"Inner Calm", "Iron Fist", "Stone Skin", "Flurry", "Rooted", "Wind Palm", "Mountain", "Asura's Edge",	// 8 Monk
+		"Heavy Hand", "Rhythm", "Hardy", "Thrifty", "Builder", "Breaker", "Anvilheart", "Forged Bond",	// 9 Blacksmith
+		"Brewer", "Bladed", "Methodical", "Volatile", "Steady Hands", "Catalyst", "Philosopher", "Bombardier",	// 10 Alchemist
+		"Elusive", "Lethal", "Flurry", "Precise", "Loyal Blade", "Relentless", "Shadow Step", "Kingslayer",	// 11 Assassin
+		"Honest Steel", "Dirty Tricks", "Slippery", "Stubborn", "Close Work", "Far Shot", "Trusted Hand", "Jackpot",	// 12 Rogue
+		"Sturdy", "Spirited", "Swift Feet", "Quick Mind", "Hardy", "Devoted Heart", "Steady Nerve", "Bold Heart";	// 13 the rest
+	setarray .tr_e,
+		0, 1, 4, 6, 12, 15, 19, 18,	// Knight
+		0, 1, 4, 6, 17, 16, 19, 18,	// Crusader
+		7, 2, 9, 5, 0, 4, 19, 18,	// Wizard
+		7, 2, 5, 6, 0, 4, 19, 18,	// Sage
+		12, 6, 13, 20, 0, 15, 21, 18,	// Hunter
+		9, 20, 10, 6, 0, 13, 4, 18,	// Bard/Dancer
+		8, 7, 0, 9, 10, 22, 4, 5,	// Priest
+		10, 1, 0, 6, 4, 13, 19, 18,	// Monk
+		1, 6, 4, 9, 16, 12, 0, 18,	// Blacksmith
+		11, 1, 0, 6, 12, 13, 4, 18,	// Alchemist
+		13, 14, 6, 15, 0, 1, 21, 18,	// Assassin
+		1, 14, 13, 4, 6, 20, 0, 18,	// Rogue
+		0, 3, 13, 7, 4, 5, 19, 18;	// the rest
+	setarray .tr_l,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		1, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 1;
+	// Their answer, by personality: it fits them (trfit) or it doesn't, and they'll try (trclash). {a} the trait.
+	setarray .trfit_0$, "{a}! Yes! That's exactly what I was hoping you'd say!", "{a}... I'll be the best {a} ever. Watch me, {t}!";
+	setarray .trfit_1$, "{a}. Then that is my oath, {t}.", "Wise counsel. I'll carry it as {a}.";
+	setarray .trfit_2$, "{a}. That was my conclusion too. Good to have it confirmed.", "{a}, then. The logic is sound.";
+	setarray .trfit_3$, "{a}! That's a verse I'd sing about myself!", "{a}... yes. That's the road I wanted.";
+	setarray .trfit_4$, "{a}. Thank you, {t}. I'll grow into it, I promise.", "{a}... that feels right. Thank you for helping me see it.";
+	setarray .trfit_5$, "{a}! HA! I knew you got me, {t}!", "{a}! That's what I'm talking about!";
+	setarray .trfit_6$, "{a}. ...Good call.", "{a}. Yeah. That's me.";
+	setarray .trfit_7$, "{a}! Excellent investment, {t}. Excellent.", "{a}. The numbers agree with you.";
+	setarray .trclash_0$, "{a}? Oh... okay! If you think so, I'll try!", "{a}. Not what I expected... but I trust you!";
+	setarray .trclash_1$, "{a}. Not the path I'd have chosen. But I trust your judgment, {t}.", "{a}... very well. I'll learn it.";
+	setarray .trclash_2$, "{a}? Interesting. Counterintuitive. I'll study it.", "{a}. Hm. I'll need to rethink a few things.";
+	setarray .trclash_3$, "{a}? A different tune than I'd play... but I'll learn it.", "{a}. Huh. A road I didn't expect. Alright.";
+	setarray .trclash_4$, "{a}...? It scares me a little. But if you believe in me...", "{a}. I'll try, {t}. For you.";
+	setarray .trclash_5$, "{a}?! Ugh... fine. FINE. But I'm not happy about it!", "{a}? Boring! ...But okay, you're the boss.";
+	setarray .trclash_6$, "{a}. ...If you say so.", "{a}. Not me. But fine.";
+	setarray .trclash_7$, "{a}? Risky investment, {t}. ...I'll make it pay.", "{a}. Not my numbers. But it's your call.";
+	setarray .roman$, "", "I", "II", "III", "IV";
+	for (.@s = 0; .@s < 4; .@s++)
+		callsub L_MoAdd, "trait", -1, .@s + 2, 0, "", "", "", "", "", "", "", "" + .@s, "";
+
+	// ======================================================================
 	// 3.10.2: pop quiz lines, by personality (0 Rookie, 1 Guardian, 2 Scholar,
 	// 3 Wanderer, 4 Healer, 5 Brawler, 6 Rogue, 7 Merchant). {q} the question,
 	// {Q} the same with a capital, {m} the monster, {g} a guess, {r} the right
@@ -3092,6 +3306,8 @@ OnPCDieEvent:
 		if (CL_DEBUG)
 			callsub L_Dbg, "solo over: you fell";
 		callsub L_SoloEnd;
+		callsub L_StandOff;	// 3.13.5: off Stand By and to your side, so a Priest can raise you
+		callsub L_HuntRecall;
 	}
 	if (.mem) {
 		for (.@i = 0; .@i < @cl_n; .@i++)
@@ -3223,6 +3439,37 @@ OnTick:
 	}
 
 	callsub L_Gather;
+	// 3.14.3: those you told to walk stay off the Peco: the engine puts riders back on after
+	// a warp, a spawn or a job change, so this takes them off again within a second.
+	if (callsub(L_PecoOff) != "") {
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] > 0) {
+				if (compare(@cl_pecoff$, "|" + @cl_nm$[.@i] + "|")) {
+					if (checkriding(@cl_cid[.@i]))
+						setriding 0, @cl_cid[.@i];
+				}
+			}
+		}
+	}
+	// 3.14.1: the solo win's rescue (L_SoloTick): the fallen is up 3 s (the revive done), or
+	// 15 s went by: the rescuer and the fallen come back to you like the rest did.
+	if (@cl_so_rcl) {
+		.@fi = inarray(@cl_aid[0], @cl_so_rcf);
+		if (!@cl_so_rcup && .@fi >= 0 && @cl_hp[.@fi] > 0)
+			@cl_so_rcup = .@sec + 3;
+		if (.@sec >= @cl_so_rcl || (@cl_so_rcup && .@sec >= @cl_so_rcup)) {
+			setd "@cl_rcskip_" + @cl_so_rcf, 0;
+			setd "@cl_rcskip_" + @cl_so_rcr, 0;
+			@cl_so_rcl = 0;
+			if (CL_DEBUG)
+				callsub L_Dbg, "solo win rescue over: " + (@cl_so_rcup ? "revived" : "15 s, not revived") + ", both come back to you";
+			callsub L_HuntRecall;
+		}
+	}
+	if (.@sec >= @cl_xpnext) {	// 3.14.1: companions' EXP bars kept over restarts (L_ExpKeep)
+		@cl_xpnext = .@sec + 10;
+		callsub L_ExpKeep, .@sec;
+	}
 	.@map$ = strcharinfo(3);
 	if (.@map$ != @cl_map$) {
 		// Out of town: a new trip. The Loot tab marks what's found from here on as new.
@@ -3270,7 +3517,9 @@ OnTick:
 	if (.pets && .mem)
 		callsub L_PetAsk, .@sec;
 	// 3.9.1: "hey boss" moments (L_MomentTry; 3.10.2: and the pop quiz). Bond tiers come from Memories.
-	if ((.moments || .quiz) && .mem)
+	// 3.13.12: not while the shopping ask waits or is up (it goes first in town), unless a
+	// moment's box is already on screen (its answer and time-out run on).
+	if ((.moments || .quiz) && .mem && (!@cl_shs || @cl_mos == 3))
 		callsub L_MomentTry, .@sec;
 	// 3.10.1: the shopping ask, and the trip once they're out (L_ShopTick).
 	if (@cl_shs || cl_shop$ != "")
@@ -3609,10 +3858,17 @@ OnTick:
 				if (.@a >= 0 && .@b >= 0)
 					callsub L_Conversation, .@a, .@b, .@map$, .@tod$;
 			}
-		} else if (rand(100) < 70) {
-			.@a = callsub(L_Pick, -1, -1);
-			if (.@a >= 0)
-				callsub L_QueueIdx, .@a, "idle", "", 0;
+		} else {
+			// 3.14.2: one companion: its life story too, told to you (L_ArcTry, nobody to
+			// listen). Else an idle line, 70% of the time as before.
+			.@told = 0;
+			if (.mem && rand(100) < 30)
+				.@told = callsub(L_ArcTry, 0);
+			if (!.@told && rand(100) < 70) {
+				.@a = callsub(L_Pick, -1, -1);
+				if (.@a >= 0)
+					callsub L_QueueIdx, .@a, "idle", "", 0;
+			}
 		}
 	}
 
@@ -3678,6 +3934,9 @@ OnTick:
 				dispbottom "[Companions] Your bond with " + @cl_nm$[.@i] + " grew: " + .bt_name$[.@bt] + " (" + .bt_perk$[.@bt] + ").", 0xFFCC66;
 				if (@cl_hp[.@i] > 0)
 					callsub L_QueueIdx, .@i, "bondup", "", ET_THROB;
+				// 3.14.0: a new tier brings a trait talk: within a couple of minutes.
+				if (.@bt >= 2 && @cl_monext > .@sec + 120)
+					@cl_monext = .@sec + 120;
 			}
 			if (@cl_hp[.@i] > 0)
 				callsub L_BondBuff, .@i, .@bt;
@@ -3728,6 +3987,10 @@ OnTick:
 		callsub L_HuntMark;	// 3.12.7: a find you put off stays on the minimap
 	if (@cl_hu_solo)
 		callsub L_SoloTick, .@sec;	// 3.13.0: Stand by, I'll solo
+	if (getarraysize(@cl_rm$) || CL_STANDBY || @cl_dg_aid)
+		callsub L_DangerTick, .@sec;	// 3.13.11: one losing a fight away from you asks
+	if (CL_DEBUG)
+		callsub L_DbgWho, .@sec;	// 3.14.2: the recorder's "who" snapshots (map log only)
 
 	// Looking around: while you stand still and nothing is fighting, every
 	// 12-30 s one companion strolls a few steps to another spot near you.
@@ -3905,8 +4168,15 @@ OnCmdRoster:
 				if (.@lv >= 99 && .@jl >= 50)
 					.@reb = 1;
 			}
+			// 3.14.3: Knight and Crusader families (trans and baby too, not 3rd jobs): 1 rides
+			// the Peco, 0 walks (your choice, kept in the mod store "pecoff"), -1 no Peco.
+			.@peco = -1;
+			.@ea = eaclass(.@cls);
+			.@up = .@ea & EAJ_UPPERMASK;
+			if ((.@up == EAJ_KNIGHT || .@up == EAJ_CRUSADER) && !(.@ea & EAJL_THIRD))
+				.@peco = !compare(callsub(L_PecoOff), "|" + .@qn$[.@i] + "|");
 			.@out$ += "~C|" + callsub(L_Clean, .@qn$[.@i]) + "|" + .@cls + "|" + .@sx + "|" + .@lv + "|" + .@jl + "|" + .@on
-				+ "|" + .@qf[.@i] + "|" + .@qd[.@i] + "|" + .@qr[.@i] + "|" + .@hom + "|" + .@reb + "|" + jobname(.@cls);
+				+ "|" + .@qf[.@i] + "|" + .@qd[.@i] + "|" + .@qr[.@i] + "|" + .@hom + "|" + .@reb + "|" + jobname(.@cls) + "|" + .@peco;
 		}
 		for (.@i = 0; .@i < getarraysize($cpo_hfj$); .@i++)
 			.@out$ += "~F|" + $cpo_hfj$[.@i] + "|" + $cpo_hfv[.@i];
@@ -3923,6 +4193,15 @@ OnCmdRoster:
 			.@ok$ = .rs_t2$;
 		else if (.@tier$ == "t")
 			.@ok$ = .rs_t2$ + .rs_tt$;
+		// 3.14.3: Gunslinger and Ninja have no 2nd job, so a 2nd/trans owner may hire them too.
+		// The app's hiring rules (mode 1) count them as 1st jobs and refuse them, so for that one
+		// draft the rule is switched off and back on in the same instant (below), and we
+		// charge the app's own fee instead (zeny per level, fee item).
+		.@bend = 0;
+		if (.@mode == 1 && .@tier$ != "1") {
+			if (.@job$ == "Gunslinger" || .@job$ == "Ninja")
+				.@bend = 1;
+		}
 		if (.@ok$ == "" || .@job$ == "" || !compare(.@ok$, " " + .@job$ + " ")) {
 			callsub L_BagReply, .@req$, "ERR|You can only hire someone of your own class tier.";
 			end;
@@ -3944,6 +4223,23 @@ OnCmdRoster:
 			if (modstore_get("char", "rs.hired", 0) || .@cnt)
 				.@fee = callsub(L_RsFee, .@tier$) * BaseLevel;
 		}
+		// The bent hire pays what the app would: its zeny per level x their level (checked at
+		// your level + 2, the most they can join at), and its fee item.
+		.@bzl = 0;
+		.@bit = 0;
+		.@bia = 0;
+		if (.@bend) {
+			.@bzl = getbattleflag("population_engine_companion_hire_zeny_per_level");
+			.@bit = getbattleflag("population_engine_companion_hire_item");
+			.@bia = getbattleflag("population_engine_companion_hire_item_amount");
+			.@fee = .@bzl * (BaseLevel + 2);
+			if (.@bit > 0 && .@bia > 0) {
+				if (countitem(.@bit) < .@bia) {
+					callsub L_BagReply, .@req$, "ERR|Hiring needs " + .@bia + " " + getitemname(.@bit) + ".";
+					end;
+				}
+			}
+		}
 		if (Zeny < .@fee) {
 			callsub L_BagReply, .@req$, "ERR|Hiring costs " + .@fee + " z. You have " + Zeny + " z.";
 			end;
@@ -3962,7 +4258,13 @@ OnCmdRoster:
 		.@cmd$ = "@companion draft " + .@job$;
 		if (.@sx$ == "m" || .@sx$ == "f")
 			.@cmd$ += " " + .@sx$;
-		atcommand .@cmd$;
+		if (.@bend) {
+			// Off, draft, back on: one instant, nothing can run in between (no sleep here).
+			setbattleflag "population_engine_companion_hire", 0;
+			atcommand .@cmd$;
+			setbattleflag "population_engine_companion_hire", .@mode;
+		} else
+			atcommand .@cmd$;
 		sleep2 800;
 		.@nid = 0;
 		query_sql "SELECT id, name, base_level FROM cp_companion_persistence WHERE owner_char_id = " + .@me + " AND id > " + .@last
@@ -3983,6 +4285,13 @@ OnCmdRoster:
 			callsub L_BagReply, .@req$, "ERR|A " + .@job$ + " can't join below Lv " + .@nlv + ". Come back then!";
 			end;
 		}
+		if (.@bend) {
+			.@fee = .@bzl * .@nlv;	// their real level now
+			if (.@fee > Zeny)
+				.@fee = Zeny;
+			if (.@bit > 0 && .@bia > 0)
+				delitem .@bit, .@bia;
+		}
 		if (.@fee > 0)
 			Zeny -= .@fee;
 		modstore_set "char", "rs.hired", 1;
@@ -3996,7 +4305,7 @@ OnCmdRoster:
 	// The rest name a companion of yours: "<action> <name>", or "<action> <on|off|...> <name>".
 	.@arg$ = "";
 	.@from = 2;
-	if (.@act$ == "fav" || .@act$ == "hom" || .@act$ == "roam" || .@act$ == "reb") {
+	if (.@act$ == "fav" || .@act$ == "hom" || .@act$ == "roam" || .@act$ == "reb" || .@act$ == "peco") {
 		.@arg$ = .@atcmd_parameters$[2];
 		.@from = 3;
 	}
@@ -4026,6 +4335,13 @@ OnCmdRoster:
 			.@out$ = "S|1";
 			for (.@k = 0; .@k < getarraysize(.@p); .@k++)
 				.@out$ += "|" + readparam(.@p[.@k], .@c);
+			// 3.14.1: |base lv|base EXP in tenths of a %|job lv|job EXP tenths (-1 = max level,
+			// the table has no next level). Shows whether they level past 99, and whether the
+			// bar survives a restart (the save row keeps levels only).
+			.@out$ += "|" + readparam(BaseLevel, .@c) + "|" + callsub(L_ExpPct, readparam(BaseExp, .@c), readparam(NextBaseExp, .@c))
+				+ "|" + readparam(JobLevel, .@c) + "|" + callsub(L_ExpPct, readparam(JobExp, .@c), readparam(NextJobExp, .@c));
+			// 3.14.3: |stat ATK|weapon ATK|refine ATK|MATK min|MATK max (L_AtkMatk).
+			.@out$ += "|" + callsub(L_AtkMatk, .@c);
 		} else {
 			query_sql "SELECT str_, agi_, vit_, intl_, dex_, luk_ FROM cp_companion_persistence WHERE owner_char_id = " + .@me
 				+ " AND name = '" + escape_sql(.@nm$) + "' LIMIT 1", .@s1, .@s2, .@s3, .@s4, .@s5, .@s6;
@@ -4111,8 +4427,92 @@ OnCmdRoster:
 		callsub L_BagReply, .@req$, "OK|" + .@nm$ + " starts a new life.";
 		end;
 	}
+	// 3.14.3: Peco on / off. Off is kept by name in the mod store; the main tick keeps them
+	// off it (the engine puts riders back on after a warp, a spawn or a job change).
+	if (.@act$ == "peco") {
+		.@k$ = "|" + .@nm$ + "|";
+		.@off$ = callsub(L_PecoOff);
+		if (.@arg$ == "off") {
+			if (!compare(.@off$, .@k$))
+				.@off$ = (.@off$ == "" ? "|" : .@off$) + .@nm$ + "|";
+		} else
+			.@off$ = replacestr(.@off$, .@k$, "|");
+		if (.@off$ == "|")
+			.@off$ = "";
+		@cl_pecoff$ = .@off$;
+		modstore_set "char", "pecoff", .@off$;
+		callsub L_Gather;
+		.@ix = inarray(@cl_nm$, .@nm$);
+		if (.@ix >= 0) {
+			.@c = @cl_cid[.@ix];
+			if (.@arg$ == "off") {
+				if (checkriding(.@c))
+					setriding 0, .@c;
+				if (@cl_crid$ != "")	// off by the fire already: the camp's end leaves them off
+					@cl_crid$ = replacestr(@cl_crid$, @cl_aid[.@ix] + ":" + .@c + ";", "");
+			} else if (@cl_camp) {
+				// By the fire: on again when the camp ends (L_CampEnd), not standing up now.
+				if (!compare(@cl_crid$, ":" + .@c + ";"))
+					@cl_crid$ += @cl_aid[.@ix] + ":" + .@c + ";";
+			} else if (!checkriding(.@c))
+				setriding 1, .@c;
+		}
+		callsub L_BagReply, .@req$, "OK|" + .@nm$ + (.@arg$ == "off" ? " walks on foot now." : " rides the Peco again.");
+		end;
+	}
 	callsub L_BagReply, .@req$, "ERR|unknown";
 	end;
+
+// 3.14.3: a companion's ATK and MATK as the pre-re Status window shows them, for the Stats
+// fold: "stat ATK|weapon ATK|refine ATK|MATK min|MATK max". Pre-re readparam gives only the
+// stat part (bBaseAtk, ATK cards like Andre included) and the MATK rate, not weapon ATK or
+// MATK, so: weapon ATK from the item db, refine by weapon level (2/3/5/7 per +1, no
+// over-refine roll), MATK = INT + (INT/7)^2 ~ INT + (INT/5)^2, times the MATK rate (staffs).
+L_AtkMatk:
+	.@c = getarg(0);
+	.@wa = 0;
+	.@ra = 0;
+	.@r = getequipid(EQI_HAND_R, .@c);
+	.@twoh = 0;
+	if (.@r > 0) {
+		if (getiteminfo(.@r, ITEMINFO_TYPE) == IT_WEAPON)
+			.@twoh = ((getiteminfo(.@r, ITEMINFO_LOCATIONS) & EQP_HAND_L) > 0);
+	}
+	setarray .@sl, EQI_HAND_R, EQI_HAND_L;
+	for (.@k = 0; .@k < 2; .@k++) {
+		if (.@k == 1 && .@twoh)
+			break;	// a two-hander sits in both hands: counted once
+		.@id = getequipid(.@sl[.@k], .@c);
+		if (.@id <= 0)
+			continue;
+		if (getiteminfo(.@id, ITEMINFO_TYPE) != IT_WEAPON)
+			continue;	// a shield
+		.@wa += getiteminfo(.@id, ITEMINFO_ATTACK);
+		.@wl = getiteminfo(.@id, ITEMINFO_WEAPONLEVEL);
+		.@per = 2;
+		if (.@wl == 2)
+			.@per = 3;
+		else if (.@wl == 3)
+			.@per = 5;
+		else if (.@wl >= 4)
+			.@per = 7;
+		.@ra += getequiprefinerycnt(.@sl[.@k], .@c) * .@per;
+	}
+	.@int = readparam(bInt, .@c);
+	.@mr = readparam(bMatkRate, .@c);
+	if (.@mr <= 0)
+		.@mr = 100;
+	.@mn = (.@int + (.@int / 7) * (.@int / 7)) * .@mr / 100;
+	.@mx = (.@int + (.@int / 5) * (.@int / 5)) * .@mr / 100;
+	return "" + readparam(bBaseAtk, .@c) + "|" + .@wa + "|" + .@ra + "|" + .@mn + "|" + .@mx;
+
+// 3.14.3: the names you told to walk, "|Name|Name|" ("" = all ride), read once per login.
+L_PecoOff:
+	if (!@cl_pecld) {
+		@cl_pecoff$ = modstore_get("char", "pecoff", "");
+		@cl_pecld = 1;
+	}
+	return @cl_pecoff$;
 
 // 3.10.0: your class tier for hiring: "1" (Novice and 1st jobs, High ones too), "2",
 // "t" (transcendent 2nd), "3" or "4" (not offered by the Roster's Hire page).
@@ -4222,13 +4622,44 @@ L_RoamOrder:
 		.@sp[.@s] = .@ix;
 		.@s++;
 	}
-	if (.@s) {
+	if (.@s && getarg(2) != "") {	// 3.13.5: "" = nobody speaks (the solo has its own line)
 		.@ix = .@sp[0];
 		if (.@s > 1)
 			.@ix = .@sp[rand(.@s)];
 		callsub L_SpeakNow, .@ix, getarg(2), "", (.@on ? ET_GO : ET_SMILE);
 	}
 	return .@c;
+
+// 3.13.11: your answer to a danger ask (L_DangerTick; client/index.js "cldanger"):
+// "@cldanger <request> retreat|help".
+OnCmdDanger:
+	.@req$ = .@atcmd_parameters$[0];
+	.@a$ = .@atcmd_parameters$[1];
+	.@i = -1;
+	if (@cl_dg_aid)
+		.@i = inarray(@cl_aid[0], @cl_dg_aid);
+	@cl_dg_aid = 0;
+	if (.@i < 0) {
+		callsub L_BagReply, .@req$, "ERR|over";
+		end;
+	}
+	if (@cl_hp[.@i] <= 0) {
+		callsub L_BagReply, .@req$, "ERR|down";
+		end;
+	}
+	if (CL_DEBUG)
+		callsub L_Dbg, "danger: answer " + .@a$ + " for " + @cl_nm$[.@i];
+	if (.@a$ == "retreat") {
+		callsub L_DangerRetreat, .@i;
+		callsub L_BagReply, .@req$, "OK|retreat";
+		end;
+	}
+	if (.@a$ == "help") {
+		callsub L_DangerHelp, .@i, .@req$;
+		end;
+	}
+	callsub L_BagReply, .@req$, "ERR|answer";
+	end;
 
 // 3.11.0: what roaming is for, "@clhunt <request> normal|mvp task" from the Orders tab's Task
 // card (3.12.0: one click sets it and sends them; char var CL_HUNT: 0 everything, 1 the MVP
@@ -4238,9 +4669,9 @@ OnCmdHunt:
 	.@req$ = .@atcmd_parameters$[0];
 	.@a$ = .@atcmd_parameters$[1];
 	// 3.13.0: the find's answers (client/index.js): "engage" (Engage together) and "solo"
-	// (Stand by, I'll solo). You Fly Wing beside the one who found it, everyone flies to you,
-	// then L_HuntGo. No wing, or wings don't work here: walk to the red mark, they keep
-	// waiting, and the answer holds for when you get there (L_HuntGather).
+	// (Stand by, I'll solo). Engage: you Fly Wing in near it, everyone flies to you, then
+	// L_HuntGo. No wing, or wings don't work here: walk to the red mark, they keep waiting,
+	// and the answer holds for when you get there (L_HuntGather). Solo: see below.
 	if (.@a$ == "engage" || .@a$ == "solo") {
 		if (!@cl_hu_g) {
 			callsub L_BagReply, .@req$, "ERR|over";
@@ -4251,15 +4682,62 @@ OnCmdHunt:
 			callsub L_Dbg, "answer: " + (@cl_hu_mode == 1 ? "Engage together" : "Stand by, I'll solo") + " (" + (gettimetick(2) - @cl_hu_t) + " s after the find)";
 		.@fi = inarray(@cl_aid[0], @cl_hu_f);
 		getmapxy(.@m$, .@x, .@y, BL_PC);
-		if (.@fi < 0 || getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_hu_f) != 0 || .@cm$ != .@m$ || Hp <= 0) {
+		if (.@fi < 0 || getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_hu_f) != 0 || .@cm$ != .@m$ || Hp <= 0 || !unitexists(@cl_hu_g)) {
 			callsub L_BagReply, .@req$, "ERR|away";
 			end;
+		}
+		// 3.13.5: Stand by, I'll solo: everyone (you too, by Fly Wing) gathers at a spot
+		// 14-18 cells from it, they on Stand By (L_HuntGo); you walk in when ready.
+		if (@cl_hu_mode == 2) {
+			// From where it is now (it walks; the finder may not have got clear yet), on
+			// the finder's side; none free: the finder's own spot.
+			getunitdata @cl_hu_g, .@bd;
+			if (callsub(L_HuntSpot, .@bd[UMOB_X], .@bd[UMOB_Y], .@cx, .@cy, 0)) {
+				.@cx = @cl_hu_sx;
+				.@cy = @cl_hu_sy;
+			}
+			// 3.13.5 (user's pick B): you fly there too, one Fly Wing, and walk in when
+			// ready. No wing, or wings don't work here: you stay, they still gather there.
+			.@dx = .@cx - .@x;
+			.@dy = .@cy - .@y;
+			.@fly = 0;
+			if (max(.@dx, -.@dx, .@dy, -.@dy) > 3) {
+				if (callsub(L_MapFlag, .@m$, MF_NOTELEPORT) || countitem(601) < 1) {
+					if (CL_DEBUG)
+						callsub L_Dbg, "answer: you stay (no Fly Wing, or wings don't work here)";
+					dispbottom "[Companions] " + (countitem(601) < 1 ? "You have no Fly Wing" : "Fly Wings don't work on this map") + ", so you stay here. They gather out of its sight.", 0xFFCC66;
+				} else {
+					.@fly = 1;
+					.@tx = .@cx + rand(-1, 1);
+					.@ty = .@cy + rand(-1, 1);
+					if (!checkcell(.@m$, .@tx, .@ty, cell_chkpass)) {
+						.@tx = .@cx;
+						.@ty = .@cy;
+					}
+				}
+			}
+			// 3.13.6: they fly first, you after (L_HuntFly), never in the same moment.
+			callsub L_HuntGo, .@cx, .@cy;
+			callsub L_BagReply, .@req$, "OK|solo";
+			if (.@fly)
+				callsub L_HuntFly, .@m$, .@tx, .@ty;
+			end;
+		}
+		// 3.13.5: Engage: the finder waits 16-18 cells off (L_HuntAway), out of everyone's
+		// reach of it, so you land about 9 cells from it on the finder's side instead.
+		getunitdata @cl_hu_g, .@bd;
+		.@vx = .@cx - .@bd[UMOB_X];
+		.@vy = .@cy - .@bd[UMOB_Y];
+		.@vd = max(.@vx, -.@vx, .@vy, -.@vy);
+		if (.@vd > 9) {
+			.@cx = .@bd[UMOB_X] + .@vx * 9 / .@vd;
+			.@cy = .@bd[UMOB_Y] + .@vy * 9 / .@vd;
 		}
 		.@dx = .@cx - .@x;
 		.@dy = .@cy - .@y;
 		.@why$ = "";
 		if (max(.@dx, -.@dx, .@dy, -.@dy) > 3) {
-			if (getmapflag(.@m$, MF_NOTELEPORT))
+			if (callsub(L_MapFlag, .@m$, MF_NOTELEPORT))
 				.@why$ = "Fly Wings don't work on this map";
 			else if (countitem(601) < 1)
 				.@why$ = "You have no Fly Wing";
@@ -4267,33 +4745,35 @@ OnCmdHunt:
 		if (.@why$ != "") {
 			if (CL_DEBUG)
 				callsub L_Dbg, "answer: you walk (" + .@why$ + ")";
-			dispbottom "[Companions] " + .@why$ + ": walk to the red mark. They wait, and "
-				+ (@cl_hu_mode == 1 ? "everyone engages" : "they stand by for your solo") + " when you get there.", 0xFFCC66;
+			dispbottom "[Companions] " + .@why$ + ": walk to the red mark. They wait, and everyone engages when you get there.", 0xFFCC66;
 			callsub L_BagReply, .@req$, "OK|walk";
 			end;
 		}
 		.@tx = .@x;
 		.@ty = .@y;
+		.@fly = 0;
 		if (max(.@dx, -.@dx, .@dy, -.@dy) > 3) {
-			// A free cell beside them, else their own (as @clgoto).
+			// That spot if free, else a free cell beside it, else the finder's own.
+			.@fly = 1;
 			.@tx = .@cx;
 			.@ty = .@cy;
-			for (.@k = 0; .@k < 8; .@k++) {
+			if (!checkcell(.@m$, .@tx, .@ty, cell_chkpass))
+				getmapxy(.@cm$, .@tx, .@ty, BL_PC, @cl_hu_f);
+			for (.@k = 0; .@k < 8 && !checkcell(.@m$, .@cx, .@cy, cell_chkpass); .@k++) {
 				.@ax = .@cx + rand(-2, 2);
 				.@ay = .@cy + rand(-2, 2);
-				if ((.@ax != .@cx || .@ay != .@cy) && checkcell(.@m$, .@ax, .@ay, cell_chkpass)) {
+				if (checkcell(.@m$, .@ax, .@ay, cell_chkpass)) {
 					.@tx = .@ax;
 					.@ty = .@ay;
 					break;
 				}
 			}
-			delitem 601, 1;
-			specialeffect2 EF_TELEPORTATION;
-			warp .@m$, .@tx, .@ty;
-			specialeffect2 EF_TELEPORTATION;
 		}
-		callsub L_HuntGo, .@tx, .@ty;
+		// 3.13.6: they fly first, you after (L_HuntFly), never in the same moment.
+		callsub L_HuntGo, .@tx, .@ty, .@fly;
 		callsub L_BagReply, .@req$, "OK|" + .@a$;
+		if (.@fly)
+			callsub L_HuntFly, .@m$, .@tx, .@ty, 1;
 		end;
 	}
 	// 3.13.0: "help me" in party chat during a solo: they all join in.
@@ -4305,6 +4785,8 @@ OnCmdHunt:
 		if (CL_DEBUG)
 			callsub L_Dbg, "solo over: you called for help";
 		callsub L_SoloEnd;
+		callsub L_StandOff;	// 3.13.5: off Stand By, and they fly to you (they waited out of its reach)
+		callsub L_HuntRecall;
 		callsub L_HuntCharge;
 		.@a = callsub(L_Pick, -1, -1);
 		if (.@a >= 0)
@@ -4424,6 +4906,16 @@ OnCmdStand:
 		callsub L_BagReply, .@req$, "ERR|roaming off";
 		end;
 	}
+	.@said$ = " ";
+	for (.@k = 1 + .@task; .@k < .@atcmd_numparameters; .@k++)
+		.@said$ += .@atcmd_parameters$[.@k] + " ";
+	.@c = callsub(L_StandStart, .@said$, "standby");
+	callsub L_BagReply, .@req$, "OK|" + .@c;
+	end;
+
+// 3.13.5: Stand By starts (OnCmdStand, and Stand by, I'll solo in L_HuntGo): getarg(0) the
+// line (names in it pick who, else all), getarg(1) the line one of them says ("" none).
+L_StandStart:
 	if (cl_shop$ != "")
 		callsub L_ShopEnd, 1;
 	if (@cl_hu_g)
@@ -4431,15 +4923,11 @@ OnCmdStand:
 	@cl_hu_lead = 0;
 	CL_STANDBY = 1;
 	@cl_st_map$ = strcharinfo(3);
-	.@said$ = " ";
-	for (.@k = 1 + .@task; .@k < .@atcmd_numparameters; .@k++)
-		.@said$ += .@atcmd_parameters$[.@k] + " ";
-	.@c = callsub(L_RoamOrder, 1, .@said$, "standby", 1);
+	.@c = callsub(L_RoamOrder, 1, getarg(0), getarg(1), 1);
 	callsub L_Gather;
 	@cl_st_next = 0;
 	callsub L_StandTick, gettimetick(2);
-	callsub L_BagReply, .@req$, "OK|" + .@c;
-	end;
+	return .@c;
 
 // Each tick on Stand By: the hold renewed every 3 s (15 s long, so an NPC dialog, which skips
 // the tick, doesn't free them). Nobody roaming any more (the camp, the app's window): it's
@@ -4462,8 +4950,8 @@ L_StandTick:
 		dispbottom "[Companions] You left the map, so they follow you again.", 0xFFCC66;
 		return;
 	}
-	if (.@sec < @cl_st_next)
-		return;
+	if (.@sec < @cl_st_next || .@sec < @cl_so_mv)
+		return;	// 3.13.7: no Hold while they get clear of the boss (L_SoloDodge)
 	@cl_st_next = .@sec + 3;
 	for (.@i = 0; .@i < @cl_n; .@i++) {
 		if (@cl_hp[.@i] > 0 && callsub(L_Roams, .@i))
@@ -4513,7 +5001,7 @@ OnCmdGoto:
 		callsub L_BagReply, .@req$, "ERR|near";
 		end;
 	}
-	if (getmapflag(.@m$, MF_NOTELEPORT)) {
+	if (callsub(L_MapFlag, .@m$, MF_NOTELEPORT)) {
 		dispbottom "[Companions] Fly Wings don't work on this map.", 0xFFCC66;
 		callsub L_BagReply, .@req$, "ERR|noteleport";
 		end;
@@ -4635,7 +5123,7 @@ OnCmdWarp:
 		.@dx = CL_WPX;
 		.@dy = CL_WPY;
 	}
-	if (getmapflag(.@m$, MF_NOWARP)) {
+	if (callsub(L_MapFlag, .@m$, MF_NOWARP)) {
 		callsub L_SpeakNow, .@ix, "warpno", "", ET_SWEAT;
 		callsub L_BagReply, .@req$, "ERR|nowarp";
 		end;
@@ -4898,7 +5386,7 @@ OnCmdOrder:
 		.@wc$ = callsub(L_Clean, @cl_nm$[.@wix]);
 		if (@cl_wpat || @cl_wp$ != "")
 			.@why$ = "The portal is open";
-		else if (getmapflag(.@m$, MF_NOWARP))
+		else if (callsub(L_MapFlag, .@m$, MF_NOWARP))
 			.@why$ = "No portals on this map";
 		else if (!.@home && (CL_WPM$ == "" || .@wlv < 2))
 			.@why$ = "Nowhere to go back to yet";
@@ -5631,6 +6119,8 @@ OnCmdStat:
 			.@r$ += "|" + .@pt + "|" + callsub(L_BondTier, .@pt) + "|" + modstore_get("char", .@p$ + ".camps", 0) + "|" + modstore_get("char", .@p$ + ".gifts", 0);
 			// 3.9.1: |char id (the Journal asks by it)|chapters told
 			.@r$ += "|" + .@c + "|" + modstore_get("char", .@p$ + ".arc", 0);
+		// 3.14.0: |their traits ("Guarded III:takes 4% less damage^...", L_TraitText)
+		.@r$ += "|" + callsub(L_Clean, callsub(L_TraitText, .@c, callsub(L_BondTier, .@pt), 1));
 			if (.@out$ != "")
 				.@out$ += "~";
 			.@out$ += .@r$;
@@ -5696,6 +6186,51 @@ OnCmdMoment:
 		callsub L_BagReply, .@req$, "OK|";
 		end;
 	}
+	// 3.14.0: a trait talk is their own: it becomes a trait (L_TraitText, L_BondBuff now).
+	if (.mo_kind$[.@k] == "trait") {
+		if (.@ch > 2) {
+			callsub L_BagReply, .@req$, "OK|";
+			end;
+		}
+		.@ts = callsub(L_TraitSet, readparam(Class, .@c));
+		.@sl = atoi(.mo_x1$[.@k]);
+		modstore_set "char", .@p$ + ".tr" + .@sl, .@ts * 10 + .@ch;
+		modstore_set "char", .@p$ + ".mo" + .@k, .@ch;
+		modstore_inc("char", .@p$ + ".moments", 1);
+		.@x = (.@ts - 1) * 8 + .@sl * 2 + .@ch - 1;
+		.@fit = (.tr_l[.@x] == .tr_pref[@cl_ar[.@i]]);
+		if (.@fit)
+			modstore_inc("char", .@p$ + ".trb", 4);
+		else
+			modstore_inc("char", .@p$ + ".trb", -4);
+		.@bt = callsub(L_BondTier, callsub(L_BondPts, .@c));
+		setd "@cl_bt_" + .@c, .@bt;
+		.@r = .@bt - 1;
+		if (.@r < 1)
+			.@r = 1;
+		if (.@r > 4)
+			.@r = 4;
+		.@e = .tr_e[.@x];
+		.@tn$ = .tr_nm$[.@x] + " " + .roman$[.@r];
+		.@r$ = replacestr(callsub(L_Line, (.@fit ? "trfit" : "trclash"), @cl_ar[.@i]), "{a}", .tr_nm$[.@x]);
+		callsub L_QueueRaw, .@i, .@r$, (.@fit ? ET_THROB : ET_SWEAT);
+		dispbottom "[Companions] " + @cl_nm$[.@i] + " is now " + .@tn$ + ": " + replacestr(.tre_d$[.@e], "{v}", "" + .tre_v[.@e * 4 + .@r - 1])
+			+ ". It grows with your bond (Bond fold in the Roster).", 0xFFCC66;
+		if (@cl_hp[.@i] > 0)
+			callsub L_BondBuff, .@i, .@bt;
+		@cl_mos = 0;
+		callsub L_MomentEnd, 0;
+		// Another of their talks due already (a party that bonded before 3.14.0): in 4 minutes,
+		// not the usual 20-30.
+		for (.@s = 0; .@s < 4; .@s++) {
+			if (.@bt >= .@s + 2 && !modstore_get("char", .@p$ + ".tr" + .@s, 0)) {
+				@cl_monext = gettimetick(2) + 240;
+				break;
+			}
+		}
+		callsub L_BagReply, .@req$, "OK|";
+		end;
+	}
 	if (.mo_p[.@k] < 0 && .mo_kind$[.@k] != "check") {
 		modstore_set "char", "mop" + .@k, .@ch;	// asked for the whole party
 		modstore_set "char", "mopw" + .@k, .@c;	// by whom (the Journal)
@@ -5742,19 +6277,29 @@ OnCmdStory:
 	}
 	callsub L_Gather;
 	.@a = inarray(@cl_cid, @cl_stc);
-	.@b = inarray(@cl_cid, @cl_stl);
+	.@b = -1;	// 3.14.2: @cl_stl 0 = told to you
+	if (@cl_stl)
+		.@b = inarray(@cl_cid, @cl_stl);
 	.@ok = 0;
-	if (.@atcmd_parameters$[1] == "yes" && .@a >= 0 && .@b >= 0) {
-		if (@cl_hp[.@a] > 0 && @cl_hp[.@b] > 0)
+	if (.@atcmd_parameters$[1] == "yes" && .@a >= 0 && (.@b >= 0 || !@cl_stl)) {
+		if (@cl_hp[.@a] > 0) {	// (nested: && reads both sides, and @cl_hp[-1] ends the script)
 			.@ok = 1;
+			if (.@b >= 0) {
+				if (@cl_hp[.@b] <= 0)
+					.@ok = 0;
+			}
+		}
 	}
+	.@rep$ = "OK|";
 	if (.@ok) {
 		.@ch = @cl_stch;
 		@cl_stc = 0;
 		callsub L_StoryTell, .@a, .@b, .@ch;
+		if (.@b < 0)
+			.@rep$ = @cl_strep$;	// the chapter, line by line, for the client to play (L_StoryMe)
 	} else
 		callsub L_StoryEnd, 0;
-	callsub L_BagReply, .@req$, "OK|";
+	callsub L_BagReply, .@req$, .@rep$;
 	end;
 
 // 3.9.1: "@cljournal <request> <char id>": the Journal in the Bonds tab. Records,
@@ -5800,6 +6345,9 @@ OnCmdJournal:
 		.@hear$ = .@who$;
 		if (.@hear$ == "")
 			.@hear$ = "a friend";
+		.@you = (.@who$ == "@you");	// 3.14.2: told to you (L_StoryMe)
+		if (.@you)
+			.@hear$ = "you";
 		.@line$ = callsub(L_ArcText, .@ar, .@sv, .@ch, 0);
 		if (charat(.@line$, 0) == "#")
 			.@line$ = delchar(.@line$, 0);
@@ -5808,6 +6356,8 @@ OnCmdJournal:
 		for (.@j = 0; .@j < getarraysize(.@turn$); .@j++) {
 			.@s$ = charat(.@turn$[.@j], 0);
 			.@other$ = .@hear$;
+			if (.@you)
+				.@other$ = .@ttl$;	// its lines call you what it calls you
 			if (.@s$ == "B")
 				.@other$ = .@nm$;
 			.@say$ = callsub(L_JText, delchar(.@turn$[.@j], 0), .@ttl$, .@other$);
@@ -5820,6 +6370,17 @@ OnCmdJournal:
 		.@kd$ = .mo_kind$[.@m];
 		.@ans = 0;
 		.@own = 0;
+		// 3.14.0: a trait talk: their class's question, and the trait you chose.
+		if (.@kd$ == "trait") {
+			.@sl = atoi(.mo_x1$[.@m]);
+			.@tv = modstore_get("char", .@p$ + ".tr" + .@sl, 0);
+			.@ts = .@tv / 10;
+			.@ta = .@tv % 10;
+			if (.@ts < 1 || .@ts > 13 || .@ta < 1 || .@ta > 2)
+				continue;
+			.@out$ += "~M|" + callsub(L_Clean, callsub(L_JText, .tr_q$[(.@ts - 1) * 4 + .@sl], .@ttl$, "")) + "|" + .tr_nm$[(.@ts - 1) * 8 + .@sl * 2 + .@ta - 1];
+			continue;
+		}
 		if (compare(.@kd$, "story")) {
 			if (callsub(L_MoStory, .@kd$) != .@sv)
 				continue;	// another story's choice
@@ -6651,7 +7212,7 @@ L_LootTrack:
 		@lt_map$ = .@m$;
 		@lt_n = 0;
 	}
-	if (getmapflag(.@m$, MF_NOMOBLOOT)) {
+	if (callsub(L_MapFlag, .@m$, MF_NOMOBLOOT)) {
 		@lt_n = 0;
 		return;
 	}
@@ -6995,8 +7556,10 @@ L_Restock:
 			if (.@buy < .@need && .@room >= .@need)
 				.@short$ += ", " + (.@need - .@buy) + " " + getitemname(.@id);
 		}
-		if (.@mine$ != "")
+		if (.@mine$ != "") {
 			.@got$ += (.@got$ == "" ? "" : "; ") + .@cnm$[.@k] + ": " + .@mine$;
+			.@ln$[getarraysize(.@ln$)] = .@cnm$[.@k] + ": " + .@mine$;	// 3.14.1: a chat line each
+		}
 	}
 	if (.@spent > 0)
 		modstore_inc("char", "purse", -.@spent);
@@ -7010,8 +7573,20 @@ L_Restock:
 		@rs_msg$ += (@rs_msg$ == "" ? "" : " ") + "Not enough in the purse for" + substr(.@short$, 1, getstrlen(.@short$) - 1) + ".";
 	if (.@heavy$ != "")
 		@rs_msg$ += (@rs_msg$ == "" ? "" : " ") + "Too heavy to carry it all:" + substr(.@heavy$, 1, getstrlen(.@heavy$) - 1) + ".";
-	if (@rs_msg$ != "")
-		dispbottom "[Companions] " + @rs_msg$, 0xFFCC66;
+	// 3.14.1: in the chat box a line per companion, then the total: one line for all of it ran
+	// past the game's 255-byte message limit with four of them and was cut off (the map log
+	// said "Truncating too long message"), so the cost and the Discount never showed.
+	if (@rs_msg$ != "") {
+		for (.@k = 0; .@k < getarraysize(.@ln$); .@k++)
+			dispbottom "[Companions] Restocked " + .@ln$[.@k], 0xFFCC66;
+		if (.@got$ != "")
+			dispbottom "[Companions] Restock total: " + callfunc("F_InsertComma", .@spent) + " z"
+				+ (.@disc > 0 ? " (" + .@dwho$ + "'s Discount -" + .@disc + "%)" : "") + ".", 0xFFCC66;
+		if (.@short$ != "")
+			dispbottom "[Companions] Not enough in the purse for" + substr(.@short$, 1, getstrlen(.@short$) - 1) + ".", 0xFFCC66;
+		if (.@heavy$ != "")
+			dispbottom "[Companions] Too heavy to carry it all:" + substr(.@heavy$, 1, getstrlen(.@heavy$) - 1) + ".", 0xFFCC66;
+	}
 	// A word from the one who bargained, else anyone. 3.10.1: getarg(1) 1 = no word
 	// (a shopping trip: they say theirs when they're back).
 	if (.@got$ != "" && .chatter && !getarg(1, 0)) {
@@ -7204,7 +7779,7 @@ L_Gift:
 		if (.@tb$ == "")
 			return 0;
 		explode(.@ent$, .@tb$, ",");
-		.@e$ = .@ent$[rand(getarraysize(.@ent$))];
+		.@e$ = .@ent$[callsub(L_Rn, getarraysize(.@ent$))];
 	}
 	explode(.@p$, .@e$, ":");
 	.@id = atoi(.@p$[0]);
@@ -8024,7 +8599,12 @@ L_ShopTick:
 			callsub L_Restock, 0;
 			return;
 		}
-		if (@cl_incombat || @cl_mopc || @cl_akc || @cl_stc || !callsub(L_Calm) || .@sec - @cl_still < 2)
+		// 3.13.12: it goes first in town: a "hey boss" moment not yet on screen and their chatter
+		// wait for it (L_MomentTry paused, the hush keeps new talk from starting). After an MVP
+		// both ran on for the whole minute, and the ask gave way to a quiet restock.
+		if (@cl_hush < .@sec + 5)
+			@cl_hush = .@sec + 5;
+		if (@cl_incombat || @cl_mos == 3 || @cl_akc || @cl_stc || .@sec - @cl_still < 2)
 			return;
 		.@k = 0;
 		getmapxy(.@om$, .@ox, .@oy, BL_PC);
@@ -8053,7 +8633,9 @@ L_ShopTick:
 		@cl_shnext = .@sec + 300;
 		return;
 	}
-	// 2: the box is up.
+	// 2: the box is up (3.13.12: and no new talk under it).
+	if (@cl_hush < .@sec + 5)
+		@cl_hush = .@sec + 5;
 	if (.@sec >= @cl_sht || @cl_incombat || strcharinfo(3) != @cl_shmap$) {
 		dispbottom "@@event clshop -";
 		@cl_shs = 0;
@@ -8216,10 +8798,12 @@ OnCmdShop:
 // screen). An MVP in sight: it calls you (L_HuntFound), and they all wait out of its
 // reach until you come (L_HuntWait). Otherwise they fly on with a Fly Wing from their
 // own bag (the engine's own teleport: the ct_hunt_fly rule, db/population_strategy.yml):
-//   Normal (CL_HUNT 0): once nothing has been in sight for 25 s. Alone, each by itself;
+//   Normal (CL_HUNT 0): once it's had no fight for 10 s (3.14.1: no monster on it within 9
+//     cells; was 25 s of no monster near at all). Alone, each by itself;
 //     as a group the leader flies and the rest Fly Wing to its side (L_HuntGroup).
-//   MVP (CL_HUNT 1): each on its own every 8-14 s, starting no fight in between
-//     (ct_hunt_look), only defending itself.
+//   MVP (CL_HUNT 1): each on its own every 5 s (3.14.1, was 8-14), a 3-5 cell look round
+//     after each landing (L_HuntStroll), starting no fight in between (ct_hunt_look), only
+//     defending itself; the hop comes on time, a fight or not.
 // Not while one of yours lies dead (the rally), nor where wings don't work, nor in the
 // first 6 s on a map. Out of wings: it walks, and says so (every 10 minutes at most).
 // Marks (harmless statuses the rules read): Reuse_Limit_A fly now, B look but start no
@@ -8239,11 +8823,28 @@ L_HuntTick:
 		callsub L_HuntWait, .@sec;
 		return;
 	}
+	// 3.14.2: Engage together keeps them roaming for the 1 s flight (L_HuntFly); the scan saw
+	// the same boss again in that second, a 2nd find, and the finder walked off mid-charge.
+	if (.@sec < @cl_hu_engt)
+		return;
 	if (@cl_hu_lead)
 		callsub L_HuntGroup, .@sec;
-	if (.@sec < @cl_hu_scan)
+	// 3.13.8 (A): a Fly Wing can land it beside a boss, and a Meteor Storm doesn't wait 3 s:
+	// for 5 s after its hop (L_Hop) a roamer looks round every second.
+	if (.@sec < @cl_hu_scan) {
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] <= 0 || .@sec - getd("@cl_hu_hop_" + @cl_aid[.@i]) > 5 || !callsub(L_Roams, .@i))
+				continue;
+			if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_aid[.@i]) != 0 || .@cm$ != .@m$)
+				continue;
+			if (callsub(L_HuntEye, .@i, .@cx, .@cy, -1))
+				return;
+		}
 		return;
-	@cl_hu_scan = .@sec + 3;
+	}
+	// 3.14.1: every second in an MVP hunt (5 s hops; they were looked over every second after
+	// each hop anyway), every 3 s otherwise.
+	@cl_hu_scan = .@sec + (CL_HUNT ? 1 : 3);
 	.@kind$ = callsub(L_MapKind, .@m$);
 	if (.@kind$ != "field" && .@kind$ != "dungeon")
 		return;
@@ -8261,9 +8862,35 @@ L_HuntTick:
 		@cl_hu_since = 0;
 		return;
 	}
+	// 3.13.8 (B): one of yours lies dead within sight of an MVP (a Fly Wing put it there):
+	// that's the find. The one of the living closest to it calls it, and the bubble asks.
+	if (.@dead) {
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] > 0 || getmapxy(.@bm$, .@bx, .@by, BL_PC, @cl_aid[.@i]) != 0 || .@bm$ != .@m$)
+				continue;
+			.@best = -1;
+			.@bd = 999;
+			for (.@k = 0; .@k < .@n; .@k++) {
+				if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_aid[.@r[.@k]]) != 0 || .@cm$ != .@m$)
+					continue;
+				.@dx = .@cx - .@bx;
+				.@dy = .@cy - .@by;
+				.@dd = max(.@dx, -.@dx, .@dy, -.@dy);
+				if (.@dd < .@bd) {
+					.@bd = .@dd;
+					.@best = .@r[.@k];
+				}
+			}
+			if (.@best >= 0 && callsub(L_HuntEye, .@best, .@bx, .@by, .@i))
+				return;
+		}
+	}
+	// 3.13.9 (D): a fall out of the others' sight gets a rescuer flown over (L_Rescue). Hops
+	// wait for a fall 25 s at most (20 s after a rescue went), then hunting carries on.
+	.@hold = callsub(L_Rescue, .@sec, .@m$);
 	if (!@cl_hu_since)
 		@cl_hu_since = .@sec;
-	.@fly = (.hops && !.@dead && !getmapflag(.@m$, MF_NOTELEPORT) && .@sec >= @cl_hu_arr + 6);
+	.@fly = (.hops && !.@hold && !callsub(L_MapFlag, .@m$, MF_NOTELEPORT) && .@sec >= @cl_hu_arr + 6);
 	.@idle = 99999;	// as a group: the shortest time any of them has had nothing in sight
 	for (.@k = 0; .@k < .@n; .@k++) {
 		.@i = .@r[.@k];
@@ -8285,6 +8912,11 @@ L_HuntTick:
 				callsub L_HuntFound, .@i, .@g[.@j], .@d[UMOB_CLASS], .@d[UMOB_X], .@d[UMOB_Y];
 				return;
 			}
+			// 3.14.1 (user's call): busy, not just near: only a monster within 9 cells that's on it
+			// (attacking it, or fighting back at it) holds the hop; idle ones standing about don't
+			// (the pyramid always has one in sight, and they paced one spot).
+			if (.@d[UMOB_TARGETID] != .@aid)
+				continue;
 			.@dx = .@d[UMOB_X] - .@cx;
 			.@dy = .@d[UMOB_Y] - .@cy;
 			if (max(.@dx, -.@dx, .@dy, -.@dy) <= 9)
@@ -8306,18 +8938,22 @@ L_HuntTick:
 			continue;	// it walks (and in an MVP hunt, isn't held still either)
 		}
 		if (CL_HUNT) {
-			sc_start SC_REUSE_LIMIT_B, 5000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
+			// 3.14.1 (user's design): hop, land, walk 3-5 cells looking (L_HuntStroll), hop again
+			// 5 s after the last one, a fight or not. B (fight back only, never start one) stays
+			// on except for the short walk (its Hold would stop the walk).
+			if (callsub(L_HuntStroll, .@i, .@sec, .@cx, .@cy, .@m$))
+				sc_start SC_REUSE_LIMIT_B, 5000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
 			if (.@sec >= getd("@cl_hu_n_" + .@aid)) {
-				setd "@cl_hu_n_" + .@aid, .@sec + 8 + rand(7);
+				setd "@cl_hu_n_" + .@aid, .@sec + 5;	// was 8-14 s
 				callsub L_Hop, .@i, .@tp, .@m$;
 			}
-		} else if (CL_ROAMALONE && .@sec - .@seen >= 25) {
+		} else if (CL_ROAMALONE && .@sec - .@seen >= 10) {	// 3.14.1: 10 s not busy, was 25 s nothing near
 			setd "@cl_hu_s_" + .@aid, .@sec;
 			callsub L_Hop, .@i, .@tp, .@m$;
 		}
 	}
 	// As a group: the leader (a Swordman-line one first) flies once none has seen a thing.
-	if (.@fly && !CL_HUNT && !CL_ROAMALONE && .@idle >= 25 && .@idle < 99999 && !@cl_hu_lead) {
+	if (.@fly && !CL_HUNT && !CL_ROAMALONE && .@idle >= 10 && .@idle < 99999 && !@cl_hu_lead) {	// 3.14.1: 10, was 25
 		.@lead = -1;
 		for (.@k = 0; .@k < .@n; .@k++) {
 			.@i = .@r[.@k];
@@ -8337,6 +8973,25 @@ L_HuntTick:
 				setd "@cl_hu_s_" + @cl_aid[.@r[.@k]], .@sec;
 		}
 	}
+	// 3.14.1: the Debug recorder's minute summary: hops and after-landing walks per roamer
+	// (counted in L_Hop / L_HuntStroll only while the recorder is on), and who's out of wings.
+	if (CL_DEBUG) {
+		if (!@cl_dbm)
+			@cl_dbm = .@sec + 60;
+		else if (.@sec >= @cl_dbm) {
+			@cl_dbm = .@sec + 60;
+			.@s$ = "";
+			for (.@k = 0; .@k < .@n; .@k++) {
+				.@aid = @cl_aid[.@r[.@k]];
+				.@s$ += (.@k ? ", " : "") + @cl_nm$[.@r[.@k]] + " " + getd("@cl_dbh_" + .@aid) + "/" + getd("@cl_dbw_" + .@aid);
+				if (countitem(601, .@aid) < 1 && !callsub(L_HopTp, .@r[.@k]))
+					.@s$ += " (no wings)";
+				setd "@cl_dbh_" + .@aid, 0;
+				setd "@cl_dbw_" + .@aid, 0;
+			}
+			callsub L_Dbg, "hunt: last 60 s, hops/walks: " + .@s$ + (CL_HUNT ? " (MVP hunt)" : " (Normal hunt)");
+		}
+	}
 	// Five minutes of an MVP hunt and no sign of it: one says so (again 5 minutes on).
 	if (CL_HUNT && .@sec - @cl_hu_since >= 300 && callsub(L_Calm)) {
 		@cl_hu_since = .@sec;
@@ -8345,6 +9000,571 @@ L_HuntTick:
 			.@i = .@r[rand(.@n)];
 		callsub L_SpeakNow, .@i, "mvpnone", "", ET_QUESTION;
 	}
+	return;
+
+// 3.13.9 (D): the scan's falls (time getarg(0), map getarg(1)). 3.14.1: one who can revive
+// within 9 cells does it where it stands; any other fall gets a rescuer flown beside it, at
+// any distance (walking only when nobody can fly), once per fall, one rescue per scan:
+//   a Priest (High Priest) with a Blue Gemstone and 60 SP (70 to Teleport there), else
+//   anyone with a Yggdrasil Leaf; by Teleport (Acolyte family, 10 SP) or a Fly Wing.
+// The engine casts Resurrection / uses the Leaf (base table, use_items). Not beside an MVP:
+// within 14 cells that's the find (B, above); 15-20 the rescue stays away.
+// Returns 1 while hunting should wait: 25 s after a fall, 20 s after its rescue went. Then
+// one says so (once), and hunting carries on; the body waits for you.
+// Per fall: @cl_rs_d_<aid> when it was seen down, _e_ the wait's end, _r_ = _d_ once a rescue
+// was tried, _s_ = _d_ once the give-up was said.
+L_Rescue:
+	.@sec = getarg(0);
+	.@m$ = getarg(1);
+	.@hold = 0;
+	.@went = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@aid = @cl_aid[.@i];
+		if (@cl_hp[.@i] > 0) {
+			setd "@cl_rs_d_" + .@aid, 0;	// up again: that fall is over
+			continue;
+		}
+		.@t = getd("@cl_rs_d_" + .@aid);
+		if (!.@t) {
+			.@t = .@sec;
+			setd "@cl_rs_d_" + .@aid, .@t;
+			setd "@cl_rs_e_" + .@aid, .@sec + 25;
+		}
+		if (.@sec >= getd("@cl_rs_e_" + .@aid)) {
+			if (getd("@cl_rs_s_" + .@aid) != .@t) {
+				setd "@cl_rs_s_" + .@aid, .@t;
+				.@sp = -1;	// a living roamer says so
+				for (.@k = 0; .@k < @cl_n; .@k++) {
+					if (@cl_hp[.@k] > 0 && callsub(L_Roams, .@k)) {
+						.@sp = .@k;
+						break;
+					}
+				}
+				if (.@sp >= 0)
+					callsub L_SpeakNow, .@sp, "mvpresno", @cl_nm$[.@i], ET_SWEAT;
+				if (CL_DEBUG) {
+					// 3.14.1 (F): why, and what each one who can revive has left
+					.@y$ = getd("@cl_rs_y_" + .@aid + "$");
+					if (getd("@cl_rs_yt_" + .@aid) != .@t || .@y$ == "")
+						.@y$ = "no living roamer on the map";
+					callsub L_Dbg, "rescue: " + @cl_nm$[.@i] + " still down after " + (.@sec - .@t) + " s, hunting carries on. Why: " + .@y$ + ". Revive means: " + callsub(L_RsMeans);
+				}
+			}
+			continue;
+		}
+		// 3.14.1: a fall a rescuer flew to holds only the rescuer (L_Rescue sets its next hop),
+		// the others hunt on; one still waiting (in reach, or a walk) holds every hop.
+		if (getd("@cl_rs_g_" + .@aid) != .@t)
+			.@hold = 1;
+		if (.@went || getd("@cl_rs_r_" + .@aid) == .@t)
+			continue;
+		if (getmapxy(.@bm$, .@bx, .@by, BL_PC, .@aid) != 0 || .@bm$ != .@m$)
+			continue;
+		.@near = 999;
+		.@rn = 999;	// 3.14.1: the closest one who can revive right now (no flight needed)
+		.@rnm$ = "";
+		.@pick = -1;
+		.@prank = 0;
+		.@pd = 999;
+		for (.@k = 0; .@k < @cl_n; .@k++) {
+			if (@cl_hp[.@k] <= 0 || !callsub(L_Roams, .@k))
+				continue;
+			.@ka = @cl_aid[.@k];
+			if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@ka) != 0 || .@cm$ != .@m$)
+				continue;
+			.@dx = .@cx - .@bx;
+			.@dy = .@cy - .@by;
+			.@dd = max(.@dx, -.@dx, .@dy, -.@dy);
+			if (.@dd < .@near)
+				.@near = .@dd;
+			.@ea = eaclass(@cl_cls[.@k]);
+			.@acol = ((.@ea & EAJ_BASEMASK) == EAJ_ACOLYTE);
+			.@wing = (countitem(601, .@ka) > 0);
+			.@rank = 0;
+			.@way = 0;	// 1 Teleport, 2 Fly Wing
+			if (.@dd < .@rn && (countitem(610, .@ka) > 0 || ((.@ea & EAJ_UPPERMASK) == EAJ_PRIEST && countitem(717, .@ka) > 0 && @cl_sp[.@k] >= 60))) {
+				.@rn = .@dd;
+				.@rnm$ = @cl_nm$[.@k];
+			}
+			if ((.@ea & EAJ_UPPERMASK) == EAJ_PRIEST && countitem(717, .@ka) > 0) {
+				if (.@acol && @cl_sp[.@k] >= 70)
+					.@way = 1;
+				else if (.@wing && @cl_sp[.@k] >= 60)
+					.@way = 2;
+				if (.@way)
+					.@rank = 2;
+			}
+			if (!.@rank && countitem(610, .@ka) > 0) {
+				if (.@acol && @cl_sp[.@k] >= 10)
+					.@way = 1;
+				else if (.@wing)
+					.@way = 2;
+				if (.@way)
+					.@rank = 1;
+			}
+			if (.@rank > .@prank || (.@rank && .@rank == .@prank && .@dd < .@pd)) {
+				.@pick = .@k;
+				.@prank = .@rank;
+				.@pd = .@dd;
+				.@pway = .@way;
+			}
+		}
+		setd "@cl_rs_yt_" + .@aid, .@t;	// 3.14.1 (F): the reason below belongs to this fall
+		// 3.14.1 (user's design): no more "within 30 cells = the rally's walk" (the walk didn't
+		// come in MVP hunts). One who can revive within 9 cells (Resurrection's reach) does it
+		// where it stands; else a rescuer flies there, whatever the distance; walking only
+		// when nobody can fly (no SP, no Fly Wing): the rally and the Priest/Leaf rules.
+		if (.@rn <= 9) {
+			setd "@cl_rs_y_" + .@aid + "$", .@rnm$ + " was " + .@rn + " cells off, in reach, but no revive came";
+			continue;	// looked at again next scan
+		}
+		setd "@cl_rs_r_" + .@aid, .@t;
+		if (callsub(L_MvpNear, .@m$, .@bx, .@by, 20)) {
+			setd "@cl_rs_y_" + .@aid + "$", "it lies within 20 cells of an MVP";
+			if (CL_DEBUG)
+				callsub L_Dbg, "rescue: " + @cl_nm$[.@i] + " lies within 20 cells of an MVP, nobody goes";
+			continue;
+		}
+		if (.@pick < 0) {
+			setd "@cl_rs_y_" + .@aid + "$", "nobody could fly there (" + .@near + " cells off), so only a walk was left";
+			if (CL_DEBUG)
+				callsub L_Dbg, "rescue: " + @cl_nm$[.@i] + " is " + .@near + " cells off and nobody can fly there (a Priest with a Blue Gemstone + SP, or a Yggdrasil Leaf, and a Fly Wing or Teleport): a walk, last resort";
+			continue;
+		}
+		.@went = 1;
+		.@ka = @cl_aid[.@pick];
+		@cl_rs_last = .@ka;	// 3.14.1: who went, and for whom (the solo win's rescue)
+		@cl_rs_lastf = .@aid;
+		setd "@cl_rs_y_" + .@aid + "$", @cl_nm$[.@pick] + " flew there but no revive came";
+		.@x = .@bx + rand(-2, 2);
+		.@y = .@by + rand(-2, 2);
+		if (!checkcell(.@m$, .@x, .@y, cell_chkpass)) {
+			.@x = .@bx;
+			.@y = .@by;
+		}
+		if (.@pway == 1)
+			heal 0, -10, @cl_cid[.@pick];
+		else
+			delitem 601, 1, .@ka;
+		sc_start SC_REUSE_LIMIT_B, 1, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@ka;	// the look-hold off
+		specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@pick];
+		unitstopwalk .@ka, USW_FORCE_STOP;
+		unitwarp .@ka, .@m$, .@x, .@y;
+		specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@pick];
+		setd "@cl_hu_s_" + .@ka, .@sec;
+		setd "@cl_hu_hop_" + .@ka, .@sec;	// A: it looks round every second for a while
+		setd "@cl_hu_wk_" + .@ka, .@sec;	// 3.14.1: no stroll off from the body
+		setd "@cl_hu_n_" + .@ka, .@sec + 20;	// nor a hop, while it revives (MVP hunt)
+		setd "@cl_rs_g_" + .@aid, .@t;	// the others hunt on (no hold for this fall)
+		if (getd("@cl_rs_e_" + .@aid) < .@sec + 20)
+			setd "@cl_rs_e_" + .@aid, .@sec + 20;
+		callsub L_SpeakNow, .@pick, "mvpres", @cl_nm$[.@i], ET_GO;
+		if (CL_DEBUG)
+			callsub L_Dbg, "rescue: " + @cl_nm$[.@pick] + " " + (.@pway == 1 ? "teleports" : "Fly Wings") + " beside " + @cl_nm$[.@i]
+				+ " (" + .@near + " cells from the nearest, " + (.@prank == 2 ? "Resurrection" : "Yggdrasil Leaf") + ") at " + .@x + "," + .@y;
+	}
+	return .@hold;
+
+// 3.14.1 (user's OK): the app saves a companion's levels but not its EXP bar, so every restart
+// or relog put it back to 0% (all four stuck at base 99 / job ~60). Every 10 s (time getarg(0)):
+//   a companion that just turned up (not seen for 25 s: login, summon, a restart): same level
+//     as saved and less EXP = it gets the difference back (getexp on its char id; getexp
+//     multiplies by quest_exp_rate, so divided by it first), base and job each on their own;
+//   then every 30 s, its levels + EXP saved in the mod store (char "xp.c<id>" = "blv,bexp,jlv,jexp")
+//     when they changed. A level-up since the save = a new bar, nothing given.
+L_ExpKeep:
+	.@sec = getarg(0);
+	.@save = (.@sec >= @cl_xpsave);
+	if (.@save)
+		@cl_xpsave = .@sec + 30;
+	.@rate = getbattleflag("quest_exp_rate");
+	if (.@rate <= 0)
+		.@rate = 100;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@c = @cl_cid[.@i];
+		.@bl = readparam(BaseLevel, .@c);
+		if (.@bl <= 0)
+			continue;	// not on the map yet
+		.@be = readparam(BaseExp, .@c);
+		.@jl = readparam(JobLevel, .@c);
+		.@je = readparam(JobExp, .@c);
+		.@k$ = "xp.c" + .@c;
+		.@new = (.@sec - getd("@cl_xps_" + .@c) > 25);
+		setd "@cl_xps_" + .@c, .@sec;
+		if (.@new) {
+			.@s$ = modstore_get("char", .@k$, "");
+			if (.@s$ != "") {
+				explode(.@p$, .@s$, ",");
+				.@gb = 0;
+				.@gj = 0;
+				if (atoi(.@p$[0]) == .@bl && atoi(.@p$[1]) > .@be)
+					.@gb = atoi(.@p$[1]) - .@be;
+				if (atoi(.@p$[2]) == .@jl && atoi(.@p$[3]) > .@je)
+					.@gj = atoi(.@p$[3]) - .@je;
+				if (.@gb || .@gj) {
+					// / rate * 100, in two parts so big numbers don't overflow
+					getexp (.@gb / .@rate) * 100 + (.@gb % .@rate) * 100 / .@rate,
+						(.@gj / .@rate) * 100 + (.@gj % .@rate) * 100 / .@rate, .@c;
+					if (CL_DEBUG)
+						callsub L_Dbg, "exp: " + @cl_nm$[.@i] + " gets its bar back (+" + .@gb + " base, +" + .@gj + " job EXP)";
+					.@be = readparam(BaseExp, .@c);
+					.@je = readparam(JobExp, .@c);
+				}
+			}
+			.@save = 1;	// and its bar as it is now
+		}
+		if (!.@save)
+			continue;
+		.@v$ = .@bl + "," + .@be + "," + .@jl + "," + .@je;
+		if (.@v$ != modstore_get("char", .@k$, ""))
+			modstore_set "char", .@k$, .@v$;
+	}
+	return;
+
+// 3.14.1: EXP getarg(0) of getarg(1) needed, in tenths of a percent; -1 = no next level (max).
+// Divides the need first, so big EXP numbers don't overflow.
+L_ExpPct:
+	.@need = getarg(1);
+	if (.@need <= 0)
+		return -1;
+	if (.@need < 1000)
+		return getarg(0) * 1000 / .@need;
+	return min(999, getarg(0) / (.@need / 1000));
+
+// 3.14.1 (F): the Debug recorder's list of who could revive and what they have left: the
+// Priest line (SP, Blue Gemstones 717) and anyone with Yggdrasil Leaves (610).
+L_RsMeans:
+	.@s$ = "";
+	for (.@k = 0; .@k < @cl_n; .@k++) {
+		if (@cl_hp[.@k] <= 0)
+			continue;
+		.@ka = @cl_aid[.@k];
+		.@pr = ((eaclass(@cl_cls[.@k]) & EAJ_UPPERMASK) == EAJ_PRIEST);
+		.@lf = countitem(610, .@ka);
+		if (!.@pr && !.@lf)
+			continue;
+		.@s$ += (.@s$ == "" ? "" : "; ") + @cl_nm$[.@k];
+		if (.@pr)
+			.@s$ += " SP " + @cl_sp[.@k] + ", Blue Gemstones " + countitem(717, .@ka);
+		if (.@lf)
+			.@s$ += (.@pr ? "," : "") + " Leaves " + .@lf;
+		if (!callsub(L_Roams, .@k))
+			.@s$ += " (not roaming)";
+	}
+	return (.@s$ == "" ? "nobody alive has any" : .@s$);
+
+// 3.13.9: an MVP (or, in an MVP hunt, a listed mini-boss) within getarg(3) cells of
+// getarg(1),getarg(2) on map getarg(0)? Same test as L_HuntEye, no find.
+L_MvpNear:
+	.@r = getarg(3);
+	.@u = getareaunits(BL_MOB, getarg(0), getarg(1) - .@r, getarg(2) - .@r, getarg(1) + .@r, getarg(2) + .@r, .@g);
+	for (.@j = 0; .@j < .@u; .@j++) {
+		getunitdata .@g[.@j], .@d;
+		if (.@d[UMOB_HP] <= 0 || .@d[UMOB_MASTERAID] > 0)
+			continue;
+		if ((.@d[UMOB_MODE] & MD_MVP) || getmonsterinfo(.@d[UMOB_CLASS], MOB_MVPEXP) > 0)
+			return 1;
+		if (CL_HUNT && inarray(.hunt_mini, .@d[UMOB_CLASS]) >= 0)
+			return 1;
+	}
+	return 0;
+
+// 3.13.11: a companion losing a fight away from you asks you (the portrait box, client/index.js
+// "cldanger"): Retreat (it flies to you and follows) / Send help (everyone flies to it, you a
+// second after them). Near an MVP the second is Engage together; during your solo it's "help me".
+// Losing: under 40% HP (3.14.1, was 35) with 3+ monsters on it (7 cells), or half its HP gone in 5 s; 10+ cells
+// from you; roaming or on Stand By. One ask at a time, none over an MVP find (L_HuntFound takes
+// over), each asks once a minute at most, any one every 20 s. The box goes when it falls, or
+// once it's over 50% again. 3.14.1 (user's design): asks under 40%; under 15%, or no answer in
+// 5 s, it flies out on its own; half its HP gone in 5 s = no ask, it flies out at once.
+// Per companion: @cl_dg_pk_<aid> its highest HP in the last 5 s, _pt_ since when, _cd_ its next ask.
+L_DangerTick:
+	.@sec = getarg(0);
+	if (@cl_dg_rjn)
+		callsub L_DangerRejoin;
+	if (@cl_dg_aid) {
+		.@i = inarray(@cl_aid[0], @cl_dg_aid);
+		.@why$ = "";
+		.@pc = 100;
+		if (.@i < 0)
+			.@why$ = "it's gone";
+		else if (@cl_hp[.@i] <= 0)
+			.@why$ = "it fell";
+		else if (@cl_mhp[.@i] > 0)
+			.@pc = @cl_hp[.@i] * 100 / @cl_mhp[.@i];
+		if (.@why$ == "" && .@pc >= 50)
+			.@why$ = "it's out of trouble";
+		if (.@why$ == "" && .@pc < 15) {	// 3.14.1 (user's design): under 15% it goes, answer or not
+			if (CL_DEBUG)
+				callsub L_Dbg, "danger: " + @cl_nm$[.@i] + " under 15% and no answer: it flies out";
+			callsub L_DangerClose;
+			callsub L_DangerRetreat, .@i;
+			return;
+		}
+		// 3.14.1 (E, user's design): asked at 40%, no answer in 5 s and still in trouble = it gets
+		// out on its own (was: box open 8 s, then nothing; Talimel fell with the box still open).
+		if (.@why$ == "" && .@sec >= @cl_dg_end) {
+			if (CL_DEBUG)
+				callsub L_Dbg, "danger: no answer in 5 s, " + @cl_nm$[.@i] + " (" + .@pc + "% HP) escapes on its own";
+			callsub L_DangerClose;
+			callsub L_DangerEscape, .@i;	// user's design: an escape elsewhere, not to you
+			return;
+		}
+		if (.@why$ != "") {
+			if (CL_DEBUG)
+				callsub L_Dbg, "danger: box closed (" + .@why$ + ")";
+			callsub L_DangerClose;
+		}
+		return;
+	}
+	if (Hp <= 0 || @cl_hu_g)
+		return;
+	getmapxy(.@m$, .@ox, .@oy, BL_PC);
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0)
+			continue;
+		.@aid = @cl_aid[.@i];
+		if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != .@m$)
+			continue;
+		// Its highest HP in the last 5 s (a burst is half of its max gone since).
+		.@pk = getd("@cl_dg_pk_" + .@aid);
+		if (.@sec - getd("@cl_dg_pt_" + .@aid) > 5 || @cl_hp[.@i] >= .@pk) {
+			.@pk = @cl_hp[.@i];
+			setd "@cl_dg_pk_" + .@aid, .@pk;
+			setd "@cl_dg_pt_" + .@aid, .@sec;
+		}
+		if (.@sec < @cl_dg_next || @cl_mhp[.@i] <= 0)
+			continue;	// (|| reads both sides: the division waits for the line below)
+		if (@cl_hp[.@i] * 100 / @cl_mhp[.@i] >= 40)
+			continue;	// 3.14.1: asks at 40%, was 35 (time to choose)
+		if (!CL_STANDBY && !callsub(L_Roams, .@i))
+			continue;
+		if (max(.@cx - .@ox, .@ox - .@cx, .@cy - .@oy, .@oy - .@cy) < 10 || .@sec < getd("@cl_dg_cd_" + .@aid))
+			continue;
+		.@burst = ((.@pk - @cl_hp[.@i]) * 2 >= @cl_mhp[.@i]);
+		.@on = 0;
+		.@u = getareaunits(BL_MOB, .@m$, .@cx - 7, .@cy - 7, .@cx + 7, .@cy + 7, .@g);
+		for (.@j = 0; .@j < .@u; .@j++) {
+			getunitdata .@g[.@j], .@d;
+			if (.@d[UMOB_HP] > 0 && .@d[UMOB_TARGETID] == .@aid)
+				.@on++;
+		}
+		if (.@on < 3 && !.@burst)
+			continue;
+		@cl_dg_next = .@sec + 20;
+		setd "@cl_dg_cd_" + .@aid, .@sec + 60;
+		// 3.14.1: half its HP gone in 5 s = no time to ask: it gets out now, and says so.
+		if (.@burst) {
+			if (CL_DEBUG)
+				callsub L_Dbg, "danger: " + @cl_nm$[.@i] + " lost half its HP in 5 s (" + (@cl_hp[.@i] * 100 / @cl_mhp[.@i]) + "% left, " + .@on + " on it), gets out without asking";
+			callsub L_DangerRetreat, .@i;
+			return;
+		}
+		.@boss = callsub(L_MvpNear, .@m$, .@cx, .@cy, 14);
+		@cl_dg_aid = .@aid;
+		@cl_dg_end = .@sec + 5;	// 3.14.1: 5 s, was 8 (then it gets out on its own)
+		.@t$ = callsub(L_Text, callsub(L_Line, "dgask", @cl_ar[.@i]), .@i, "");
+		callsub L_SayAid, .@aid, @cl_nm$[.@i], .@t$;
+		callsub L_EmoteIdx, .@i, ET_SWEAT;
+		@cl_talk = gettimetick(2) + 6;
+		dispbottom "@@event cldanger " + @cl_cid[.@i] + "|" + @cl_nm$[.@i] + "|" + @cl_cls[.@i] + "|" + readparam(Sex, @cl_cid[.@i])
+			+ "|" + replacestr(.@t$, "|", "/") + "|Retreat|" + (.@boss || @cl_hu_solo ? "Engage together" : "Send help");
+		if (CL_DEBUG)
+			callsub L_Dbg, "danger: " + @cl_nm$[.@i] + " asks (" + (@cl_hp[.@i] * 100 / @cl_mhp[.@i]) + "% HP, " + .@on + " on it" + (.@burst ? ", half its HP gone in 5 s" : "")
+				+ ", " + max(.@cx - .@ox, .@ox - .@cx, .@cy - .@oy, .@oy - .@cy) + " cells from you" + (.@boss ? ", an MVP near" : "") + ")";
+		return;
+	}
+	return;
+
+// 3.14.1 (user's OK): one that retreated to you from a danger box (L_DangerRetreat) goes back
+// out roaming once it's at 80% HP again, while others still roam; nobody roaming any more
+// (you called them back), or it roams again already, or it fell: the wait just ends.
+// A companion you called back yourself has no mark, and stays with you.
+L_DangerRejoin:
+	.@any = 0;
+	.@open = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] > 0 && callsub(L_Roams, .@i))
+			.@any = 1;
+	}
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@aid = @cl_aid[.@i];
+		if (!getd("@cl_dg_rj_" + .@aid))
+			continue;
+		if (!.@any || @cl_hp[.@i] <= 0 || callsub(L_Roams, .@i)) {
+			setd "@cl_dg_rj_" + .@aid, 0;
+			continue;
+		}
+		.@pc = 0;
+		if (@cl_mhp[.@i] > 0)	// (|| reads both sides: no division in the same test)
+			.@pc = @cl_hp[.@i] * 100 / @cl_mhp[.@i];
+		if (.@pc < 80) {
+			.@open = 1;
+			continue;
+		}
+		setd "@cl_dg_rj_" + .@aid, 0;
+		atcommand "@companion roam " + @cl_nm$[.@i] + " on";
+		callsub L_SpeakNow, .@i, "dgback", "", ET_GO;
+		if (CL_DEBUG)
+			callsub L_Dbg, "danger: " + @cl_nm$[.@i] + " is healed (" + .@pc + "% HP), back out roaming";
+		.@roamed = 1;
+	}
+	if (.@roamed)
+		callsub L_RoamRead;
+	@cl_dg_rjn = .@open;
+	return;
+
+// 3.13.11: the danger box goes (client/portraits.js closeAsk).
+L_DangerClose:
+	@cl_dg_aid = 0;
+	dispbottom "@@event cldanger -";
+	return;
+
+// 3.13.11: companion getarg(0) gets out: Teleport (Acolyte family, 10 SP) or a Fly Wing to
+// your side, then off roaming and following you. With an MVP within 14 cells of you (your
+// solo), a random cell instead: your side is no way out. Neither: it stops roaming and runs.
+L_DangerRetreat:
+	.@i = getarg(0);
+	.@aid = @cl_aid[.@i];
+	getmapxy(.@m$, .@ox, .@oy, BL_PC);
+	.@how = 0;
+	if (!callsub(L_MapFlag, .@m$, MF_NOTELEPORT)) {
+		if ((eaclass(@cl_cls[.@i]) & EAJ_BASEMASK) == EAJ_ACOLYTE && @cl_sp[.@i] >= 10) {
+			heal 0, -10, @cl_cid[.@i];
+			.@how = 1;
+		} else if (countitem(601, .@aid) > 0) {
+			delitem 601, 1, .@aid;
+			.@how = 2;
+		}
+	}
+	.@far = callsub(L_MvpNear, .@m$, .@ox, .@oy, 14);
+	if (.@how) {
+		.@x = -1;
+		.@y = -1;
+		if (!.@far) {
+			.@x = .@ox + rand(-2, 2);
+			.@y = .@oy + rand(-2, 2);
+			if (!checkcell(.@m$, .@x, .@y, cell_chkpass)) {
+				.@x = .@ox;
+				.@y = .@oy;
+			}
+		}
+		specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@i];
+		unitstopwalk .@aid, USW_FORCE_STOP;
+		unitwarp .@aid, .@m$, .@x, .@y;
+		specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@i];
+	}
+	if (!.@far && callsub(L_Roams, .@i)) {
+		atcommand "@companion roam " + @cl_nm$[.@i] + " off";
+		setd "@cl_dg_rj_" + .@aid, 1;	// 3.14.1: back out once it's healed (L_DangerRejoin)
+		@cl_dg_rjn = 1;
+	}
+	callsub L_SpeakNow, .@i, "dgout", "", ET_SWEAT;
+	if (CL_DEBUG)
+		callsub L_Dbg, "danger: " + @cl_nm$[.@i] + (.@how ? (.@how == 1 ? " teleports" : " Fly Wings") + (.@far ? " away (an MVP by you)" : " to you") : " has no way to fly, runs to you");
+	return;
+
+// 3.14.1 (user's design): no answer to the danger box in 5 s, still above 15%: companion
+// getarg(0) escapes, a random hop elsewhere on the map (Teleport, Acolyte family 10 SP, or a
+// Fly Wing), and keeps roaming. For 4 s after landing it looks but starts no fight (B), so a
+// new pack doesn't catch it at once. No way to hop, or a no-teleport map: L_DangerRetreat
+// (to you, on foot if need be). Under 15% later = the usual retreat to you.
+L_DangerEscape:
+	.@i = getarg(0);
+	.@aid = @cl_aid[.@i];
+	.@m$ = strcharinfo(3);
+	.@how = 0;
+	if (!callsub(L_MapFlag, .@m$, MF_NOTELEPORT)) {
+		if ((eaclass(@cl_cls[.@i]) & EAJ_BASEMASK) == EAJ_ACOLYTE && @cl_sp[.@i] >= 10)
+			.@how = 1;
+		else if (countitem(601, .@aid) > 0)
+			.@how = 2;
+	}
+	if (!.@how) {
+		if (CL_DEBUG)
+			callsub L_Dbg, "danger: " + @cl_nm$[.@i] + " can't hop away (no Fly Wing/SP or no-teleport map), retreats to you";
+		callsub L_DangerRetreat, .@i;
+		return;
+	}
+	if (.@how == 1)
+		heal 0, -10, @cl_cid[.@i];
+	else
+		delitem 601, 1, .@aid;
+	specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@i];
+	unitstopwalk .@aid, USW_FORCE_STOP;
+	unitwarp .@aid, .@m$, -1, -1;	// a random free cell
+	specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@i];
+	sc_start SC_REUSE_LIMIT_B, 4000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
+	callsub L_SpeakNow, .@i, "dgesc", "", ET_SWEAT;
+	if (CL_DEBUG) {
+		getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid);
+		callsub L_Dbg, "danger: " + @cl_nm$[.@i] + (.@how == 1 ? " teleports" : " Fly Wings") + " away to " + .@cx + "," + .@cy + ", still roaming";
+	}
+	return;
+
+// 3.13.11: Send help for companion getarg(0) (getarg(1) the request to answer). During your
+// solo: "help me" (all in on the boss, OnCmdHunt). Else everyone flies beside it (Teleport or a
+// Fly Wing; none: they walk), you a second later (L_HuntFly, your Fly Wing); an MVP there:
+// they engage it (L_HuntCharge).
+L_DangerHelp:
+	.@i = getarg(0);
+	.@req$ = getarg(1);
+	if (@cl_hu_solo) {
+		if (CL_DEBUG)
+			callsub L_Dbg, "solo over: " + @cl_nm$[.@i] + " asked for help";
+		callsub L_SoloEnd;
+		callsub L_StandOff;
+		callsub L_HuntRecall;
+		callsub L_HuntCharge;
+		callsub L_SpeakNow, .@i, "mvphelp", @cl_hu_m$, ET_GO;
+		callsub L_BagReply, .@req$, "OK|help";
+		return;
+	}
+	getmapxy(.@m$, .@ox, .@oy, BL_PC);
+	if (getmapxy(.@cm$, .@tx, .@ty, BL_PC, @cl_aid[.@i]) != 0 || .@cm$ != .@m$) {
+		callsub L_BagReply, .@req$, "ERR|away";
+		return;
+	}
+	.@flyok = !callsub(L_MapFlag, .@m$, MF_NOTELEPORT);
+	for (.@k = 0; .@k < @cl_n; .@k++) {
+		if (.@k == .@i || @cl_hp[.@k] <= 0)
+			continue;
+		.@ka = @cl_aid[.@k];
+		.@how = 0;
+		if (.@flyok) {
+			if ((eaclass(@cl_cls[.@k]) & EAJ_BASEMASK) == EAJ_ACOLYTE && @cl_sp[.@k] >= 10) {
+				heal 0, -10, @cl_cid[.@k];
+				.@how = 1;
+			} else if (countitem(601, .@ka) > 0) {
+				delitem 601, 1, .@ka;
+				.@how = 2;
+			}
+		}
+		if (!.@how)
+			continue;	// it walks there on the party rules
+		.@x = .@tx + rand(-2, 2);
+		.@y = .@ty + rand(-2, 2);
+		if (!checkcell(.@m$, .@x, .@y, cell_chkpass)) {
+			.@x = .@tx;
+			.@y = .@ty;
+		}
+		specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@k];
+		unitstopwalk .@ka, USW_FORCE_STOP;
+		unitwarp .@ka, .@m$, .@x, .@y;
+		specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@k];
+	}
+	if (callsub(L_MvpNear, .@m$, .@tx, .@ty, 14))
+		callsub L_HuntCharge;
+	.@a = callsub(L_Pick, .@i, -1);
+	if (.@a >= 0)
+		callsub L_SpeakNow, .@a, "mvphelp", @cl_nm$[.@i], ET_GO;
+	callsub L_BagReply, .@req$, "OK|help";
+	if (CL_DEBUG)
+		callsub L_Dbg, "danger: everyone flies to " + @cl_nm$[.@i] + " at " + .@tx + "," + .@ty;
+	if (.@flyok && countitem(601) > 0)
+		callsub L_HuntFly, .@m$, .@tx, .@ty;
+	else
+		dispbottom "[Companions] " + (.@flyok ? "You have no Fly Wing" : "Fly Wings don't work on this map") + ": run to " + @cl_nm$[.@i] + "!", 0xFFCC66;
 	return;
 
 // 3.12.6: the Acolyte family (Priest, Monk and up) knows Teleport, so it hops for Teleport
@@ -8363,6 +9583,19 @@ L_HopTp:
 L_Hop:
 	.@i = getarg(0);
 	.@aid = @cl_aid[.@i];
+	setd "@cl_hu_hop_" + .@aid, gettimetick(2);	// 3.13.8: it looks every second for a while (L_HuntTick)
+	if (CL_DEBUG)
+		setd "@cl_dbh_" + .@aid, getd("@cl_dbh_" + .@aid) + 1;	// 3.14.1: the minute's summary
+	// 3.14.1: where it took off, so its stroll waits for the landing (L_HuntStroll); a stroll
+	// still going ends here (the forced-walk flag must go, or the next walk is refused).
+	if (getmapxy(.@hm$, .@hx, .@hy, BL_PC, .@aid) == 0) {
+		setd "@cl_hu_hx_" + .@aid, .@hx;
+		setd "@cl_hu_hy_" + .@aid, .@hy;
+	}
+	if (getd("@cl_hu_wke_" + .@aid)) {
+		setd "@cl_hu_wke_" + .@aid, 0;
+		unitstopwalk .@aid, USW_FORCE_STOP;
+	}
 	if (!getarg(1)) {
 		sc_start SC_REUSE_LIMIT_A, 2500, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
 		return;
@@ -8373,6 +9606,55 @@ L_Hop:
 	unitwarp .@aid, getarg(2), -1, -1;
 	specialeffect2 EF_TELEPORTATION, AREA, @cl_nm$[.@i];
 	return;
+
+// 3.14.1 (user's design): an MVP hunter's short look round after a landing. Companion
+// getarg(0) (index), now getarg(1), standing at getarg(2),getarg(3) on map getarg(4).
+// Landed (5+ cells from where it took off, within 4 s of the hop) and no stroll yet for this
+// hop: its look-hold B off, and it walks 3-5 cells a random way (first free line of 3 tries).
+// 2 s on, or at the next hop (L_Hop), the walk stops (USW_FORCE_STOP) and B goes back on.
+// Returns 1 when B should be on (not strolling), 0 while it strolls.
+L_HuntStroll:
+	.@i = getarg(0);
+	.@sec = getarg(1);
+	.@aid = @cl_aid[.@i];
+	.@we = getd("@cl_hu_wke_" + .@aid);
+	if (.@we) {
+		if (.@sec < .@we)
+			return 0;
+		setd "@cl_hu_wke_" + .@aid, 0;
+		unitstopwalk .@aid, USW_FORCE_STOP;
+		return 1;
+	}
+	.@h = getd("@cl_hu_hop_" + .@aid);
+	if (!.@h || getd("@cl_hu_wk_" + .@aid) == .@h || .@sec - .@h > 4)
+		return 1;
+	.@cx = getarg(2);
+	.@cy = getarg(3);
+	.@dx = .@cx - getd("@cl_hu_hx_" + .@aid);
+	.@dy = .@cy - getd("@cl_hu_hy_" + .@aid);
+	if (max(.@dx, -.@dx, .@dy, -.@dy) < 5)
+		return 1;	// not landed yet (a Fly Wing waits for the engine's turn)
+	setd "@cl_hu_wk_" + .@aid, .@h;	// one stroll per hop
+	.@d = rand(3, 5);
+	for (.@t = 0; .@t < 3; .@t++) {
+		.@ux = rand(-1, 1);
+		.@uy = rand(-1, 1);
+		if (!.@ux && !.@uy)
+			.@uy = 1;
+		.@tx = .@cx + .@ux * .@d;
+		.@ty = .@cy + .@uy * .@d;
+		if (!checkcell(getarg(4), .@tx, .@ty, cell_chkpass))
+			continue;
+		sc_start SC_REUSE_LIMIT_B, 1, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
+		unitstopwalk .@aid, USW_FORCE_STOP;
+		if (!unitwalk(.@aid, .@tx, .@ty))
+			return 1;
+		setd "@cl_hu_wke_" + .@aid, .@sec + 2;
+		if (CL_DEBUG)
+			setd "@cl_dbw_" + .@aid, getd("@cl_dbw_" + .@aid) + 1;	// the minute's summary
+		return 0;
+	}
+	return 1;
 
 // The group's flight (Normal, as a group): once the leader has landed somewhere else,
 // the others Fly Wing to its side (one from each one's bag; one with none walks over on
@@ -8419,6 +9701,7 @@ L_HuntGroup:
 // Retreat, OnCmdHunt). Then L_HuntWait.
 L_HuntFound:
 	.@i = getarg(0);
+	.@body = getarg(5, -1);	// 3.13.8: a fallen one's index: its body is what was seen
 	@cl_hu_g = getarg(1);
 	@cl_hu_f = @cl_aid[.@i];
 	@cl_hu_m$ = getmonsterinfo(getarg(2), MOB_NAME);
@@ -8426,8 +9709,12 @@ L_HuntFound:
 	@cl_hu_lost = 0;
 	@cl_hu_lead = 0;
 	@cl_hu_k = 0;	// the one mark: this find takes it over from one you put off
+	@cl_dg_aid = 0;	// 3.13.11: its box takes over from a danger ask (L_DangerTick)
 	viewpoint 1, getarg(3), getarg(4), 77, 0xFF3030;
-	.@t$ = callsub(L_Text, callsub(L_Line, "mvpfound", @cl_ar[.@i]), .@i, @cl_hu_m$);
+	if (.@body >= 0)
+		.@t$ = replacestr(callsub(L_Text, callsub(L_Line, "mvpbody", @cl_ar[.@i]), .@i, @cl_hu_m$), "{d}", @cl_nm$[.@body]);
+	else
+		.@t$ = callsub(L_Text, callsub(L_Line, "mvpfound", @cl_ar[.@i]), .@i, @cl_hu_m$);
 	callsub L_SayAid, @cl_hu_f, @cl_nm$[.@i], .@t$;
 	callsub L_EmoteIdx, .@i, ET_SURPRISE;
 	@cl_talk = gettimetick(2) + 6;
@@ -8435,10 +9722,139 @@ L_HuntFound:
 	dispbottom "@@event clhunt " + @cl_cid[.@i] + "|" + @cl_nm$[.@i] + "|" + @cl_cls[.@i] + "|" + readparam(Sex, @cl_cid[.@i])
 		+ "|" + replacestr(.@t$, "|", "/") + "|Engage together|Stand by, I'll solo|Retreat";
 	if (CL_DEBUG) {
+		if (.@body >= 0)
+			callsub L_Dbg, "find: " + @cl_nm$[.@body] + " fell beside it, so " + @cl_nm$[.@i] + " (closest of the living) calls it";
 		callsub L_Dbg, "find: " + @cl_nm$[.@i] + " found " + @cl_hu_m$ + " at " + getarg(3) + "," + getarg(4) + " on " + strcharinfo(3) + (CL_HUNT ? " (MVP hunt)" : " (Normal hunt)");
 		callsub L_DbgPos, "find", @cl_hu_g;
 		callsub L_DbgHits, "wait", @cl_hu_g, 1;
 	}
+	// 3.13.5: the finder backs off out of its sight (and its slaves') while you decide:
+	// 18, 16 or 14 cells from it, straight away from it or 45° either side, the first
+	// free cell it can walk to. L_HuntAway sees it there.
+	@cl_hu_aw = 0;
+	getmapxy(.@m$, .@fx, .@fy, BL_PC, @cl_hu_f);
+	// 3.13.8: only if it's within 18 cells: one further off (it called a body) is clear already,
+	// and its way "back" would lead it in.
+	.@dx = .@fx - getarg(3);
+	.@dy = .@fy - getarg(4);
+	if (max(.@dx, -.@dx, .@dy, -.@dy) >= 18) {
+		if (CL_DEBUG)
+			callsub L_Dbg, "find: " + @cl_nm$[.@i] + " is out of its reach already, stays put";
+		return;
+	}
+	sc_start SC_REUSE_LIMIT_B, 1, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_hu_f;	// the scan's hold would stop the walk
+	if (callsub(L_HuntSpot, getarg(3), getarg(4), .@fx, .@fy, @cl_hu_f)) {
+		@cl_hu_aw = gettimetick(2) + 10;	// gives up after 10 s
+		@cl_hu_awa = @cl_hu_f;
+		@cl_hu_ax = @cl_hu_sx;
+		@cl_hu_ay = @cl_hu_sy;
+		@cl_hu_alx = .@fx;
+		@cl_hu_aly = .@fy;
+	}
+	if (CL_DEBUG)
+		callsub L_Dbg, "find: " + (@cl_hu_aw ? @cl_nm$[.@i] + " backs off to " + @cl_hu_ax + "," + @cl_hu_ay : "no free cell 16-20 away, " + @cl_nm$[.@i] + " stays put");
+	return;
+
+// 3.13.8: companion getarg(0) (index) looks round getarg(1),getarg(2) (where it stands, or
+// getarg(3) a fallen one's index: round its body) for an MVP, 14 cells (the screen). One in
+// sight: the find (L_HuntFound), and 1. Same test as the 3 s scan in L_HuntTick.
+L_HuntEye:
+	.@x = getarg(1);
+	.@y = getarg(2);
+	.@m$ = strcharinfo(3);
+	.@u = getareaunits(BL_MOB, .@m$, .@x - 14, .@y - 14, .@x + 14, .@y + 14, .@g);
+	for (.@j = 0; .@j < .@u; .@j++) {
+		getunitdata .@g[.@j], .@d;
+		if (.@d[UMOB_HP] <= 0 || .@d[UMOB_MASTERAID] > 0)
+			continue;
+		.@mvp = .@d[UMOB_MODE] & MD_MVP;
+		if (!.@mvp)
+			.@mvp = (getmonsterinfo(.@d[UMOB_CLASS], MOB_MVPEXP) > 0);
+		if (!.@mvp && CL_HUNT)
+			.@mvp = (inarray(.hunt_mini, .@d[UMOB_CLASS]) >= 0);
+		if (.@mvp) {
+			callsub L_HuntFound, getarg(0), .@g[.@j], .@d[UMOB_CLASS], .@d[UMOB_X], .@d[UMOB_Y], getarg(3);
+			return 1;
+		}
+	}
+	return 0;
+
+// 3.13.5: a spot out of the boss's sight (getarg(0),getarg(1)), on the side of
+// getarg(2),getarg(3): 20, 18 or 16 cells off (3.13.8), straight away or 45° either side, the first
+// free cell. getarg(4) a unit id: it must also be able to walk there (and starts to); 0 = any
+// free cell. Found: 1 and @cl_hu_sx/@cl_hu_sy, else 0. (Scalars only: max() over array
+// items scans the rest of the array, which put the first try 9 cells off.)
+L_HuntSpot:
+	.@bx = getarg(0);
+	.@by = getarg(1);
+	.@w = getarg(4);
+	.@m$ = strcharinfo(3);
+	.@vx = getarg(2) - .@bx;
+	.@vy = getarg(3) - .@by;
+	if (!.@vx && !.@vy) {
+		.@vx = rand(-1, 1);
+		.@vy = (.@vx ? rand(-1, 1) : 1);
+	}
+	// 3.13.8: 20, 18 or 16: an MVP's skills reach 14 (Amon Ra's Meteor Storm), and the
+	// meteors spread round whoever they're aimed at.
+	for (.@r = 20; .@r >= 16; .@r -= 2) {
+		for (.@k = 0; .@k < 3; .@k++) {
+			.@ux = .@vx;
+			.@uy = .@vy;
+			if (.@k == 1) {
+				.@ux = .@vx - .@vy;
+				.@uy = .@vx + .@vy;
+			} else if (.@k == 2) {
+				.@ux = .@vx + .@vy;
+				.@uy = .@vy - .@vx;
+			}
+			.@d = max(.@ux, -.@ux, .@uy, -.@uy);
+			if (!.@d)
+				continue;
+			.@tx = .@bx + .@ux * .@r / .@d;
+			.@ty = .@by + .@uy * .@r / .@d;
+			if (!checkcell(.@m$, .@tx, .@ty, cell_chkpass))
+				continue;
+			if (.@w) {
+				unitstopwalk .@w, USW_FORCE_STOP;
+				if (!unitwalk(.@w, .@tx, .@ty))
+					continue;
+			}
+			@cl_hu_sx = .@tx;
+			@cl_hu_sy = .@ty;
+			return 1;
+		}
+	}
+	return 0;
+
+// 3.13.5: the finder backing off (L_HuntFound), each tick of the wait: held up (a fight, the
+// engine's own walk) = walk on; there, or 10 s gone = stop, and it waits as the rest do.
+L_HuntAway:
+	if (!@cl_hu_aw)
+		return;
+	.@ok = (getmapxy(.@m$, .@x, .@y, BL_PC, @cl_hu_awa) == 0 && .@m$ == strcharinfo(3));
+	.@dx = @cl_hu_ax - .@x;
+	.@dy = @cl_hu_ay - .@y;
+	if (!.@ok || max(.@dx, -.@dx, .@dy, -.@dy) <= 1 || getarg(0) >= @cl_hu_aw) {
+		if (.@ok)
+			unitstopwalk @cl_hu_awa, USW_FORCE_STOP;	// rAthena's forced-walk flag
+		if (CL_DEBUG) {
+			.@why$ = "it got there";
+			if (!.@ok)
+				.@why$ = "the finder is gone";
+			else if (getarg(0) >= @cl_hu_aw)
+				.@why$ = "10 s, stopped at " + .@x + "," + .@y;
+			callsub L_Dbg, "back-off over: " + .@why$;
+		}
+		@cl_hu_aw = 0;
+		return;
+	}
+	if (.@x == @cl_hu_alx && .@y == @cl_hu_aly) {
+		unitstopwalk @cl_hu_awa, USW_FORCE_STOP;
+		unitwalk @cl_hu_awa, @cl_hu_ax, @cl_hu_ay;
+	}
+	@cl_hu_alx = .@x;
+	@cl_hu_aly = .@y;
 	return;
 
 // Waiting for you at the MVP: every roamer keeps out of its reach (ct_hunt_wait_away) and
@@ -8474,6 +9890,7 @@ L_HuntWait:
 	}
 	if (CL_DEBUG)
 		callsub L_DbgHits, "wait", @cl_hu_g, 0;
+	callsub L_HuntAway, .@sec;	// 3.13.5
 	.@bx = .@d[UMOB_X];
 	.@by = .@d[UMOB_Y];
 	getmapxy(.@om$, .@ox, .@oy, BL_PC);
@@ -8482,7 +9899,9 @@ L_HuntWait:
 	.@dy = .@oy - .@by;
 	.@ex = .@ox - .@fx;
 	.@ey = .@oy - .@fy;
-	if (max(.@dx, -.@dx, .@dy, -.@dy) <= 9 || max(.@ex, -.@ex, .@ey, -.@ey) <= 3) {
+	// 3.13.5: the finder's spot (16-18 off) counts only before an answer; Engage on foot
+	// waits until you're near the monster itself.
+	if (max(.@dx, -.@dx, .@dy, -.@dy) <= 9 || (!@cl_hu_mode && max(.@ex, -.@ex, .@ey, -.@ey) <= 3)) {
 		if (CL_DEBUG) {
 			.@how$ = ": gather, no answer yet";
 			if (@cl_hu_mode == 1)
@@ -8496,7 +9915,7 @@ L_HuntWait:
 	}
 	.@gx = .@fx - .@bx;
 	.@gy = .@fy - .@by;
-	.@away = (max(.@gx, -.@gx, .@gy, -.@gy) > 16);
+	.@away = (max(.@gx, -.@gx, .@gy, -.@gy) > 24);	// 3.13.5: was 16; the finder backs off 16-18 now
 	if (!.@away) {
 		@cl_hu_lost = 0;
 		viewpoint 1, .@bx, .@by, 77, 0xFF3030;
@@ -8512,6 +9931,8 @@ L_HuntWait:
 	for (.@i = 0; .@i < @cl_n; .@i++) {
 		if (@cl_hp[.@i] <= 0 || !callsub(L_Roams, .@i))
 			continue;
+		if (@cl_hu_aw && @cl_aid[.@i] == @cl_hu_awa)
+			continue;	// 3.13.5: backing off: a Hold would stop the walk
 		sc_start SC_REUSE_LIMIT_B, 4500, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];
 		sc_start SC_REUSE_LIMIT_C, 4500, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];
 	}
@@ -8534,12 +9955,27 @@ L_HuntGather:
 // flies to you and follows (L_HuntRecall), and the mark stays on the monster (L_HuntMark).
 // 1 Engage together: they all go for it now (L_HuntCharge). 2 Stand by, I'll solo: they keep
 // clear and only defend themselves while it lives (L_SoloTick), until you say "help me".
+// 3.13.5: Solo: getarg(0),getarg(1) is the finder's spot out of its sight, not yours: they
+// go on Stand By (L_StandStart) and fly there as a group, and you go on alone.
 L_HuntGo:
 	.@g = @cl_hu_g;
 	.@mode = @cl_hu_mode;
 	.@fi = inarray(@cl_aid[0], @cl_hu_f);
 	callsub L_HuntEnd;
-	callsub L_HuntRecall, getarg(0), getarg(1);
+	if (.@mode == 1) {
+		@cl_hu_engt = gettimetick(2) + 4;	// 3.14.2: no new find or hop while they fly in (L_HuntTick)
+		@cl_hu_engg = .@g;	// 3.14.2: the recorder's "Engage vs" (L_DbgWho)
+		@cl_hu_engm$ = @cl_hu_m$;
+		@cl_hu_engmap$ = strcharinfo(3);
+	}
+	// 3.13.6: getarg(2) 1 = you fly after them (L_HuntFly): Engage keeps them roaming till you
+	// land, or the engine pulls each one that lands back to where you still stand.
+	if (.@mode == 1)
+		callsub L_HuntRecall, getarg(0), getarg(1), getarg(2, 0);
+	else {
+		callsub L_StandStart, " ", "";
+		callsub L_HuntRecall, getarg(0), getarg(1), 1;
+	}
 	@cl_hu_k = .@g;
 	@cl_hu_km$ = strcharinfo(3);
 	@cl_hu_kx = 0;
@@ -8548,7 +9984,7 @@ L_HuntGo:
 	if (.@fi < 0 || @cl_hp[.@fi] <= 0)
 		.@fi = callsub(L_Pick, -1, -1);
 	if (CL_DEBUG) {
-		callsub L_Dbg, "go: " + (.@mode == 1 ? "engage" : "solo") + ", everyone called to you at " + getarg(0) + "," + getarg(1);
+		callsub L_Dbg, "go: " + (.@mode == 1 ? "engage, everyone called to you at " : "solo, everyone on Stand By at the finder's spot ") + getarg(0) + "," + getarg(1);
 		callsub L_DbgPos, "go", .@g;
 	}
 	if (.@mode == 1) {
@@ -8559,13 +9995,39 @@ L_HuntGo:
 	}
 	@cl_hu_solo = .@g;
 	@cl_hu_so_m$ = strcharinfo(3);
-	@cl_hu_so_next = 0;
 	if (CL_DEBUG)
 		callsub L_DbgHits, "solo", .@g, 1;
 	callsub L_SoloTick, gettimetick(2);
 	if (.@fi >= 0)
 		callsub L_SpeakNow, .@fi, "mvpsolo", @cl_hu_m$, ET_OK;
-	dispbottom "[Companions] They keep clear of " + @cl_hu_m$ + " and only defend themselves. Say \"help me\" in party chat to call them in.", 0xFFCC66;
+	dispbottom "[Companions] They stand by here, out of " + @cl_hu_m$ + "'s reach, and only defend themselves. Follow the red mark when you're ready; say \"help me\" in party chat to call them in.", 0xFFCC66;
+	return;
+
+// 3.13.6: your Fly Wing to the find (getarg(0) map, getarg(1),getarg(2) the cell), a second
+// after theirs. A warp takes you off the map until your game loads it again, and theirs take
+// them off until the engine puts them back beside a player who is ON the map. Both at once:
+// its sweep finds them off the map with no owner in sight and lets them go (stale), and they
+// come back 10 s later re-summoned (population_engine.cpp collect_stale_shells).
+// getarg(3) 1 = Engage: then their roaming ends here (L_HuntGo kept it for the flight).
+L_HuntFly:
+	sleep2 1000;
+	if (Hp > 0 && strcharinfo(3) == getarg(0) && countitem(601) > 0 && !callsub(L_MapFlag, getarg(0), MF_NOTELEPORT)) {
+		delitem 601, 1;
+		specialeffect2 EF_TELEPORTATION;
+		warp getarg(0), getarg(1), getarg(2);
+		specialeffect2 EF_TELEPORTATION;
+		@cl_hu_kre = gettimetick(2) + 4;	// 3.13.10: the red mark is drawn again (L_HuntMark)
+		if (CL_DEBUG)
+			callsub L_DbgPos, "landed", @cl_hu_k;
+	}
+	if (getarg(3, 0)) {
+		for (.@i = 0; .@i < @cl_n; .@i++) {
+			if (@cl_hp[.@i] > 0 && callsub(L_Roams, .@i))
+				atcommand "@companion roam " + @cl_nm$[.@i] + " off";
+		}
+		callsub L_RoamRead;
+		callsub L_RoamRest;
+	}
 	return;
 
 // 3.13.0: everyone on this map goes for the boss: Reuse_Limit_E (ct_hunt_engage) makes it
@@ -8579,9 +10041,10 @@ L_HuntCharge:
 	}
 	return;
 
-// 3.13.0: Stand by, I'll solo, each tick: Reuse_Limit_D (ct_solo_away, ct_solo_still) renewed
-// every 3 s for 6 s. Over when it dies (they cheer), you leave the map, they're sent roaming,
-// or "help me" (OnCmdHunt) or your fall (OnPCDieEvent) ends it early.
+// 3.13.0: Stand by, I'll solo, each tick. 3.13.5: they wait on the real Stand By
+// (L_StandTick holds them), this only watches for the end: it dies (they cheer) or is gone,
+// and they come back to you; you leave the map (Stand By ends itself); Stand By ends some
+// other way (Follow, a hunt order); or "help me" (OnCmdHunt) or your fall (OnPCDieEvent).
 L_SoloTick:
 	.@sec = getarg(0);
 	.@ok = (strcharinfo(3) == @cl_hu_so_m$ && unitexists(@cl_hu_solo));
@@ -8600,6 +10063,28 @@ L_SoloTick:
 			callsub L_Dbg, "solo over: " + .@why$;
 		}
 		callsub L_SoloEnd;
+		if (CL_STANDBY && strcharinfo(3) == @cl_st_map$) {
+			// 3.14.1 (user's OK): won, and one fell far off (it hopped into a pack before the
+			// find): the revive run goes for it first (L_Rescue, while they're all still
+			// roaming), and the rescuer and the fallen stay out of the call back below; they
+			// come back once it's up (3 s on) or 15 s at most (OnTick, @cl_so_rcl).
+			if (.@won) {
+				@cl_rs_last = 0;
+				callsub L_Rescue, gettimetick(2), strcharinfo(3);
+				if (@cl_rs_last) {
+					setd "@cl_rcskip_" + @cl_rs_last, 1;
+					setd "@cl_rcskip_" + @cl_rs_lastf, 1;
+					@cl_so_rcl = gettimetick(2) + 15;
+					@cl_so_rcf = @cl_rs_lastf;
+					@cl_so_rcr = @cl_rs_last;
+					@cl_so_rcup = 0;
+					setd "@cl_hu_n_" + @cl_rs_lastf, gettimetick(2) + 20;	// once up, no hop away meanwhile
+					setd "@cl_hu_s_" + @cl_rs_lastf, gettimetick(2) + 20;
+				}
+			}
+			callsub L_StandOff;	// 3.13.5: off Stand By, back to you and following
+			callsub L_HuntRecall;
+		}
 		if (.@won) {
 			.@a = callsub(L_Pick, -1, -1);
 			if (.@a >= 0)
@@ -8607,29 +10092,162 @@ L_SoloTick:
 		}
 		return;
 	}
-	if (getarraysize(@cl_rm$) || CL_STANDBY) {
+	if (!CL_STANDBY) {
 		if (CL_DEBUG)
-			callsub L_Dbg, "solo over: " + (CL_STANDBY ? "Stand By was ordered" : "someone was sent roaming");
+			callsub L_Dbg, "solo over: Stand By ended (Follow or a new order)";
 		callsub L_SoloEnd;
 		return;
 	}
 	if (CL_DEBUG)
 		callsub L_DbgHits, "solo", @cl_hu_solo, 0;
-	if (.@sec < @cl_hu_so_next)
-		return;
-	@cl_hu_so_next = .@sec + 3;
+	// 3.13.10: out of its reach the whole solo, as while you decide (C: ct_hunt_wait_away keeps
+	// 16-20 cells from it, above every fight rule). Stand By's Hold let go once a meteor or a
+	// summon hit them, and they walked in to fight back (or, the Priest, to heal you). Not
+	// during a dodge walk: C's Hold would stop it.
+	// 3.13.11: and D the whole solo, a dodge walk too: the roam_together rally ("someone's down,
+	// walk to the body") asks for neither B nor D. The dodge took B off for its walk, and they
+	// all ran to a body beside the boss, and fell beside it.
 	for (.@i = 0; .@i < @cl_n; .@i++) {
-		if (@cl_hp[.@i] > 0)
-			sc_start SC_REUSE_LIMIT_D, 6000, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];
+		if (@cl_hp[.@i] <= 0 || !callsub(L_Roams, .@i))
+			continue;
+		sc_start SC_REUSE_LIMIT_D, 4500, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];
+		// 3.14.1: only a dodge walker goes without C (those already at the spot keep it)
+		if (!@cl_so_mv || !getd("@cl_so_w_" + @cl_aid[.@i]))
+			sc_start SC_REUSE_LIMIT_C, 4500, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];
+	}
+	callsub L_SoloDodge, .@sec;
+	return;
+
+// 3.13.7: "save yourselves": the boss came within 12 cells of anyone standing by (Meteor
+// Storm reaches 9, and its meteors spread). Everyone alive walks to a new spot 14-18 cells
+// from it, away from where it is (L_HuntSpot), with their Hold off for the walk (a Hold
+// stops a script walk; L_StandTick waits for @cl_so_mv). Then they hold there again, and
+// it's 4 s before the next check. One of them shouts it, at most every 20 s.
+// 3.14.1 (Amon Ra wipe: the spot lay 2 cells from where they stood, they got there in a
+// second, then had 4 s with no Hold and walked in to fight beside you):
+//   A: the walk ends once every walker is within 3 cells of the spot (4 s at most), Hold back on.
+//   B: only those more than 4 cells from the spot walk (@cl_so_w_<aid>); the rest keep B and C.
+//      Nobody that far = no walk at all, C (16-20 cells off) does it.
+L_SoloDodge:
+	.@sec = getarg(0);
+	if (@cl_so_mv) {
+		.@going = 0;
+		if (.@sec < @cl_so_mv) {
+			.@m$ = strcharinfo(3);
+			for (.@i = 0; .@i < @cl_n; .@i++) {
+				.@aid = @cl_aid[.@i];
+				if (@cl_hp[.@i] <= 0 || !getd("@cl_so_w_" + .@aid))
+					continue;
+				if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != .@m$)
+					continue;
+				if (max(.@cx - @cl_hu_sx, @cl_hu_sx - .@cx, .@cy - @cl_hu_sy, @cl_hu_sy - .@cy) > 3)
+					.@going++;
+			}
+		}
+		if (.@going)
+			return;
+		callsub L_SoloDodgeStop;
+		@cl_st_next = 0;	// the Hold back on at the next tick
+		@cl_so_cd = .@sec + 4;
+		if (CL_DEBUG)
+			callsub L_DbgPos, "dodge over", @cl_hu_solo;
+		return;
+	}
+	if (.@sec < @cl_so_cd || !unitexists(@cl_hu_solo))
+		return;
+	getunitdata @cl_hu_solo, .@d;
+	.@bx = .@d[UMOB_X];
+	.@by = .@d[UMOB_Y];
+	.@m$ = strcharinfo(3);
+	.@k = 0;
+	.@sx = 0;
+	.@sy = 0;
+	.@near = 99;
+	.@ni = -1;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0 || !callsub(L_Roams, .@i))
+			continue;
+		if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, @cl_aid[.@i]) != 0 || .@cm$ != .@m$)
+			continue;
+		.@dx = .@cx - .@bx;
+		.@dy = .@cy - .@by;
+		.@dd = max(.@dx, -.@dx, .@dy, -.@dy);
+		if (.@dd < .@near) {
+			.@near = .@dd;
+			.@ni = .@i;
+		}
+		.@sx += .@cx;
+		.@sy += .@cy;
+		.@k++;
+	}
+	if (!.@k || .@near > 15)
+		return;	// 3.13.8: 15, was 12: its skills reach 14
+	if (!callsub(L_HuntSpot, .@bx, .@by, .@sx / .@k, .@sy / .@k, 0)) {
+		@cl_so_cd = .@sec + 4;
+		if (CL_DEBUG)
+			callsub L_Dbg, "dodge: " + @cl_hu_m$ + " within " + .@near + " cells, but no free spot";
+		return;
+	}
+	.@nw = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (@cl_hp[.@i] <= 0 || !callsub(L_Roams, .@i))
+			continue;
+		.@aid = @cl_aid[.@i];
+		if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != .@m$)
+			continue;
+		if (max(.@cx - @cl_hu_sx, @cl_hu_sx - .@cx, .@cy - @cl_hu_sy, @cl_hu_sy - .@cy) <= 4)
+			continue;	// B: already there, it keeps its Hold
+		setd "@cl_so_w_" + .@aid, 1;
+		.@nw++;
+		.@tx = @cl_hu_sx + rand(-2, 2);
+		.@ty = @cl_hu_sy + rand(-2, 2);
+		if (!checkcell(.@m$, .@tx, .@ty, cell_chkpass)) {
+			.@tx = @cl_hu_sx;
+			.@ty = @cl_hu_sy;
+		}
+		sc_start SC_REUSE_LIMIT_B, 1, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;
+		sc_start SC_REUSE_LIMIT_C, 1, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@aid;	// 3.13.10: its Hold too
+		unitstopwalk .@aid, USW_FORCE_STOP;
+		unitwalk .@aid, .@tx, .@ty;
+	}
+	if (!.@nw) {
+		@cl_so_cd = .@sec + 4;
+		if (CL_DEBUG)
+			callsub L_Dbg, "dodge: " + @cl_hu_m$ + " within " + .@near + " cells of " + @cl_nm$[.@ni] + ", all already near the spot " + @cl_hu_sx + "," + @cl_hu_sy + ", no walk (they keep their Hold)";
+		return;
+	}
+	@cl_so_mv = .@sec + 4;
+	if (CL_DEBUG)
+		callsub L_Dbg, "dodge: " + @cl_hu_m$ + " came within " + .@near + " cells of " + @cl_nm$[.@ni] + ", " + .@nw + " walk to " + @cl_hu_sx + "," + @cl_hu_sy;
+	if (.@sec >= @cl_so_say) {
+		@cl_so_say = .@sec + 20;
+		callsub L_SpeakNow, .@ni, "mvpdodge", @cl_hu_m$, ET_SWEAT;
 	}
 	return;
 
-// 3.13.0: the solo is over: the marks can't be ended, so a 1 ms restart clears them.
+// 3.13.7: the dodge walk ends (its time is up, or the solo is over).
+L_SoloDodgeStop:
+	@cl_so_mv = 0;
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		if (!getd("@cl_so_w_" + @cl_aid[.@i]))
+			continue;	// 3.14.1: only the walkers (a stop on one holding still is no use)
+		setd "@cl_so_w_" + @cl_aid[.@i], 0;
+		unitstopwalk @cl_aid[.@i], USW_FORCE_STOP;
+	}
+	return;
+
+// 3.13.0: the solo is over. 3.13.5: Reuse_Limit_D isn't set any more; the 1 ms restart stays
+// one version for anyone carrying an old mark over the update.
 L_SoloEnd:
+	if (@cl_so_mv)
+		callsub L_SoloDodgeStop;
+	@cl_so_cd = 0;
 	@cl_hu_solo = 0;
 	@cl_hu_so_m$ = "";
-	for (.@i = 0; .@i < @cl_n; .@i++)
+	for (.@i = 0; .@i < @cl_n; .@i++) {
 		sc_start SC_REUSE_LIMIT_D, 1, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];
+		sc_start SC_REUSE_LIMIT_C, 1, 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, @cl_aid[.@i];	// 3.13.10: "help me" must reach it (C outranks Engage)
+	}
 	return;
 
 // 3.13.2: the Debug recorder's line (getarg(0)); call it only behind `if (CL_DEBUG)`.
@@ -8650,6 +10268,140 @@ L_Dbg:
 	debugmes "[CPO debug] " + strcharinfo(0) + " " + .@t$;
 	if (CL_DEBUG == 2)
 		dispbottom "[CPO debug] " + .@t$, 0x99CCFF;
+	return;
+
+// 3.14.2, recorder: a "who" snapshot (user's ask: when each moves, where, what it fights, in
+// which mode). Map log only (debugmes; @cldebug show keeps its 50 decisions). Looked at every
+// 3 s; written then if a fight or a boss is on, else every 15 s. One line for you and the mode,
+// one per companion: spot, cells from you (and the boss), HP/SP, roam, our holds (B no new
+// fight, C keep out of reach, D revive wait, E charge the boss), and "fights": the monsters
+// within 14 cells whose target is it (a script can't read a player unit's own target).
+L_DbgWho:
+	.@sec = getarg(0);
+	if (.@sec < @cl_dbwho)
+		return;
+	@cl_dbwho = .@sec + 3;
+	.@m$ = strcharinfo(3);
+	if (@cl_hu_engg) {	// Engage: until it's dead or you're off its map
+		.@ok = (.@m$ == @cl_hu_engmap$ && unitexists(@cl_hu_engg));
+		if (.@ok) {
+			getunitdata @cl_hu_engg, .@d;
+			.@ok = (.@d[UMOB_HP] > 0);
+		}
+		if (!.@ok)
+			@cl_hu_engg = 0;
+	}
+	.@g = 0;
+	if (@cl_hu_solo) {
+		.@g = @cl_hu_solo;
+		.@mode$ = "Solo vs " + @cl_hu_m$;
+	} else if (@cl_hu_g) {
+		.@g = @cl_hu_g;
+		.@mode$ = "find, waiting at " + @cl_hu_m$;
+	} else if (@cl_hu_engg) {
+		.@g = @cl_hu_engg;
+		.@mode$ = "Engage vs " + @cl_hu_engm$;
+	} else if (CL_STANDBY)
+		.@mode$ = "Stand By";
+	else if (getarraysize(@cl_rm$)) {
+		.@mode$ = "Normal hunt";
+		if (CL_HUNT)
+			.@mode$ = "MVP hunt";
+		if (CL_ROAMALONE)
+			.@mode$ += ", alone";
+		else
+			.@mode$ += ", group";
+	} else
+		.@mode$ = "Follow";
+	.@bx = -1;
+	if (.@g && unitexists(.@g)) {
+		getunitdata .@g, .@d;
+		if (.@d[UMOB_HP] > 0) {
+			.@bx = .@d[UMOB_X];
+			.@by = .@d[UMOB_Y];
+		}
+	}
+	.@busy = (.@bx >= 0);
+	getmapxy(.@om$, .@ox, .@oy, BL_PC);
+	.@head$ = "who [" + .@mode$ + "] on " + .@m$ + ": you " + .@ox + "," + .@oy + " HP " + Hp * 100 / max(1, MaxHp) + "%";
+	if (.@bx >= 0) {
+		.@dx = .@ox - .@bx;
+		.@dy = .@oy - .@by;
+		.@bhp = .@d[UMOB_HP];	// (scalars: max() on an array item reads the rest of the array)
+		.@bmhp = .@d[UMOB_MAXHP];
+		.@head$ += ", boss at " + .@bx + "," + .@by + " (" + max(.@dx, -.@dx, .@dy, -.@dy) + " from you, " + .@bhp * 100 / max(1, .@bmhp) + "% HP)";
+	}
+	for (.@i = 0; .@i < @cl_n; .@i++) {
+		.@aid = @cl_aid[.@i];
+		.@cid = @cl_cid[.@i];
+		if (getmapxy(.@cm$, .@x, .@y, BL_PC, .@aid) != 0 || .@cm$ != .@m$) {
+			.@ln$[.@i] = @cl_nm$[.@i] + ": not on this map";
+			continue;
+		}
+		.@dx = .@x - .@ox;
+		.@dy = .@y - .@oy;
+		.@s$ = @cl_nm$[.@i] + " " + .@x + "," + .@y + ", " + max(.@dx, -.@dx, .@dy, -.@dy) + " from you";
+		if (.@bx >= 0) {
+			.@dx = .@x - .@bx;
+			.@dy = .@y - .@by;
+			.@s$ += ", " + max(.@dx, -.@dx, .@dy, -.@dy) + " from boss";
+		}
+		.@hp = readparam(Hp, .@cid);
+		if (.@hp <= 0)
+			.@s$ += ", DOWN";
+		else
+			.@s$ += ", HP " + .@hp * 100 / max(1, readparam(MaxHp, .@cid)) + "% SP " + readparam(Sp, .@cid) * 100 / max(1, readparam(MaxSp, .@cid)) + "%";
+		if (callsub(L_Roams, .@i))
+			.@s$ += ", roam";
+		.@h$ = "";
+		if (getstatus(SC_REUSE_LIMIT_B, 0, .@cid))
+			.@h$ += "B";
+		if (getstatus(SC_REUSE_LIMIT_C, 0, .@cid))
+			.@h$ += "C";
+		if (getstatus(SC_REUSE_LIMIT_D, 0, .@cid))
+			.@h$ += "D";
+		if (getstatus(SC_REUSE_LIMIT_E, 0, .@cid))
+			.@h$ += "E";
+		if (.@h$ != "")
+			.@s$ += ", hold " + .@h$;
+		if (getarraysize(.@fn$)) {
+			deletearray .@fn$[0], getarraysize(.@fn$);
+			deletearray .@fc[0], getarraysize(.@fc);
+		}
+		.@nu = getareaunits(BL_MOB, .@m$, .@x - 14, .@y - 14, .@x + 14, .@y + 14, .@u);
+		for (.@j = 0; .@j < .@nu; .@j++) {
+			getunitdata .@u[.@j], .@e;
+			if (.@e[UMOB_HP] <= 0 || .@e[UMOB_TARGETID] != .@aid)
+				continue;
+			.@nm$ = getmonsterinfo(.@e[UMOB_CLASS], MOB_NAME);
+			if (.@u[.@j] == .@g)
+				.@nm$ += " (boss)";
+			.@k = inarray(.@fn$, .@nm$);
+			if (.@k < 0) {
+				.@k = getarraysize(.@fn$);
+				.@fn$[.@k] = .@nm$;
+				.@fc[.@k] = 0;
+			}
+			.@fc[.@k]++;
+		}
+		.@nf = getarraysize(.@fn$);
+		if (.@nf) {
+			.@busy = 1;
+			.@s$ += ", fights:";
+			for (.@k = 0; .@k < .@nf && .@k < 4; .@k++)
+				.@s$ += (.@k ? "," : "") + " " + .@fn$[.@k] + (.@fc[.@k] > 1 ? " x" + .@fc[.@k] : "");
+			if (.@nf > 4)
+				.@s$ += " +" + (.@nf - 4) + " more";
+		}
+		.@ln$[.@i] = .@s$;
+	}
+	if (!.@busy && .@sec < @cl_dbwp)
+		return;
+	@cl_dbwp = .@sec + 15;
+	.@pre$ = "[CPO debug] " + strcharinfo(0) + " " + gettimestr("%H:%M:%S", 9) + " ";
+	debugmes .@pre$ + .@head$;
+	for (.@i = 0; .@i < @cl_n; .@i++)
+		debugmes .@pre$ + "  " + .@ln$[.@i];
 	return;
 
 // 3.13.2, recorder: who lost HP since the last look (getarg(0) the phase, getarg(1) the boss's
@@ -8718,7 +10470,9 @@ L_HuntMark:
 		@cl_hu_k = 0;
 		return;
 	}
-	if (.@d[UMOB_X] != @cl_hu_kx || .@d[UMOB_Y] != @cl_hu_ky) {
+	// 3.13.10: and for 4 s after your Fly Wing there (L_HuntFly): loading the map wipes the
+	// minimap's marks, and Amon Ra never moves to redraw it.
+	if (.@d[UMOB_X] != @cl_hu_kx || .@d[UMOB_Y] != @cl_hu_ky || gettimetick(2) <= @cl_hu_kre) {
 		@cl_hu_kx = .@d[UMOB_X];
 		@cl_hu_ky = .@d[UMOB_Y];
 		viewpoint 1, @cl_hu_kx, @cl_hu_ky, 77, 0xFF3030;
@@ -8729,6 +10483,8 @@ L_HuntMark:
 // their bag; without one they walk over).
 // 3.13.0: getarg(0),getarg(1) where you are, when you've only just flown there; and the
 // Acolyte family Teleports for 10 SP first (L_HopTp), as on the hunt.
+// 3.13.5: getarg(2) 1 = they stay roaming (the solo's Stand By) and fly in from 4 cells off
+// (a tight group), not 10.
 L_HuntRecall:
 	.@m$ = strcharinfo(3);
 	getmapxy(.@om$, .@ox, .@oy, BL_PC);
@@ -8736,17 +10492,27 @@ L_HuntRecall:
 		.@ox = getarg(0);
 		.@oy = getarg(1);
 	}
+	.@keep = getarg(2, 0);	// 3.13.6: && reads both sides, so getarg(2) alone ended the script
+	.@far = (.@keep ? 3 : 9);
 	for (.@i = 0; .@i < @cl_n; .@i++) {
-		if (@cl_hp[.@i] <= 0 || !callsub(L_Roams, .@i))
+		if (!callsub(L_Roams, .@i) || getd("@cl_rcskip_" + @cl_aid[.@i]))
+			continue;	// 3.14.1: (a rescue after your solo win: it and the fallen come after)
+		// 3.14.1: the fallen stop roaming too (no flight): Talimel, down when the Amon Ra solo
+		// ended, stayed on roam and went hunting alone once he was revived.
+		if (@cl_hp[.@i] <= 0) {
+			if (!.@keep)
+				atcommand "@companion roam " + @cl_nm$[.@i] + " off";
 			continue;
+		}
 		.@aid = @cl_aid[.@i];
-		atcommand "@companion roam " + @cl_nm$[.@i] + " off";
+		if (!.@keep)
+			atcommand "@companion roam " + @cl_nm$[.@i] + " off";
 		if (getmapxy(.@cm$, .@cx, .@cy, BL_PC, .@aid) != 0 || .@cm$ != .@m$)
 			continue;
 		.@dx = .@cx - .@ox;
 		.@dy = .@cy - .@oy;
 		.@tp = callsub(L_HopTp, .@i);
-		if (max(.@dx, -.@dx, .@dy, -.@dy) <= 9 || (countitem(601, .@aid) < 1 && !.@tp))
+		if (max(.@dx, -.@dx, .@dy, -.@dy) <= .@far || (countitem(601, .@aid) < 1 && !.@tp))
 			continue;
 		.@x = .@ox + rand(-2, 2);
 		.@y = .@oy + rand(-2, 2);
@@ -8772,6 +10538,11 @@ L_HuntEnd:
 	if (@cl_hu_g) {
 		viewpoint 2, 0, 0, 77, 0;
 		dispbottom "@@event clhunt -";
+	}
+	if (@cl_hu_aw) {	// 3.13.5: the finder was still backing off
+		if (unitexists(@cl_hu_awa))
+			unitstopwalk @cl_hu_awa, USW_FORCE_STOP;
+		@cl_hu_aw = 0;
 	}
 	@cl_hu_g = 0;
 	@cl_hu_f = 0;
@@ -8966,6 +10737,28 @@ L_MomentTry:
 				@cl_mot = .@sec + 120;
 				return;
 			}
+			// 3.14.0: a trait talk: its class's question, and each answer with what it gives at
+			// their rank now ("Guarded I^takes 2% less damage", the box's second line).
+			if (.mo_kind$[.@k] == "trait") {
+				.@ts = callsub(L_TraitSet, @cl_cls[.@i]);
+				.@sl = atoi(.mo_x1$[.@k]);
+				.@r = getd("@cl_bt_" + @cl_mopc) - 1;
+				if (.@r < 1)
+					.@r = 1;
+				if (.@r > 4)
+					.@r = 4;
+				.@x = (.@ts - 1) * 8 + .@sl * 2;
+				for (.@j = 0; .@j < 2; .@j++) {
+					.@e = .tr_e[.@x + .@j];
+					.@ot$[.@j] = callsub(L_Clean, .tr_nm$[.@x + .@j] + " " + .roman$[.@r] + "^" + replacestr(.tre_d$[.@e], "{v}", "" + .tre_v[.@e * 4 + .@r - 1]));
+				}
+				.@q$ = callsub(L_Text, .tr_q$[(.@ts - 1) * 4 + .@sl], .@i, "");
+				dispbottom "@@event clmoment " + @cl_mopc + "|" + .@k + "|" + @cl_nm$[.@i] + "|" + @cl_cls[.@i] + "|" + readparam(Sex, @cl_mopc)
+					+ "|" + callsub(L_Clean, .@q$) + "|" + .@ot$[0] + "|" + .@ot$[1] + "||trait";
+				@cl_mos = 3;
+				@cl_mot = .@sec + 120;
+				return;
+			}
 			.@o1$ = callsub(L_Clean, callsub(L_Text, .mo_o1$[.@k], .@i, ""));
 			.@o2$ = callsub(L_Clean, callsub(L_Text, .mo_o2$[.@k], .@i, ""));
 			.@o3$ = callsub(L_Clean, callsub(L_Text, .mo_o3$[.@k], .@i, ""));
@@ -9036,6 +10829,7 @@ L_MomentTry:
 	.@nc = 0;
 	.@sum = 0;
 	.@nm = -1;	// a name moment, if one is due: it comes first
+	.@tm = -1;	// 3.14.0: then a trait talk (their bond reached its tier)
 	for (.@i = 0; .@i < @cl_n; .@i++) {
 		if (@cl_hp[.@i] <= 0 || callsub(L_Roams, .@i))
 			continue;
@@ -9051,6 +10845,19 @@ L_MomentTry:
 			.@kd$ = .mo_kind$[.@k];
 			if (.@kd$ == "gone" || .@kd$ == "quiz")
 				continue;	// a retired place to visit; the quiz has its own timer
+			// 3.14.0: a trait talk: theirs alone, once its tier is reached and the slot is empty.
+			if (.@kd$ == "trait") {
+				if (.@bt < .mo_tier[.@k] || modstore_get("char", .@p$ + ".tr" + .mo_x1$[.@k], 0))
+					continue;
+				if (.@tm < 0)
+					.@tm = .@nc;
+				.@ci[.@nc] = .@i;
+				.@ck[.@nc] = .@k;
+				.@cw[.@nc] = 30;
+				.@sum += 30;
+				.@nc++;
+				continue;
+			}
 			.@own = 0;
 			if (compare(.@kd$, "story")) {
 				// a choice in its own story (1-3 or a class's 11-14, L_StoryVar), once it
@@ -9117,6 +10924,8 @@ L_MomentTry:
 	if (!.@nc)
 		return;
 	.@s = .@nm;
+	if (.@s < 0)
+		.@s = .@tm;
 	if (.@s < 0) {
 		.@r = rand(.@sum);
 		for (.@s = 0; .@s < .@nc - 1; .@s++) {
@@ -9525,6 +11334,57 @@ L_Arch:
 		return 6;
 	return 0;
 
+// 3.14.0: class getarg(0)'s trait set (the .tr_* tables): 1 Knight .. 12 Rogue, 13 the rest.
+// A first class takes its line's first set (Swordman: Knight's).
+L_TraitSet:
+	.@ea = eaclass(getarg(0));
+	.@b = .@ea & EAJ_BASEMASK;
+	.@two = 0;
+	if (.@ea & EAJL_2_2)
+		.@two = 1;
+	if (.@b == EAJ_SWORDMAN)
+		return 1 + .@two;
+	if (.@b == EAJ_MAGE)
+		return 3 + .@two;
+	if (.@b == EAJ_ARCHER)
+		return 5 + .@two;
+	if (.@b == EAJ_ACOLYTE)
+		return 7 + .@two;
+	if (.@b == EAJ_MERCHANT)
+		return 9 + .@two;
+	if (.@b == EAJ_THIEF)
+		return 11 + .@two;
+	return 13;
+
+// 3.14.0: the traits of companion getarg(0) (char id) at bond tier getarg(1): getarg(2) 0 the
+// bonus script (L_BondBuff), 1 how they read ("Guarded III:takes 4% less damage^...", the
+// Bond fold). Stored per slot as m.c<id>.tr<slot> = set * 10 + answer (1 or 2).
+L_TraitText:
+	.@c = getarg(0);
+	.@r = getarg(1) - 1;	// the rank: Companion I .. Kindred IV
+	.@out$ = "";
+	if (.@r < 1)
+		return "";
+	if (.@r > 4)
+		.@r = 4;
+	for (.@s = 0; .@s < 4; .@s++) {
+		.@v = modstore_get("char", "m.c" + .@c + ".tr" + .@s, 0);
+		.@ts = .@v / 10;
+		.@a = .@v % 10;
+		if (.@ts < 1 || .@ts > 13 || .@a < 1 || .@a > 2)
+			continue;
+		.@x = (.@ts - 1) * 8 + .@s * 2 + .@a - 1;
+		.@e = .tr_e[.@x];
+		.@val$ = "" + .tre_v[.@e * 4 + .@r - 1];
+		if (getarg(2)) {
+			if (.@out$ != "")
+				.@out$ += "^";
+			.@out$ += .tr_nm$[.@x] + " " + .roman$[.@r] + ":" + replacestr(.tre_d$[.@e], "{v}", .@val$);
+		} else
+			.@out$ += replacestr(.tre_b$[.@e], "{v}", .@val$) + " ";
+	}
+	return .@out$;
+
 // 3.12.4: the weather here changed (getarg(0) the time, getarg(1) the map): one companion
 // remarks on it once things are calm, at most every 10 minutes. Plain cloud isn't worth a
 // word, and walking indoors isn't the sky clearing.
@@ -9678,6 +11538,13 @@ L_MoAdd:
 // starts again. Wrong: the streak starts over (not in a double), no bond lost. Asked
 // questions are kept (qz.seen, about the last 400) and not asked again.
 
+// 3.14.2: rand(n) for a list of n, 0 at n <= 1 (rand(1) ends the script: "range (0) is
+// too small"; the map log caught one on 2026-11-14). Not ?: (it reads both sides).
+L_Rn:
+	if (getarg(0) > 1)
+		return rand(getarg(0));
+	return 0;
+
 // Starts a quiz at getarg(0) (s): 1 started, 0 nothing to ask.
 L_QuizStart:
 	.@sec = getarg(0);
@@ -9688,10 +11555,10 @@ L_QuizStart:
 	}
 	if (!.@n)
 		return 0;
-	.@a = .@can[rand(.@n)];
+	.@a = .@can[callsub(L_Rn, .@n)];
 	.@b = -1;
 	if (.@n >= 2) {
-		.@b = .@can[rand(.@n - 1)];
+		.@b = .@can[callsub(L_Rn, .@n - 1)];
 		if (.@b == .@a)
 			.@b = .@can[.@n - 1];	// (the last one stood in for the asker)
 	}
@@ -9727,8 +11594,8 @@ L_QuizStart:
 	if (.@fr == 2 || .@fr == 3) {
 		// the two guesses: two different answers at random (the right one, or not)
 		@cl_qzb = @cl_cid[.@b];
-		@cl_qzg1 = rand(@cl_qzno);
-		@cl_qzg2 = (@cl_qzg1 + 1 + rand(@cl_qzno - 1)) % @cl_qzno;
+		@cl_qzg1 = callsub(L_Rn, @cl_qzno);
+		@cl_qzg2 = (@cl_qzg1 + 1 + callsub(L_Rn, @cl_qzno - 1)) % @cl_qzno;
 	}
 	@cl_qzfr = .@fr;
 	@cl_qzt$ = callsub(L_QuizFill, callsub(L_Line, "qzf" + .@fr, @cl_ar[.@a]), "");
@@ -9927,9 +11794,10 @@ L_QuizBuild:
 			}
 			if (.@nl < 2)
 				continue;
-			.@x = rand(.@nl);
-			.@y = (.@x + 1 + rand(.@nl - 1)) % .@nl;
-			setarray .@o$, .qz_en$[.@hi[rand(.@nb)]], .qz_en$[.@lo[.@x]], .qz_en$[.@lo[.@y]];
+			.@x = callsub(L_Rn, .@nl);
+			.@y = (.@x + 1 + callsub(L_Rn, .@nl - 1)) % .@nl;
+			.@h = callsub(L_Rn, .@nb);
+			setarray .@o$, .qz_en$[.@hi[.@h]], .qz_en$[.@lo[.@x]], .qz_en$[.@lo[.@y]];
 			.@core$ = "what element hits {m} hardest?";
 		} else if (.@kd == 4 || .@kd == 7) {
 			// where it lives (its busiest place) / which of three lives there
@@ -10372,11 +12240,25 @@ L_ArcTry:
 			.@b = .@i;
 		}
 	}
-	if (.@b < 0)
-		return 0;
+	// 3.14.2 (user's call): nobody near to listen (one companion, or the rest away): it
+	// tells you, always with an invite, and the friend's lines become your replies.
+	.@me = (.@b < 0);
 	.@line$ = callsub(L_ArcText, @cl_ar[.@a], callsub(L_StoryVar, .@a), .@ch, 0);
 	if (.@line$ == "")
 		return 0;
+	if (.@me) {
+		@cl_stc = @cl_cid[.@a];
+		@cl_stl = 0;	// you
+		@cl_stch = .@ch;
+		@cl_stt = gettimetick(2) + 120;
+		.@where$ = (@cl_camp ? " by the fire" : "");
+		setarray .@op$, "Got a minute, {t}? It's just us, so...", "Can I tell you something, {t}? Nobody else is around.", "Hey {t}... mind if I talk for a bit?", "{t}? There's something I'd like you to know.";
+		.@q$ = @cl_nm$[.@a] + " sits down beside you" + .@where$ + ". \"" + callsub(L_Text, .@op$[rand(4)], .@a, "") + "\"";
+		dispbottom "[Companions] " + @cl_nm$[.@a] + " sits down beside you" + .@where$ + ".", 0xFFCC66;
+		callsub L_EmoteIdx, .@a, ET_THINK;
+		dispbottom "@@event clstory " + @cl_nm$[.@a] + "|" + @cl_cls[.@a] + "|" + readparam(Sex, @cl_cid[.@a]) + "||||" + callsub(L_Clean, .@q$);
+		return 1;
+	}
 	// 3.9.1: chapter 1 is a passing talk, told now. From chapter 2 on, an invite:
 	// both portraits, "X and Y are talking quietly... Listen in?" (client
 	// portraits.js, "@@event clstory"). Told only on Listen (@clstory, OnCmdStory);
@@ -10501,9 +12383,42 @@ L_StoryTell:
 	.@p$ = "m.c" + @cl_cid[.@a];
 	modstore_set "char", .@p$ + ".arc", .@ch;
 	modstore_set "char", .@p$ + ".arcat", modstore_get("char", .@p$ + ".mins", 0) + 45;
+	if (.@b < 0) {	// 3.14.2: told to you (L_StoryMe)
+		modstore_set "char", .@p$ + ".arcl" + .@ch, "@you";
+		callsub L_StoryMe, .@a, .@line$;
+		return;
+	}
 	modstore_set "char", .@p$ + ".arcl" + .@ch, @cl_nm$[.@b];
 	callsub L_Bump, .@a, .@b;
 	callsub L_QueueConv, .@a, .@b, -1, .@line$, "", "", -1;
+	return;
+
+// 3.14.2: a chapter told to you (getarg(0) the teller's index, getarg(1) its text). The
+// client plays it (OnCmdStory's reply, client/index.js): its lines in the portrait bubble,
+// the friend's lines as your reply buttons. @cl_strep$ = "S|name|class|sex|A:text^B:text...";
+// in its lines {a} is what it calls you, in yours its name. Small talk and "hey boss"
+// boxes wait meanwhile (@cl_hush, L_Calm).
+L_StoryMe:
+	.@a = getarg(0);
+	.@line$ = getarg(1);
+	if (charat(.@line$, 0) == "#")
+		.@line$ = delchar(.@line$, 0);
+	.@me$ = callsub(L_Title, .@a);
+	explode(.@turn$, .@line$, "^");
+	.@n = getarraysize(.@turn$);
+	.@tx$ = "";
+	for (.@j = 0; .@j < .@n; .@j++) {
+		.@s$ = charat(.@turn$[.@j], 0);
+		.@other$ = .@me$;
+		if (.@s$ == "B")
+			.@other$ = @cl_nm$[.@a];
+		.@say$ = callsub(L_Text, delchar(.@turn$[.@j], 0), .@a, .@other$);
+		.@tx$ += (.@j ? "^" : "") + .@s$ + ":" + replacestr(callsub(L_Clean, .@say$), "^", "");
+	}
+	@cl_strep$ = "S|" + callsub(L_Clean, @cl_nm$[.@a]) + "|" + @cl_cls[.@a] + "|" + readparam(Sex, @cl_cid[.@a]) + "|" + .@tx$;
+	.@q = gettimetick(2) + 30 + .@n * 8;
+	if (@cl_hush < .@q)
+		@cl_hush = .@q;
 	return;
 
 // 3.9.1: the story invite is over: Not now, no answer in time, or someone left. The
@@ -11327,7 +13242,8 @@ L_BondPts:
 		+ modstore_count("char", .@p$ + ".maps") * 2 + modstore_get("char", .@p$ + ".gifts", 0) * 5
 		+ modstore_get("char", .@p$ + ".camps", 0) * 15 + modstore_get("char", .@p$ + ".mins", 0) / 10
 		+ modstore_get("char", .@p$ + ".moments", 0) * 8	// 3.9.1: moments you answered
-		+ modstore_get("char", .@p$ + ".quiz", 0) * 20;	// 3.10.2: their pop quizzes you got right
+		+ modstore_get("char", .@p$ + ".quiz", 0) * 20	// 3.10.2: their pop quizzes you got right
+		+ modstore_get("char", .@p$ + ".trb", 0);	// 3.14.0: a trait that fits them +4, one that doesn't -4
 	return .@pt;
 
 // The tier (1 Acquaintance .. 5 Kindred) for getarg(0) points.
@@ -11340,12 +13256,17 @@ L_BondTier:
 
 // A tier's max HP/SP bonus on companion getarg(0) (an index), tier getarg(1):
 // 2% at Companion and Trusted, 4% Sworn, 6% Kindred. Six minutes, renewed every minute.
+// 3.14.0: and their traits (L_TraitText) in the same script. 90 s, not 6 minutes: a script
+// that changes (a new trait, a new tier) is a new one, and the old one ran on beside it.
 L_BondBuff:
 	setarray .@pc, 0, 0, 2, 2, 4, 6;
 	.@v = .@pc[getarg(1)];
-	if (!.@v)
+	.@s$ = callsub(L_TraitText, @cl_cid[getarg(0)], getarg(1), 0);
+	if (.@v)
+		.@s$ = "bonus bMaxHPrate," + .@v + "; bonus bMaxSPrate," + .@v + "; " + .@s$;
+	if (.@s$ == "")
 		return;
-	bonus_script "bonus bMaxHPrate," + .@v + "; bonus bMaxSPrate," + .@v + ";", 360, BSF_FORCE_REPLACE, 0, EFST_BLANK, @cl_cid[getarg(0)];
+	bonus_script .@s$, 90, BSF_FORCE_REPLACE, 0, EFST_BLANK, @cl_cid[getarg(0)];
 	return;
 
 L_PairBond:
@@ -11416,14 +13337,22 @@ L_EmoteAid:
 	emotion getarg(1), getarg(0);
 	return;
 
+// 3.14.2: getmapflag that can't break the tick. An instance map ("0694#000001", a
+// memorial dungeon) isn't in the map index: getmapflag on it warns, returns nothing, and
+// the "||" / "&&" round it ended the script every second (a player's log, 2026-11-14).
+// Unknown map: no teleport, no warp (no hops or Fly Wings inside), every other flag off.
+L_MapFlag:
+	if (getmapusers(getarg(0)) < 0)
+		return (getarg(1) == MF_NOTELEPORT || getarg(1) == MF_NOWARP);
+	return getmapflag(getarg(0), getarg(1));
+
 // town / field / dungeon / "" (indoors, castles, arenas: say nothing).
-L_MapKind:
-	.@m$ = getarg(0);
+L_MapKind:	.@m$ = getarg(0);
 	if (.@m$ == "")
 		return "";	// between maps (getmapflag on "" returns nothing and broke the tick, 3.1.0)
 	// Towns by name first: Morroc lacks the town flag in pre-renewal.
 	setarray .@towns$, "prontera", "izlude", "geffen", "payon", "morocc", "alberta", "aldebaran", "yuno", "comodo", "umbala", "amatsu", "gonryun", "louyang", "ayothaya", "jawaii", "xmas", "niflheim", "einbroch", "einbech", "lighthalzen", "hugel", "rachel", "veins", "moscovia", "brasilis", "manuk", "splendide", "dewata", "malangdo", "malaya", "eclage", "mora", "dicastes01";
-	if (inarray(.@towns$, .@m$) >= 0 || getmapflag(.@m$, MF_TOWN))
+	if (inarray(.@towns$, .@m$) >= 0 || callsub(L_MapFlag, .@m$, MF_TOWN))
 		return "town";
 	if (compare(.@m$, "fild"))
 		return "field";
