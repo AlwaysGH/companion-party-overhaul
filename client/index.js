@@ -140,6 +140,11 @@ const WIN_STYLE = `
 .pt .pn.off { color: #9aa7ba; font-weight: normal; }
 .pt .pseg { display: flex; flex: none; }
 .pt .ph { flex: 1; min-width: 0; font-size: 10px; color: #8a94a6; font-style: italic; }
+/* 3.14.5: Speed potions row (the Pet row's look) and its note. */
+.pt.sp .lb { flex: none; }
+.spn { font-size: 10px; color: #3f8a4f; margin: 1px 2px 0; }
+.spn.none { color: #a07812; }
+.dyes.st { justify-content: flex-start; }
 .pt .ren { flex: none; border: 0; background: none; padding: 0 2px; font: inherit; font-size: 10px; color: #4a6fa5; text-decoration: underline; cursor: pointer; }
 .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 1px; border: 1px solid #c9d3e3; border-radius: 3px; background: #fff; cursor: pointer; font-size: 10px; }
 .chip:hover { border-color: #6d8fc2; }
@@ -169,6 +174,7 @@ const WIN_STYLE = `
 .cw button.ord { flex: 1 1 0; min-width: 0; font: bold 11px Tahoma, sans-serif; color: #1f3f73; background: linear-gradient(#f4f7fd, #dde6f4);
   border: 1px solid #9fb0c8; border-radius: 3px; padding: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw button.ord:hover { border-color: #3c6fc0; }
+.cw button.ord svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; pointer-events: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .cw button.ord.on { color: #fff; background: #3c6fc0; border-color: #3c6fc0; }
 .cw button.ord:disabled { color: #9aa7ba; background: #eef1f6; border-color: #d6deeb; cursor: default; }
 .why { margin-top: 3px; font-size: 10px; color: #8a6a12; }
@@ -531,7 +537,9 @@ function parseBag(text) {
                 // 3.9.0: its pet, out 1/0 (-1: the pets setting is off), its name, kept
                 // (3) / yours to allow (2) / it will ask (1) / not yet (0), and what it is.
                 pet: f[22] === undefined ? -1 : +f[22], petName: f[23] || '',
-                petState: +f[24] || 0, petKind: f[25] || f[23] || '' };
+                petState: +f[24] || 0, petKind: f[25] || f[23] || '',
+                // 3.14.5: speed potions every fight (1) or at bosses (0); the hair style range.
+                spd: +f[26] || 0, styleMin: f[27] === undefined ? 0 : Math.max(1, +f[27] || 0), styleMax: +f[28] || 0 };
             bag.comps.push(byCid[f[1]]);
         }
         else if (f[0] === 'R' && byCid[f[1]]) {
@@ -642,14 +650,14 @@ export default function init(parameters, api) {
         }
     }
 
-    // 3.14.0: "Shaped by you": the traits your answers gave them (they rank up with the bond),
+    // 3.14.0: "Shaped by you" (3.14.4: shown as "Growth"): the traits your answers gave them (they rank up with the bond),
     // and how many talks are still to come (one at each tier from Companion to Kindred).
     function traitsHtml(c, t) {
         const got = c.traits || [];
         const open = Math.max(0, Math.min(4, t - 1) - got.length);   // tiers reached, talks not had yet
         const later = 4 - Math.min(4, t - 1);
-        if (!got.length && t < 2) return '<div class="trt"><div class="trh">Shaped by you</div><div class="trn">Their first question comes at the Companion bond.</div></div>';
-        return '<div class="trt"><div class="trh">Shaped by you</div>'
+        if (!got.length && t < 2) return '<div class="trt"><div class="trh">Growth</div><div class="trn">Their first question comes at the Companion bond.</div></div>';
+        return '<div class="trt"><div class="trh">Growth</div>'
             + got.map(x => `<div class="tri"><b>${esc(x.name)}</b><span>${esc(x.what)}</span></div>`).join('')
             + (open ? `<div class="trn">${open === 1 ? 'A talk is' : open + ' talks are'} waiting: they'll ask you soon.</div>` : '')
             + (later ? `<div class="trn">${later} more at the next ${later === 1 ? 'tier' : 'tiers'}.</div>` : '')
@@ -758,19 +766,28 @@ export default function init(parameters, api) {
                 : hunting && !o.wings ? `<div class="why">No Fly Wings in their bags, so they go on foot: add some to their restock lists (Bag tab).</div>`
                 : hunting ? `<div class="why ok">${o.mvp ? 'They search and call you, no fights.' : 'They hunt everything.'} Fly Wings in their bags: ${num(o.wings)}.</div>` : '')
             + '</div>');
+        // 3.14.4: line icons on the Camp, Warp and Merchant buttons (the button's own text colour).
+        const ico = d => `<svg viewBox="0 0 16 16">${d}</svg>`;
+        const I = {
+            fire: ico('<path d="M8 2c2.2 2 3.3 3.7 3.3 5.5A3.3 3.3 0 0 1 4.7 7.5c0-1.1.5-2 1.3-2.7.2 1 .8 1.6 1.4 1.7C7.1 5 7.3 3.5 8 2z"/><path d="M3 14.2l10-2.6M3 11.6l10 2.6"/>'),
+            pack: ico('<rect x="3.8" y="5" width="8.4" height="9" rx="2"/><path d="M6 5V3h4v2M6 9.5h4"/>'),
+            portal: ico('<ellipse cx="8" cy="12" rx="5.8" ry="2.2"/><path d="M4.5 11V6M8 10V2.5M11.5 11V6"/>'),
+            glass: ico('<circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2 14 14"/>'),
+            hammer: ico('<path d="M8.5 2.5 13.5 7.5 12 9 7 4z"/><path d="M8.6 6.4 2.8 12.2a1.2 1.2 0 0 0 1.7 1.7l5.8-5.8"/>'),
+        };
         out.push(`<div class="og"><h4>Camp <small>${o.camp ? 'the fire is lit' : 'or they make camp after 5 minutes standing still'}</small></h4><div class="ob">`
-            + btn('camp on', 'Make camp', 'A campfire here: talks, a meal, and Well Rested when you leave', false, !o.campOn || o.camp || !o.alive)
-            + btn('camp off', 'Pack up', 'Put the fire out', false, !o.campOn || !o.camp)
+            + btn('camp on', I.fire + 'Make Camp', 'A campfire here: talks, a meal, and Well Rested when you leave', false, !o.campOn || o.camp || !o.alive)
+            + btn('camp off', I.pack + 'Pack Up', 'Put the fire out', false, !o.campOn || !o.camp)
             + '</div>' + (o.campOn ? '' : '<div class="why">Campfire nights are off in the mod settings.</div>') + '</div>');
-        out.push(`<div class="og"><h4>Warp Portal <small>${esc(o.caster)}</small></h4><div class="ob">`
-            + btn('warp', o.home ? 'Take us back' : 'Return to the spot', o.home ? 'A portal to your save point; this spot is remembered'
+        out.push(`<div class="og"><h4>Acolyte Services <small>${esc(o.caster)}</small></h4><div class="ob">`
+            + btn('warp', I.portal + (o.home ? 'Portal Home' : 'Portal Back'), o.home ? 'A Warp Portal to your save point; this spot is remembered'
                 : 'A portal back to where you left the hunt', false, !!o.warpWhy)
             + `</div><div class="why${o.warpWhy ? '' : ' ok'}">${esc(o.warpWhy || (o.home ? 'Ready: home now, back to this spot later.' : 'Ready: back to where you left the hunt.'))}</div></div>`);
         // 3.10.2: Merchant services: Appraise (any Merchant line) and Repair (a Blacksmith or Whitesmith).
         const who = [...new Set([o.appraiser, o.smith].filter(Boolean))].join(' & ');
         out.push(`<div class="og"><h4>Merchant Services <small>${esc(who)}</small></h4><div class="ob">`
-            + btn('appraise', o.unid ? `Appraise ${num(o.unid)} item${o.unid === 1 ? '' : 's'}` : 'Appraise', 'Identify the unknown items in your bag, 10 SP each', false, !!o.appWhy)
-            + btn('repair', o.broken ? `Repair ${num(o.broken)} item${o.broken === 1 ? '' : 's'}` : 'Repair', 'Fix broken gear, yours and the party\'s, 30 SP each', false, !!o.repWhy)
+            + btn('appraise', I.glass + (o.unid ?`Appraise ${num(o.unid)} item${o.unid === 1 ? '' : 's'}` : 'Appraise'), 'Identify the unknown items in your bag, 10 SP each', false, !!o.appWhy)
+            + btn('repair', I.hammer + (o.broken ? `Repair ${num(o.broken)} item${o.broken === 1 ? '' : 's'}` : 'Repair'),'Fix broken gear, yours and the party\'s, 30 SP each', false, !!o.repWhy)
             + `</div><div class="why${o.appWhy ? '' : ' ok'}">Appraise: ${esc(o.appWhy || `${o.appraiser} identifies them for 10 SP each.`)}</div>`
             + `<div class="why${o.repWhy ? '' : ' ok'}">Repair: ${esc(o.repWhy || `${o.smith} fixes them for 30 SP each.`)}</div></div>`);
         return out.join('');
@@ -1254,16 +1271,32 @@ export default function init(parameters, api) {
         let cells = bagIt.map(it => square(it, it.worn ? 'use' : '')).join('');
         if (bag.inv) cells += '<div class="sl nil"></div>'.repeat(Math.max(0, 8 - bagIt.length));
         const rows = cells ? `<div class="grid">${cells}</div>` : '<div class="am">Empty.</div>';
-        // Outfit and hair colour on one row; the arrows wrap round the class's range.
-        const dye = (kind, label, v, lo, hi) => {
+        // Outfit and hair colour on one row, 3.14.5: the hair style under them; the arrows wrap
+        // round the range.
+        const dye = (kind, label, v, lo, hi, what = 'colour') => {
             if (hi <= lo) return '';
+            if (v < lo || v > hi) v = lo;
             const prev = v <= lo ? hi : v - 1, next = v >= hi ? lo : v + 1;
             return `<span class="dy"><span class="am">${label}</span>`
-                + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${prev}" title="Previous colour">&#9664;</button>`
+                + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${prev}" title="Previous ${what}">&#9664;</button>`
                 + `<b>${v - lo + 1}/${hi - lo + 1}</b>`
-                + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${next}" title="Next colour">&#9654;</button></span>`;
+                + `<button class="act" data-act="dye" data-cid="${esc(c.cid)}" data-kind="${kind}" data-val="${next}" title="Next ${what}">&#9654;</button></span>`;
         };
-        const dyes = dye('cloth', 'Outfit', c.cloth, c.clothMin, c.clothMax) + dye('hair', 'Hair', c.hair, c.hairMin, c.hairMax);
+        const dyes = dye('cloth', 'Outfit', c.cloth, c.clothMin, c.clothMax) + dye('hair', 'Hair colour', c.hair, c.hairMin, c.hairMax);
+        const style = c.look ? dye('style', 'Hair style', c.look.head, c.styleMin, c.styleMax, 'style') : '';
+        // 3.14.5: speed potions (Concentration 645, Awakening 656, Berserk 657): at bosses or
+        // at the start of every fight, this companion's own choice. Needs the bag (inventory on).
+        let sp = '';
+        if (bag.inv) {
+            const SPD = [[657, 'Berserk Potion'], [656, 'Awakening Potion'], [645, 'Concentration Potion']];
+            const carry = SPD.find(([id]) => c.items.some(x => x.id === id && !x.worn));
+            const seg = (v, text, tip) => `<button class="act${c.spd === v ? ' on' : ''}" data-act="spd" data-cid="${esc(c.cid)}" data-on="${v}" title="${tip}">${text}</button>`;
+            const note = !carry ? 'No speed potion in the bag. Add one to Restock and they buy it next trip.'
+                : `Drinks ${carry[1]} ${c.spd ? 'when any fight starts, if none is still working' : 'when a boss is near'}.`;
+            sp = `<div class="pt sp"><span class="lb">Speed potions</span><span class="ph"></span>`
+                + `<span class="pseg">${seg(0, 'Bosses', 'Drink one when a boss is near')}${seg(1, 'Every fight', 'Drink one at the start of every fight, never while one is still working')}</span></div>`
+                + `<div class="spn${carry ? '' : ' none'}">${esc(note)}</div>`;
+        }
         // Weight, in the game's units (the server counts tenths). From half, RO stops
         // natural HP/SP regen; from 90% no attacking or skills.
         let wt = '';
@@ -1310,11 +1343,12 @@ export default function init(parameters, api) {
         }
         out.push(`<div class="bag${bag.inv ? ' can' : ''}" data-cid="${esc(c.cid)}"><div class="top"><span class="nm">${esc(c.name)}</span><span class="jb">${esc(c.job)}</span>${wt}</div>`
             + (dyes ? `<div class="dyes one">${dyes}</div>` : '')
+            + (style ? `<div class="dyes one st">${style}</div>` : '')
             + `<div class="doll"><div class="col">${DOLL_L.map(slotFor).join('')}</div>`
             + `<div class="stg" data-stage></div>`
             + `<div class="col">${DOLL_R.map(slotFor).join('')}</div></div>`
             + (cost ? `<div class="cost">${cost}</div>` : '')
-            + `<div class="sub">Bag</div>${rows}${rs}${pt}</div>`);
+            + `<div class="sub">Bag</div>${rows}${sp}${rs}${pt}</div>`);
         return out.join('');
     }
 
@@ -1777,7 +1811,7 @@ export default function init(parameters, api) {
         import('./portraits.js').then(m => {
             if (text === '-') { m.closeAsk(); return; }
             const [cid, id, name, cls, sex, question, ...opts] = String(text || '').split('|');
-            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: question, options: opts.slice(0, 3), tag: opts[3] || '' })
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: question, options: opts.slice(0, 3), tag: opts[3] || 'bond' })
                 .then(i => {
                     if (i === undefined) return;
                     Promise.resolve(api.server.request('clmoment', `${cid} ${id} ${i + 1}`, { timeout: 4000 })).catch(() => {});
@@ -1792,7 +1826,7 @@ export default function init(parameters, api) {
         import('./portraits.js').then(m => {
             if (text === '-') { m.closeAsk(); return; }
             const [, name, cls, sex, question, yes, no] = String(text || '').split('|');
-            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: question, options: [yes, no] })
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: question, options: [yes, no], tag: 'shop' })
                 .then(i => {
                     if (i === undefined) return;
                     Promise.resolve(api.server.request('clshop', i === 0 ? 'yes' : 'no', { timeout: 4000 })).catch(() => {});
@@ -1811,7 +1845,7 @@ export default function init(parameters, api) {
         import('./portraits.js').then(m => {
             if (text === '-') { m.closeAsk(); return; }
             const [, name, cls, sex, line, ...options] = String(text || '').split('|');
-            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: line, options: options.slice(0, 3) })
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: line, options: options.slice(0, 3), tag: 'mvp' })
                 .then(i => {
                     const a = HUNT_ANSWERS[i];
                     if (a) Promise.resolve(api.server.request('clhunt', a, { timeout: 4000 })).catch(() => {});
@@ -1835,6 +1869,23 @@ export default function init(parameters, api) {
                     if (a) Promise.resolve(api.server.request('cldanger', a, { timeout: 4000 })).catch(() => {});
                 });
         }).catch(e => console.error('[companion-party-overhaul] danger:', e));
+    });
+
+    // 3.14.6: healed to 80% after a retreat, it asks: "@@event clrejoin cid|name|class|sex|line|
+    // Back out there|Stay with me", answered "@clrejoin out|stay"; "@@event clrejoin -" closes
+    // only this box. No answer: the server sends it back out after 20 s.
+    const REJOIN_ANSWERS = ['out', 'stay'];
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'clrejoin') return;
+        import('./portraits.js').then(m => {
+            if (text === '-') { m.closeAsk('ready'); return; }
+            const [, name, cls, sex, line, ...options] = String(text || '').split('|');
+            m.askChoice(api, { name, cls: Number(cls), sex: Number(sex), text: line, options: options.slice(0, 2), tag: 'ready' })
+                .then(i => {
+                    const a = REJOIN_ANSWERS[i];
+                    if (a) Promise.resolve(api.server.request('clrejoin', a, { timeout: 4000 })).catch(() => {});
+                });
+        }).catch(e => console.error('[companion-party-overhaul] rejoin:', e));
     });
 
     // 3.14.2: a life-story chapter told to you: each of its lines in the bubble, and the
@@ -2003,6 +2054,10 @@ export default function init(parameters, api) {
                 else if (a.dataset.act === 'pet') {
                     if (a.classList.contains('on')) return;   // already so
                     bagAction(`pet ${a.dataset.cid} ${a.dataset.on}`);
+                }
+                else if (a.dataset.act === 'spd') {   // 3.14.5: speed potions
+                    if (a.classList.contains('on')) return;
+                    bagAction(`spd ${a.dataset.cid} ${a.dataset.on}`, true);
                 }
                 // 3.9.0: keep it (after two "Not now"s) and name it; or a new name.
                 else if (a.dataset.act === 'petkeep' || a.dataset.act === 'petren') {
@@ -2493,5 +2548,131 @@ export default function init(parameters, api) {
             if (component?.name === 'ChatBox') { observer?.disconnect(); observer = null; watched = null; }
         });
         api.cleanup(() => observer?.disconnect());
+    }
+
+    // CPO command skills on the game's F-bar (2026-11-20). To the game they are passives
+    // (type 0): pressing their slot sends nothing to the server, so no cast bar and no
+    // after-cast delay. The game's key handler runs first and does nothing; then this
+    // reads the slot's label ("[ F1 ] CPO: Sanctuary Me") and sends the order (@clcmd,
+    // npc/companion_commands.txt). Keys and double-clicks on the slot both count. Click
+    // orders show the game's targeting cursor first and send the monster's id.
+    {
+        const CMD = {
+            'CPO: Focus My Target': 'focus', 'CPO: Fall Back': 'fallback',
+            'CPO: Stand By': 'standby', 'CPO: Heal Me': 'heal', 'CPO: Buff Me': 'buff', 'CPO: Kyrie Me': 'kyrie',
+            'CPO: Cure Me': 'cure', 'CPO: Pneuma Me': 'pneuma', 'CPO: Safety Wall Me': 'safetywall',
+            'CPO: Sanctuary Me': 'sanctuary', 'CPO: Assumptio Me': 'assumptio', 'CPO: Lex Aeterna': 'lex',
+            'CPO: Resurrect': 'resurrect',
+        };
+        const PICK = { focus: 'Focus: click a monster', lex: 'Lex Aeterna: click a monster' };
+        const LABEL = /^\[\s*(.+?)\s*\]\s*(.+)$/;
+        let barRoot = null;
+        api.on('ui:append', c => { if (String(c?.name || '').startsWith('ShortCut') && c.root) barRoot = c.root; }, { replay: true });
+        api.on('ui:remove', c => { if (String(c?.name || '').startsWith('ShortCut')) barRoot = null; });
+        // The game draws its after-cast clock (.cooldown-overlay) on every skill slot after
+        // any skill of yours. A CPO slot isn't held back by it, so it isn't drawn there.
+        const NO_CLOCK = '.container[data-tooltip*="CPO:"] .cooldown-overlay { display: none !important; }';
+        const findBar = () => {
+            const root = barRoot || document.querySelector('[id^="ShortCut"]')?.shadowRoot || null;
+            if (root && !root.querySelector('style[data-cpo-cmd]')) {
+                const st = document.createElement('style');
+                st.setAttribute('data-cpo-cmd', '');
+                st.textContent = NO_CLOCK;
+                root.appendChild(st);
+            }
+            return root;
+        };
+        api.on('ui:append', c => { if (String(c?.name || '').startsWith('ShortCut')) setTimeout(findBar, 0); }, { replay: true });
+        let lastFire = 0;
+        const fire = (name, how) => {
+            const cmd = CMD[String(name || '').trim()];
+            if (!cmd) return false;
+            const now = Date.now();
+            if (now - lastFire < 250) return true;
+            lastFire = now;
+            // Stand By is the Orders tab's own task (they wait here, fight only what
+            // attacks them); Fall Back also puts the task back on Follow (ends Stand By
+            // or a hunt), so the Orders tab shows what they're doing.
+            if (cmd === 'standby') { Promise.resolve(api.server.request('clstand', 'task', { timeout: 4000 })).catch(() => {}); return true; }
+            if (cmd === 'fallback') Promise.resolve(api.server.request('clroam', 'off tab', { timeout: 4000 })).catch(() => {});
+            if (!PICK[cmd]) { api.server.command(`@clcmd ${cmd} ${how}`); return true; }
+            // type 'any': with no type the app's pick only takes pets (flagForType); 'any'
+            // takes monsters too. The server checks it really is a monster. Opened after
+            // this key event is done: the game's bar handler can run after ours
+            // (_prioritizeKeyDown re-adds it) and its clickElement removes any targeting.
+            setTimeout(() => {
+                Promise.resolve(api.targeting.pick({ type: 'any', label: PICK[cmd] })).then(t => {
+                    if (t?.gid) api.server.command(`@clcmd ${cmd} ${how} ${t.gid}`);
+                }).catch(() => {});
+            }, 0);
+            return true;
+        };
+        // Same words as the game's own label: "ALT + CTRL + SHIFT + F1".
+        const keyName = e => {
+            let k = '';
+            if (/^F\d{1,2}$/.test(e.key)) k = e.key;
+            else if (e.code?.startsWith('Key')) k = e.code.slice(3);
+            else if (e.code?.startsWith('Digit')) k = e.code.slice(5);
+            else if (e.key && e.key.length === 1) k = e.key.toUpperCase();
+            if (!k) return '';
+            return (e.altKey ? 'ALT + ' : '') + (e.ctrlKey ? 'CTRL + ' : '') + (e.shiftKey ? 'SHIFT + ' : '') + k;
+        };
+        // Typing somewhere: leave the key alone. The game's chat box keeps the focus even in
+        // battle mode, so for it we follow the game's own rule (ChatBox.processBattleMode):
+        // the bar takes the key in battle mode, or with Alt/Ctrl/Shift, or an F key.
+        const typing = e => {
+            const el = e.composedPath().find(n => n instanceof HTMLElement
+                && (n.tagName === 'INPUT' || n.tagName === 'TEXTAREA' || n.isContentEditable));
+            if (!el) return false;
+            if (!el.classList.contains('input-chatbox')) return true;
+            const bm = el.getRootNode()?.querySelector?.('.battlemode');
+            const battle = !!bm && bm.style.display !== 'none';
+            return !(battle || e.altKey || e.ctrlKey || e.shiftKey || /^F\d{1,2}$/.test(e.key));
+        };
+        const onBarKey = e => {
+            if (e.repeat || typing(e)) return;
+            const root = findBar();
+            if (!root) return;
+            const want = keyName(e).toUpperCase();
+            if (!want) return;
+            for (const c of root.querySelectorAll('.container[data-tooltip]')) {
+                const m = LABEL.exec(c.getAttribute('data-tooltip') || '');
+                if (m && m[1].toUpperCase() === want && fire(m[2], 'key')) return;
+            }
+        };
+        const onBarDbl = e => {
+            const root = findBar();
+            if (!root) return;
+            const c = e.composedPath().find(n => n instanceof HTMLElement && n.classList?.contains('container') && n.hasAttribute('data-index'));
+            if (!c || c.getRootNode() !== root) return;
+            const t = c.getAttribute('data-tooltip') || '';
+            const m = LABEL.exec(t);
+            fire(m ? m[2] : t, 'click');
+        };
+        // The skill window won't drag a passive (no type). For a CPO skill (ids 3510-3549)
+        // we start the drag ourselves, before its own handler can cancel it; the F-bar takes
+        // { type: 'skill', from: 'SkillList', data: { SKID, level } } from anywhere.
+        const onSkillDrag = e => {
+            const row = e.composedPath().find(n => n instanceof HTMLElement && n.classList?.contains('skill') && n.hasAttribute('data-index'));
+            const id = row ? parseInt(row.getAttribute('data-index'), 10) : 0;
+            if (!(id >= 3510 && id <= 3549) || !e.dataTransfer) return;
+            e.stopImmediatePropagation();
+            const img = row.querySelector('.icon img');
+            if (img) e.dataTransfer.setDragImage(img, 12, 12);
+            const obj = { type: 'skill', from: 'SkillList', data: { SKID: id, level: 1, selectedLevel: 1 } };
+            window._OBJ_DRAG_ = obj;
+            e.dataTransfer.setData('Text', JSON.stringify(obj));
+        };
+        const onSkillDragEnd = () => { if (window._OBJ_DRAG_?.data?.SKID >= 3510 && window._OBJ_DRAG_?.data?.SKID <= 3549) delete window._OBJ_DRAG_; };
+        addEventListener('keydown', onBarKey, true);
+        addEventListener('dblclick', onBarDbl, true);
+        addEventListener('dragstart', onSkillDrag, true);
+        addEventListener('dragend', onSkillDragEnd, true);
+        api.cleanup(() => {
+            removeEventListener('keydown', onBarKey, true);
+            removeEventListener('dblclick', onBarDbl, true);
+            removeEventListener('dragstart', onSkillDrag, true);
+            removeEventListener('dragend', onSkillDragEnd, true);
+        });
     }
 }

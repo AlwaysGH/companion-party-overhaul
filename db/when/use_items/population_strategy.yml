@@ -12,7 +12,8 @@
 #                            closest one revives; a Priest keeps to Resurrection and
 #                            uses a Leaf itself only when it lacks the SP (60)
 #   a boss nearby            its speed potion: Berserk, Awakening or Concentration
-#                            (each class can only drink the ones it's allowed)
+#                            (each class can only drink the ones it's allowed);
+#                            3.14.5: any fight, for a companion set to "Every fight"
 #
 # In a list the first item it carries is the one used, so the cheap ones come first.
 
@@ -79,6 +80,27 @@ Body:
             Target: event
             When: [ally_distance_gt8, not_self_reuse_limit_d]
             MoveTo: event
+          # 3.14.5: "Speed potions: Every fight" (Bag tab, per companion): the script keeps
+          # Reuse_Limit_Recall on those companions; they drink at the start of any fight, never
+          # while one is still working. Without it, only the boss rules below apply.
+          - Name: ct_item_berserk_any
+            Priority: 62
+            UseItem: Berserk_Potion
+            When: [self_reuse_limit_recall, not_self_aspdpotion0, not_self_aspdpotion1, not_self_aspdpotion2]
+            InFight: { AtLeast: 1 }
+            Cooldown: 5000
+          - Name: ct_item_awakening_any
+            Priority: 61
+            UseItem: Awakening_Potion
+            When: [self_reuse_limit_recall, not_self_aspdpotion0, not_self_aspdpotion1, not_self_aspdpotion2]
+            InFight: { AtLeast: 1 }
+            Cooldown: 5000
+          - Name: ct_item_concentration_any
+            Priority: 60
+            UseItem: Center_Potion
+            When: [self_reuse_limit_recall, not_self_aspdpotion0, not_self_aspdpotion1, not_self_aspdpotion2]
+            InFight: { AtLeast: 1 }
+            Cooldown: 5000
       # A Priest revives with its own Resurrection (main plan, priority 106) and walks there
       # itself. With too little SP for it, a leaf instead, if it carries one.
       - Job: Priest

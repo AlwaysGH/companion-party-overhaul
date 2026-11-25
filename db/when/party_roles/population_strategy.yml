@@ -2,6 +2,9 @@
 # One switch for what used to be seven (everyday roles, smart healing, smart casting, battle
 # mage, front line, packs/summons/targeting). The base table (db/population_strategy.yml) is
 # about bosses; this is the party in every fight, played the way players play.
+# 3.14.5: rules that step aside for a boss do so only for the 49 pre-re MVPs (Mob list, from
+# rathena db/pre-re/mob_db.yml MvpExp). Mini-bosses (Skeggiold, Randgris guards...) are boss
+# class too and used to switch this whole table off on maps full of them (Odin).
 #
 # THE SP BANK (damage dealers). Auto-attack is normal; SP is for the bad moments.
 #   steady   plain hits (melee, archers); casters cast their quick, cheap spells
@@ -79,7 +82,7 @@ Body:
               - Name: ct_bk_calm
                 InStrategy: { AtLeast: 4000 }
                 Count: { Enemy: attacking, Range: 9, Below: 3 }
-                Absent: { Enemy: boss }
+                Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 When: self_sp_pct_lt80
                 Switch: steady
           - Name: dry
@@ -129,30 +132,30 @@ Body:
           - Name: ct_tg_healer
             Priority: 60
             Target: { Enemy: attacking, Job: Priest, NotSelf: true }
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             SetTarget: true
             Claim: { Name: ct.tg, For: 3000 }
           - Name: ct_tg_squishy
             Priority: 59
             Target: { Enemy: attacking, Job: [Mage, Archer, Gunslinger], NotSelf: true }
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             SetTarget: true
             Claim: { Name: ct.tg, For: 3000 }
           - Name: ct_tg_owner
             Priority: 58
             Target: { Enemy: attacking, Who: owner }
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             SetTarget: true
             Claim: { Name: ct.tg, For: 3000 }
           - Name: ct_tg_self
             Priority: 57
             Target: { Enemy: attacking, Who: self }
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             SetTarget: true
           - Name: ct_tg_party
             Priority: 52
             Target: { Enemy: attacking }
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             SetTarget: true
 
       # === Melee: kiting ====================================================================
@@ -166,17 +169,17 @@ Body:
               - Name: ct_fl_swarmed
                 Count: { Enemy: attacking, Who: self, Range: 3, AtLeast: 3 }
                 InStrategy: { AtLeast: 4000 }
-                Absent: { Enemy: boss }
+                Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 Switch: kite
               - Name: ct_fl_losing
                 Target: { Enemy: attacking, Who: self }
                 When: [self_hp_pct_lt50, enemy_hp_pct_ge50]
-                Absent: { Enemy: boss }
+                Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 Switch: kite
           - Name: kite
             Rules:
               - Name: ct_fl_boss_here
-                Present: { Enemy: boss }
+                Present: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 Switch: hold_line
               - Name: ct_fl_settled
                 Count: { Enemy: attacking, Who: self, Range: 3, Below: 2 }
@@ -208,7 +211,7 @@ Body:
             Cast: SM_PROVOKE
             Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }
             When: [not_enemy_provoke, self_sp_ge40]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             SetTarget: true
             Claim: { Name: ct.provoke, For: 6000 }
             Cooldown: 6000
@@ -229,7 +232,7 @@ Body:
             Target: { Enemy: attacking }
             Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 3 }
             When: self_sp_pct_ge30
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Cooldown: 2000
       - Job: Crusader
         Build: ct_shield
@@ -266,7 +269,7 @@ Body:
             Cast: BS_HAMMERFALL
             Target: { Enemy: attacking, Job: [Priest, Mage, Archer, Gunslinger], NotSelf: true }
             When: [not_enemy_stun, self_sp_ge40]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Cooldown: 4000
           - Name: ct_pk_hammerfall
             Priority: 47
@@ -274,7 +277,7 @@ Body:
             Target: { Enemy: attacking }
             Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 3 }
             When: [not_enemy_stun, self_sp_ge40]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Cooldown: 4000
       - Job: Rogue
         Build: ct_pack
@@ -285,7 +288,7 @@ Body:
             Cast: RG_STRIPWEAPON
             Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }
             When: [not_enemy_stripweapon, self_sp_pct_ge30]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Claim: { Name: ct.divest, For: 15000 }
             Cooldown: 6000
 
@@ -298,7 +301,7 @@ Body:
           - Name: ct_rng_step_back
             Priority: 61
             Target: { Enemy: attacking, Who: self, Range: 2 }
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             KeepDistance: 4
             Cooldown: 3000
       - Job: Archer
@@ -311,7 +314,7 @@ Body:
             Cast: AC_SHOWER
             Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }
             When: self_sp_pct_ge20
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Cooldown: 2000
           - Name: ct_shower_off_front
             Priority: 47
@@ -329,7 +332,7 @@ Body:
             Cast: GS_CRACKER
             Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }
             When: [not_enemy_stun, self_sp_pct_ge20]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Cooldown: 3000
 
       # === Hunter and Sniper: traps with a purpose ===========================================
@@ -347,51 +350,55 @@ Body:
       - Job: Hunter
         Build: ct_trapper
         Rules:
-          # Kiting: something comes at the Hunter. Step back (ct_rng_step_back) first, then
-          # snare the cell in front of itself, which the monster has to cross.
+          # 3.14.5: rAthena won't lay a trap on or next to ANY character (UF_NOFOOTSET: the
+          # trace said "the cell is taken: Serawen stands too near it"), so every trap aimed 1
+          # cell from the Hunter or from a monster was refused, every time. Now they only go
+          # down for something still on its way (4+ cells off), 2 cells out toward it: it walks
+          # into the trap, and nobody stands beside the cell. Up close: arrows, no trap.
+          # Kiting: something comes at the Hunter (it steps back first, ct_rng_step_back).
           - Name: ct_trap_guard_self
             Priority: 56
             Cast: HT_ANKLESNARE
-            Target: { Enemy: attacking, Who: self, Range: 5 }
-            Aim: { Cells: 1, From: self }
-            When: not_enemy_ankle
-            Absent: { Enemy: boss }
+            Target: { Enemy: attacking, Who: self, Range: 9 }
+            Aim: { Cells: 2, From: self }
+            When: [not_enemy_ankle, enemy_distance_ge4]
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Consume: true
             Claim: { Name: ct.snare, For: 8000 }
             Cooldown: 5000
-          # The back line: snare what is on (or after) the Priest or a caster, a cell in front
-          # of it. The melee kite monsters round the Priest, so they walk into it.
+          # Coming for the back line (the Priest or a caster) and still 4+ cells from the
+          # Hunter: a snare 2 cells in front of it, on its way in.
           - Name: ct_trap_guard_back
             Priority: 55
             Cast: HT_ANKLESNARE
-            Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }   # Job: Acolyte also matched a Monk/Champion
-            Aim: { Cells: 1, From: target }
-            When: not_enemy_ankle
-            Absent: { Enemy: boss }
+            Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true, Range: 9 }   # Job: Acolyte also matched a Monk/Champion
+            Aim: { Cells: 2, From: target, Lead: true }
+            When: [not_enemy_ankle, enemy_distance_ge4]
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Consume: true
             Claim: { Name: ct.snare, For: 8000 }
             Cooldown: 6000
-          # Two or more on the back line: Sandman puts the pack to sleep (5x5) when one steps in.
+          # Two or more coming together: Sandman (5x5 sleep) in their path when one steps in.
           - Name: ct_trap_sleep_the_pack
             Priority: 54
             Cast: HT_SANDMAN
-            Target: { Enemy: attacking, Job: [Priest, Mage], NotSelf: true }
+            Target: { Enemy: attacking, Range: 9 }
             Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 2 }
-            Aim: { Cells: 1, From: target }
-            When: [not_enemy_sleep, self_sp_pct_ge20]
-            Absent: { Enemy: boss }
+            Aim: { Cells: 2, From: self }
+            When: [not_enemy_sleep, enemy_distance_ge4, self_sp_pct_ge20]
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Consume: true
             Claim: { Name: ct.sandman, For: 10000 }
             Cooldown: 10000
-          # Burst: 3+ bunched up. Claymore (fire, 5x5) beside the pack to bring the numbers
-          # down, the Hunter's share of the burst; bosses too.
+          # Burst: 3+ bunched up and coming. Claymore (fire, 5x5) in their path, the Hunter's
+          # share of the burst; bosses too.
           - Name: ct_trap_claymore_the_pack
             Priority: 45
             Cast: HT_CLAYMORETRAP
-            Target: { Enemy: attacking }
+            Target: { Enemy: attacking, Range: 9 }
             Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 3 }
-            Aim: { Cells: 1, From: target }
-            When: self_sp_pct_ge30
+            Aim: { Cells: 2, From: self }
+            When: [enemy_distance_ge4, self_sp_pct_ge30]
             Consume: true
             Claim: { Name: ct.claymore, For: 6000 }
             Cooldown: 4000
@@ -399,6 +406,58 @@ Body:
         Build: ct_trap_kit
         Allow: [AC_DOUBLE, AC_SHOWER, AC_CHARGEARROW, AC_CONCENTRATION, HT_BLITZBEAT, HT_DETECTING,
                 SN_SHARPSHOOTING, SN_FALCONASSAULT, SN_WINDWALK, SN_SIGHT]
+
+      # === Out of ammo (3.14.5, the user's design) =============================================
+      # A bow or gun with an empty ammo slot: the script (npc/companion_life.txt) puts the
+      # harmless Reuse_Limit_Luxanima on it each tick and says once "I'm out of arrows/bullets".
+      # Every bow and gun skill needs ammo in pre-re; these don't, so they are spammed instead:
+      # a cast the engine refuses (still in its delay, no SP, no coin) passes to the next rule.
+      #   Sniper: Falcon Assault (25 falcon hits' worth in 4 s, range 9), at bosses too. Blitz
+      #   Beat (5 hits in 2.5 s, range 5) only when SP is short of Falcon Assault's 46.
+      #   Hunter: Blitz Beat. Gunslinger: Magical Bullet on a coin, Flip the Coin with none.
+      #   Archer: nothing works without arrows; it stays back as before.
+      - Job: Hunter
+        Build: ct_dry_falcon
+        Rules:
+          - Name: ct_dry_falcon_assault
+            Priority: 57
+            Cast: SN_FALCONASSAULT
+            Target: { Enemy: attacking, Range: 9 }
+            When: self_reuse_limit_luxanima
+          - Name: ct_dry_falcon_assault_yours
+            Priority: 57
+            Cast: SN_FALCONASSAULT
+            Target: { Enemy: target_of, Who: owner, Range: 9 }
+            When: self_reuse_limit_luxanima
+          - Name: ct_dry_blitz
+            Priority: 53
+            Cast: HT_BLITZBEAT
+            Target: { Enemy: attacking, Range: 5 }
+            When: self_reuse_limit_luxanima
+          - Name: ct_dry_blitz_yours
+            Priority: 53
+            Cast: HT_BLITZBEAT
+            Target: { Enemy: target_of, Who: owner, Range: 5 }
+            When: self_reuse_limit_luxanima
+      - Job: Gunslinger
+        Build: ct_dry_coin
+        Rules:
+          - Name: ct_dry_magic_bullet
+            Priority: 57
+            Cast: GS_MAGICALBULLET
+            Target: { Enemy: attacking, Range: 9 }
+            When: self_reuse_limit_luxanima
+          - Name: ct_dry_magic_bullet_yours
+            Priority: 57
+            Cast: GS_MAGICALBULLET
+            Target: { Enemy: target_of, Who: owner, Range: 9 }
+            When: self_reuse_limit_luxanima
+          - Name: ct_dry_flip_coin
+            Priority: 56
+            Cast: GS_GLITTERING
+            Target: self
+            When: self_reuse_limit_luxanima
+            Present: { Enemy: attacking, Range: 14 }
 
       # === Healers ===========================================================================
       - Job: [Acolyte, Priest]
@@ -416,21 +475,21 @@ Body:
             Priority: 88
             Cast: PR_KYRIE
             Target: { Ally: attacked, Job: Swordman }
-            When: [not_ally_kyrie, self_sp_ge90]
+            When: [not_ally_kyrie, not_ally_assumptio, self_sp_ge90]
             Claim: { Name: ct.kyrie, For: 4000 }
             Cooldown: 3000
           - Name: ct_kyrie_melee
             Priority: 87
             Cast: PR_KYRIE
             Target: { Ally: attacked, Job: [Thief, Merchant, Monk, Star_Gladiator, Taekwon] }
-            When: [not_ally_kyrie, self_sp_ge90]
+            When: [not_ally_kyrie, not_ally_assumptio, self_sp_ge90]
             Claim: { Name: ct.kyrie, For: 4000 }
             Cooldown: 3000
           - Name: ct_kyrie_back
             Priority: 86
             Cast: PR_KYRIE
             Target: { Ally: attacked, Job: [Priest, Mage, Archer, Gunslinger, Ninja] }
-            When: [not_ally_kyrie, self_sp_ge90]
+            When: [not_ally_kyrie, not_ally_assumptio, self_sp_ge90]
             Claim: { Name: ct.kyrie, For: 4000 }
             Cooldown: 3000
           - Name: ct_heal_hurt
@@ -479,28 +538,54 @@ Body:
             Absent: { Enemy: attacking, Range: 14 }
             OnePerParty: true
             Cooldown: 30000
+      # 3.14.5 (the user's call): Magnus only on a real pack, never at an MVP. 2026-11-21
+      # (user): 5+ undead or demons within 3 cells of the target (its 7x7), whatever her
+      # party role. The engine's own rotation (population_skill_db: Magnus at any 2+
+      # monsters) is kept off it by ct_pk_rotation below, not by a Ban here: the engine
+      # skips a plan's whole Ban for a skill its own rules name (plans_allow, plan.own), so
+      # a Ban in this plan did nothing, and a Ban anywhere else would stop these rules too.
       - Job: Priest
         Build: ct_pack
-        Requires: { Role: [support, none] }
         Rules:
           - Name: ct_pk_magnus_undead
             Priority: 45
             Cast: PR_MAGNUS
             Target: { Enemy: attacking, Race: Undead }
-            Count: { Enemy: attacking, Race: Undead, Around: target, Range: 3, AtLeast: 3 }
+            Count: { Enemy: attacking, Race: Undead, Around: target, Range: 3, AtLeast: 5 }
             When: self_sp_pct_ge60
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Consume: true
             Cooldown: 8000
           - Name: ct_pk_magnus_demon
             Priority: 45
             Cast: PR_MAGNUS
             Target: { Enemy: attacking, Race: Demon }
-            Count: { Enemy: attacking, Race: Demon, Around: target, Range: 3, AtLeast: 3 }
+            Count: { Enemy: attacking, Race: Demon, Around: target, Range: 3, AtLeast: 5 }
             When: self_sp_pct_ge60
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Consume: true
             Cooldown: 8000
+          - Name: ct_pk_magnus_undead_element
+            Priority: 45
+            Cast: PR_MAGNUS
+            Target: { Enemy: attacking, Element: Undead }
+            Count: { Enemy: attacking, Element: Undead, Around: target, Range: 3, AtLeast: 5 }
+            When: self_sp_pct_ge60
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
+            Consume: true
+            Cooldown: 8000
+
+      # 2026-11-21: the engine's own rotation and buffs may use every Priest skill but
+      # Magnus (an Allow binds only the engine's choices, never a rule, and this plan names
+      # no skill of its own). The list is population_skill_db's Priest / High Priest rows,
+      # plus Teleport, Warp Portal, Holy Water, Resurrection and Meditatio.
+      - Job: Priest
+        Build: ct_pk_rotation
+        Allow: [AL_ANGELUS, AL_BLESSING, AL_CRUCIS, AL_CURE, AL_DECAGI, AL_HEAL, AL_HOLYLIGHT, AL_HOLYWATER,
+                AL_INCAGI, AL_PNEUMA, AL_RUWACH, AL_TELEPORT, AL_WARP, ALL_RESURRECTION, MG_SAFETYWALL,
+                PR_ASPERSIO, PR_BENEDICTIO, PR_GLORIA, PR_IMPOSITIO, PR_KYRIE, PR_LEXAETERNA, PR_LEXDIVINA,
+                PR_MAGNIFICAT, PR_SANCTUARY, PR_SLOWPOISON, PR_STRECOVERY, PR_SUFFRAGIUM, PR_TURNUNDEAD,
+                HP_ASSUMPTIO, HP_BASILICA, HP_MEDITATIO]
 
       # === Casters: Mage, Wizard, Sage ======================================================
       # They don't hit with a rod (base table), so "steady" for them is their quick spells.
@@ -522,7 +607,7 @@ Body:
             Cast: MG_FROSTDIVER
             Target: { Enemy: casting, Skill: [AL_HEAL, NPC_SUMMONSLAVE, NPC_CALLSLAVE, NPC_SUMMONMONSTER, NPC_DARKBREATH, NPC_DARKSTRIKE, NPC_EARTHQUAKE, WZ_HEAVENDRIVE, WZ_STORMGUST, WZ_METEOR, WZ_VERMILION, WZ_JUPITEL, MG_THUNDERSTORM] }
             When: not_enemy_freeze
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Claim: { Name: ct.interrupt, For: 2000 }
           - Name: ct_cs_wall_priest
             Priority: 68
@@ -530,7 +615,7 @@ Body:
             Target: { Ally: attacked, Job: Priest, NotSelf: true }
             Field: { Skill: MG_SAFETYWALL, Owner: party, At: target, Range: 0, Below: 1 }
             When: self_sp_ge40
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Consume: true
             OnePerParty: true
             Cooldown: 5000
@@ -539,7 +624,7 @@ Body:
             Cast: MG_FROSTDIVER
             Target: { Enemy: attacking, Job: [Priest, Archer, Mage, Gunslinger], NotSelf: true }
             When: [not_enemy_freeze, self_sp_ge30]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Claim: { Name: ct.freeze, For: 4000 }
             Cooldown: 1500
           - Name: ct_cs_freeze_self
@@ -547,7 +632,7 @@ Body:
             Cast: MG_FROSTDIVER
             Target: { Enemy: attacking, Who: self }
             When: [melee_attacked, not_enemy_freeze, self_sp_ge30]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Claim: { Name: ct.freeze, For: 4000 }
             Cooldown: 2000
           - Name: ct_cs_quick
@@ -555,7 +640,7 @@ Body:
             Cast: MG_SOULSTRIKE
             Target: { Enemy: attacking, Who: self }
             When: [melee_attacked, self_sp_ge60]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Cooldown: 1200
           - Name: ct_cs_icewall
             Priority: 60
@@ -565,7 +650,7 @@ Body:
             Field: { Skill: WZ_ICEWALL, Owner: self, Range: 5, Below: 1 }
             When: self_sp_pct_ge30
             Absent: { Ally: nearest, Job: Swordman, NotSelf: true, Range: 5 }
-            Count: { Enemy: boss, Range: 14, Below: 1 }
+            Count: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14, Below: 1 }
             Cooldown: 3000
           - Name: ct_cs_firewall
             Priority: 59
@@ -574,7 +659,7 @@ Body:
             Aim: { Cells: 2, From: target, Lead: true }
             Field: { Skill: MG_FIREWALL, Owner: self, Range: 9, Below: 1 }
             When: [self_sp_pct_ge30, enemy_distance_ge3]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Cooldown: 4000
           # Nearly dead: a small bolt by element, not a 7-second one.
           - Name: ct_cs_finisher
@@ -583,13 +668,13 @@ Body:
             Level: 3
             Target: { Enemy: attacking }
             When: [enemy_hp_pct_lt20, self_sp_ge40]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
           - Name: ct_cs_bolt
             Priority: 43
             Cast: [MG_COLDBOLT, MG_FIREBOLT, MG_LIGHTNINGBOLT, WZ_EARTHSPIKE]
             Target: { Enemy: attacking }
             When: self_sp_pct_ge25
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
         Strategies:
           - Name: steady
             Rules:
@@ -626,7 +711,7 @@ Body:
                 Target: { Enemy: attacking }
                 Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 3 }
                 When: not_enemy_quagmire
-                Absent: { Enemy: boss }
+                Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 Cooldown: 6000
               # 3+ bunched: the area spell by element (Lord of Vermilion wind, Storm Gust water,
               # Meteor Storm fire, Heaven's Drive earth; a Mage's Fire Ball / Thunder Storm).
@@ -635,20 +720,20 @@ Body:
                 Cast: [WZ_VERMILION, WZ_STORMGUST, WZ_METEOR, WZ_HEAVENDRIVE, MG_FIREBALL, MG_THUNDERSTORM]
                 Target: { Enemy: attacking }
                 Count: { Enemy: attacking, Around: target, Range: 2, AtLeast: 3 }
-                Absent: { Enemy: boss }
+                Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 Cooldown: 3000
               # Jupitel Thunder: 12 hits, no delay, pushes it away.
               - Name: ct_cs_jupitel
                 Priority: 56
                 Cast: WZ_JUPITEL
                 Target: { Enemy: attacking, Who: self }
-                Absent: { Enemy: boss }
+                Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 Cooldown: 2000
               - Name: ct_cs_jupitel_priest
                 Priority: 55
                 Cast: WZ_JUPITEL
                 Target: { Enemy: attacking, Job: Priest }
-                Absent: { Enemy: boss }
+                Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
                 Cooldown: 2000
           - Name: dry
             Disable: [ct_cs_bolt, ct_cs_finisher, ct_cs_icewall, ct_cs_firewall, ct_cs_quick]
@@ -699,7 +784,7 @@ Body:
             Priority: 70
             Cast: AC_DOUBLE
             Target: { Enemy: casting, Skill: [AL_HEAL, NPC_SUMMONSLAVE, NPC_CALLSLAVE, NPC_SUMMONMONSTER, NPC_DARKBREATH, NPC_DARKSTRIKE, NPC_EARTHQUAKE, WZ_HEAVENDRIVE, WZ_STORMGUST, WZ_METEOR, WZ_VERMILION, WZ_JUPITEL, MG_THUNDERSTORM] }
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
             Claim: { Name: ct.interrupt, For: 2000 }
 
       # Ninjas: the spells. Untick the spells in the companion's skills for a throwing
@@ -722,7 +807,7 @@ Body:
             Level: 3
             Target: { Enemy: attacking }
             When: [enemy_hp_pct_lt20, self_sp_ge30]
-            Absent: { Enemy: boss }
+            Absent: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA] }
           - Name: ct_nj_spell
             Priority: 44
             Cast: [NJ_HYOUSENSOU, NJ_KOUENKA, NJ_HUUJIN]

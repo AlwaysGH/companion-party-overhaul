@@ -6,10 +6,13 @@ Header:
 # Lookalikes of the classic tameable pets, one per class family, in the app's
 # custom block (25000-31998). System/jobname.lub draws each with the real
 # monster's sprite. No EXP, no drops, no skills: a pet that vanishes (its
-# companion warped or fell) leaves nothing on the ground. Size, race and the
+# companion warped or fell) leaves nothing on the ground. Size and the
 # animation timings are the real monster's; the element is Neutral 1 for all,
 # and the script sets the same attack, accuracy and attack speed on every pet
 # from its companion's level, so no class gets a stronger one.
+# 3.14.5: every pet is race Demon. The engine refuses a Sanctuary that would heal a
+# monster in its 5x5 and counted the pet at a Priest's feet (pets are damage-immune and
+# knockback-immune, so Sanctuary does nothing to them). Undo once the engine skips pets.
 Body:
   - Id: 31201
     AegisName: CPO_PET_DESERT_WOLF_B
@@ -22,7 +25,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Small
-    Race: Brute
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -44,7 +47,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Small
-    Race: Brute
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -88,7 +91,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Small
-    Race: Insect
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -110,7 +113,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Large
-    Race: Brute
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -132,7 +135,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Medium
-    Race: Plant
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -154,7 +157,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Small
-    Race: Insect
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -176,7 +179,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Medium
-    Race: Plant
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -220,7 +223,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Small
-    Race: Brute
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -242,7 +245,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Small
-    Race: Brute
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -264,7 +267,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Medium
-    Race: Insect
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150
@@ -286,7 +289,7 @@ Body:
     SkillRange: 1
     ChaseRange: 12
     Size: Medium
-    Race: Plant
+    Race: Demon
     Element: Neutral
     ElementLevel: 1
     WalkSpeed: 150

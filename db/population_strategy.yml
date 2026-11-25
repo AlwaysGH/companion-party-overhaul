@@ -64,6 +64,20 @@ Body:
             Cast: AL_HEAL
             Target: self
             When: self_hp_pct_lt50
+          # CPO 3.14.5 (the user's design): someone is down and no Sanctuary is up: lay one
+          # at its own feet first, then revive, so whoever gets up stands up into it (the
+          # revived run to it, below). Only with nothing on the Priest and no monster within
+          # 4 cells (Sanctuary heals monsters too, bosses included, and a hit breaks its 5 s
+          # cast): otherwise wall/Kyrie/revive as before, and the fight Sanctuary comes after.
+          - Name: sanctuary_before_rez
+            Priority: 109
+            Present: { Ally: dead, NotSelf: true, Range: 9 }
+            Count: { Enemy: any, Range: 4, Below: 1 }
+            Field: { Skill: PR_SANCTUARY, Owner: party, Range: 9, Below: 1 }
+            When: not_self_targeted
+            Cast: PR_SANCTUARY
+            Target: self
+            Consume: true
           # Then bring them back. With something on it, every hit breaks the cast: wall
           # its own cell first, Kyrie, then revive. This rule revives, so the engine's
           # immediate attempt stands aside.
@@ -117,6 +131,218 @@ Body:
             Priority: 100
             Cast: PR_STRECOVERY
             Target: { Ally: having, Status: SC_FREEZE }
+          # And stays on it while it can: below "near whoever is hit" (73), so heals reach first.
+          - Name: onto_sanctuary_healer
+            Priority: 72
+            When: master_distance_le7
+            Present: { Enemy: attacking, Range: 14 }
+            MoveTo: { Field: PR_SANCTUARY, Owner: party, Within: 8 }
+
+      # CPO 3.14.5 (the user's design): Sanctuary FIRST in a hard fight -- an MVP in sight, or
+      # 5+ monsters on the party -- above every heal (90 and down), and kept up without a gap.
+      # Lv 10 lasts 30.9 s and its cast takes 5 s, so the next one starts 30 s after the last
+      # began (25 s after it landed) and lands just before the old one ends. Two 'up' strategies
+      # take turns (a Switch to the strategy it is already in would not restart its clock).
+      # Only guard: nothing hitting her (a hit breaks the 5 s cast). The engine refuses a spot
+      # with a living monster within 2 cells (it would heal it), so first she steps 3-5 cells
+      # off the nearest one. Two of them at an MVP:
+      #   back line (ct_sanct): at her feet, for her, the casters and the ranged (MVP or 5+);
+      #   front (ct_sanct_front, MVP only, first): 3 cells from the MVP on her side, so the melee
+      #   in front of it stand in it and the MVP's own cell is just outside (5x5).
+      # 'Already one' counts only her own spot (3 cells) / the MVP's front (5 cells), so the two
+      # don't stop each other.
+      - Job: Priest
+        Build: ct_sanct
+        Requires: { Role: [support, none] }
+        Start: off
+        Strategies:
+          - Name: off
+            Rules:
+              - Name: ct_sanct_clear_mvp
+                Priority: 96
+                Present: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, Range: 3, Below: 1 }
+                Target: { Enemy: nearest, Range: 2 }
+                KeepDistance: { Min: 3, Max: 5 }
+              - Name: ct_sanct_clear_pack
+                Priority: 96
+                Count: { Enemy: attacking, Range: 14, AtLeast: 5 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, Range: 3, Below: 1 }
+                Target: { Enemy: nearest, Range: 2 }
+                KeepDistance: { Min: 3, Max: 5 }
+              - Name: ct_sanct_mvp
+                Priority: 95
+                Present: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, Range: 3, Below: 1 }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Target: self
+                Consume: true
+                Switch: up_a
+              - Name: ct_sanct_pack
+                Priority: 95
+                Count: { Enemy: attacking, Range: 14, AtLeast: 5 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, Range: 3, Below: 1 }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Target: self
+                Consume: true
+                Switch: up_a
+          - Name: up_a
+            Rules:
+              - Name: ct_sanct_clear_mvp_a
+                Priority: 96
+                Present: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                InStrategy: { AtLeast: 30000 }
+                Target: { Enemy: nearest, Range: 2 }
+                KeepDistance: { Min: 3, Max: 5 }
+              - Name: ct_sanct_clear_pack_a
+                Priority: 96
+                Count: { Enemy: attacking, Range: 14, AtLeast: 5 }
+                InStrategy: { AtLeast: 30000 }
+                Target: { Enemy: nearest, Range: 2 }
+                KeepDistance: { Min: 3, Max: 5 }
+              - Name: ct_sanct_renew_mvp_a
+                Priority: 95
+                Present: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                InStrategy: { AtLeast: 30000 }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Target: self
+                Consume: true
+                Switch: up_b
+              - Name: ct_sanct_renew_pack_a
+                Priority: 95
+                Count: { Enemy: attacking, Range: 14, AtLeast: 5 }
+                InStrategy: { AtLeast: 30000 }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Target: self
+                Consume: true
+                Switch: up_b
+              # Gone early (cast broken, undead/demons used it up, or she moved off it): start over.
+              - Name: ct_sanct_gone_a
+                Priority: 94
+                InStrategy: { AtLeast: 7000 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, Range: 3, Below: 1 }
+                Switch: off
+              # The fight calmed down: it runs out (30.9 s) and isn't renewed.
+              - Name: ct_sanct_over_a
+                Priority: 94
+                InStrategy: { AtLeast: 36000 }
+                Switch: off
+          - Name: up_b
+            Rules:
+              - Name: ct_sanct_clear_mvp_b
+                Priority: 96
+                Present: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                InStrategy: { AtLeast: 30000 }
+                Target: { Enemy: nearest, Range: 2 }
+                KeepDistance: { Min: 3, Max: 5 }
+              - Name: ct_sanct_clear_pack_b
+                Priority: 96
+                Count: { Enemy: attacking, Range: 14, AtLeast: 5 }
+                InStrategy: { AtLeast: 30000 }
+                Target: { Enemy: nearest, Range: 2 }
+                KeepDistance: { Min: 3, Max: 5 }
+              - Name: ct_sanct_renew_mvp_b
+                Priority: 95
+                Present: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                InStrategy: { AtLeast: 30000 }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Target: self
+                Consume: true
+                Switch: up_a
+              - Name: ct_sanct_renew_pack_b
+                Priority: 95
+                Count: { Enemy: attacking, Range: 14, AtLeast: 5 }
+                InStrategy: { AtLeast: 30000 }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Target: self
+                Consume: true
+                Switch: up_a
+              # Gone early (cast broken, undead/demons used it up, or she moved off it): start over.
+              - Name: ct_sanct_gone_b
+                Priority: 94
+                InStrategy: { AtLeast: 7000 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, Range: 3, Below: 1 }
+                Switch: off
+              # The fight calmed down: it runs out (30.9 s) and isn't renewed.
+              - Name: ct_sanct_over_b
+                Priority: 94
+                InStrategy: { AtLeast: 36000 }
+                Switch: off
+
+      - Job: Priest
+        Build: ct_sanct_front
+        Requires: { Role: [support, none] }
+        Start: off
+        Strategies:
+          - Name: off
+            Rules:
+              - Name: ct_sanct_front
+                Priority: 97
+                Field: { Skill: PR_SANCTUARY, Owner: party, At: target, Range: 5, Below: 1 }
+                Target: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                Aim: { Cells: 3, From: target }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Consume: true
+                Switch: up_a
+          - Name: up_a
+            Rules:
+              - Name: ct_sanct_front_renew_a
+                Priority: 97
+                InStrategy: { AtLeast: 30000 }
+                Target: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                Aim: { Cells: 3, From: target }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Consume: true
+                Switch: up_b
+              - Name: ct_sanct_front_gone_a
+                Priority: 94
+                InStrategy: { AtLeast: 7000 }
+                Target: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, At: target, Range: 5, Below: 1 }
+                Switch: off
+              - Name: ct_sanct_front_over_a
+                Priority: 94
+                InStrategy: { AtLeast: 36000 }
+                Switch: off
+          - Name: up_b
+            Rules:
+              - Name: ct_sanct_front_renew_b
+                Priority: 97
+                InStrategy: { AtLeast: 30000 }
+                Target: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                Aim: { Cells: 3, From: target }
+                When: [not_self_targeted, self_sp_ge120]
+                Cast: PR_SANCTUARY
+                Consume: true
+                Switch: up_a
+              - Name: ct_sanct_front_gone_b
+                Priority: 94
+                InStrategy: { AtLeast: 7000 }
+                Target: { Enemy: boss, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14 }
+                Field: { Skill: PR_SANCTUARY, Owner: party, At: target, Range: 5, Below: 1 }
+                Switch: off
+              - Name: ct_sanct_front_over_b
+                Priority: 94
+                InStrategy: { AtLeast: 36000 }
+                Switch: off
+
+      # CPO 3.14.5: casters and ranged fight from the party's Sanctuary (melee stay off it:
+      # it heals the monsters standing in it too). Above their stay-back bands (74-76).
+      - Job: [Mage, Archer, Gunslinger, Ninja]
+        Rules:
+          - Name: onto_sanctuary
+            Priority: 80
+            When: master_distance_le7
+            Present: { Enemy: attacking, Range: 14 }
+            MoveTo: { Field: PR_SANCTUARY, Owner: party, Within: 8 }
 
       # Casters and healers never hit with a rod or a mace -- companions and the AI
       # characters around the world alike (For: all). Out of SP, they stand rather than
@@ -174,20 +400,69 @@ Body:
           - Name: leave_hostile_ground
             Priority: 99
             Leave: { Owner: monster }
+          # CPO 3.14.5: a monster STARTS a big area spell: get out during the cast, before it
+          # lands (leave_hostile_ground only sees it once it is down, too late for meteors).
+          # Ground spells count as aimed at whoever stands within 3 cells of the spot.
+          # (An event's Skill takes one skill, not a list: the list is in the Count.)
+          - Name: dodge_big_spell
+            Priority: 99
+            On: { Event: casts, By: monster, At: self }
+            Count: { Enemy: casting, Skill: [WZ_METEOR, WZ_VERMILION, MG_THUNDERSTORM], Range: 14, AtLeast: 1 }
+            Retreat: away
+            Distance: 7
+          # Storm Gust too, unless a Sage of the party is here (it lays Land Protector: gather).
+          - Name: dodge_storm_gust
+            Priority: 99
+            On: { Event: casts, By: monster, Skill: WZ_STORMGUST, At: self }
+            Absent: { Ally: nearest, Job: Sage, NotSelf: true, Range: 14 }
+            Retreat: away
+            Distance: 7
+          # Round the caster itself (Earthquake, Grand Cross, Grand Darkness): within 7, step out.
+          - Name: dodge_big_burst
+            Priority: 99
+            On: { Event: casts, By: monster }
+            Count: { Enemy: casting, Skill: [NPC_EARTHQUAKE, CR_GRANDCROSS, NPC_GRANDDARKNESS], Range: 7, AtLeast: 1 }
+            Retreat: away
+            Distance: 8
+          # CPO 3.14.5: just back up (Resurrection, a Leaf: the script's tick gives
+          # Reuse_Limit_Ecl for 10 s): away from the fight, onto the party's Sanctuary, else
+          # to the Priest, else to you, and they camp there until 80% HP (the user's call:
+          # back in at 80%, at the latest after the 10 s). A revived Priest still revives first (106).
+          - Name: revived_to_sanctuary
+            Priority: 100
+            When: [self_reuse_limit_ecl, self_hp_pct_lt80]
+            MoveTo: { Field: PR_SANCTUARY, Owner: party, Within: 12 }
+          - Name: revived_to_priest
+            Priority: 100
+            When: [self_reuse_limit_ecl, self_hp_pct_lt80]
+            Field: { Skill: PR_SANCTUARY, Owner: party, Range: 12, Below: 1 }
+            Target: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
+            KeepDistance: { Min: 1, Max: 2 }
+          - Name: revived_to_you
+            Priority: 100
+            When: [self_reuse_limit_ecl, self_hp_pct_lt80]
+            Field: { Skill: PR_SANCTUARY, Owner: party, Range: 12, Below: 1 }
+            Absent: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
+            Retreat: owner
           - Name: gather
             Priority: 88
             On: { Event: signal, Name: on_me }
             MoveTo: event
           # Never hit a boss from where it cannot fight back: that makes most of them teleport.
+          # CPO 3.14.5: only while you're near (9 cells). It reads the companion's current
+          # target, which stayed on a stuck Valkyrie for 4 minutes: all five held still at it
+          # (600 times a minute each) while you walked off. Hold outranks following you.
           - Name: no_rude_attack
             Priority: 98
             Enemy: { Boss: true }
             Reach: false
+            When: master_distance_le9
             MoveTo: reachable
           - Name: no_rude_attack_hold
             Priority: 97
             Enemy: { Boss: true }
             Reach: false
+            When: master_distance_le9
             Hold: true
           # A boss teleported away: one says so, everyone regroups on the owner. Here
           # rather than under Mob: Boss, whose plan has stopped applying by then.
@@ -312,6 +587,7 @@ Body:
                 Retreat: owner
               - Name: stand
                 Priority: 101
+                When: master_distance_le7   # CPO 3.14.5: you walk off, they come along
                 Hold: true
 
       # --- Healer: the Priest family, unless told to do something else ----------
@@ -319,6 +595,13 @@ Body:
       # every turn ends in one of its rules (the last is Hold), so it never walks up and
       # hits with its staff, and the engine's own buffing never comes round: what it
       # keeps up is named here.
+      # CPO 3.14.5 (Odin Temple playtest, 2026-11-17): this plan applies to every Class: Boss
+      # monster in sight, Skeggiolds too, and to a boss target anywhere on the map. Its
+      # positioning rules hold a companion in place (the engine then lets it stray 16 cells
+      # from you before it warps it back), so on a field of them the party stood still on
+      # Follow. Now every positioning rule here needs you within 7 cells (master_distance_le7:
+      # walk off and they come along, healing and fighting on the way), and the formation
+      # round the boss (stay_back, stay_with_the_party) also a boss attacking the party.
       - Job: Priest
         Build: healer
         Requires: { Role: [support, none] }
@@ -327,6 +610,7 @@ Body:
         Rules:
           - Name: stay_near_the_stoned
             Priority: 79
+            When: master_distance_le7
             Target: { Ally: having, Status: SC_STONE, NotSelf: true, Range: 14 }
             KeepDistance: { Min: 1, Max: 7 }
           # Whoever the monsters are on comes first. SP is kept back for Resurrection
@@ -350,23 +634,41 @@ Body:
             When: [not_ally_safetywall, self_sp_ge120]
             Field: { Skill: MG_SAFETYWALL, Owner: party, At: target, Range: 0, Below: 1 }
             Cooldown: 6000
+          # CPO 3.14.5 (High Priest): Assumptio halves the damage taken. On the tank, then on
+          # the melee the boss is on, and only once Kyrie is gone: in pre-renewal each ends
+          # the other, so no Kyrie goes over a running Assumptio either (not_ally_assumptio).
+          - Name: assumptio_tank
+            Priority: 75
+            Cast: HP_ASSUMPTIO
+            Target: { Ally: missing, Status: SC_ASSUMPTIO, Role: tank }
+            When: [not_ally_kyrie, self_sp_ge120]
+          - Name: assumptio_melee
+            Priority: 75
+            Cast: HP_ASSUMPTIO
+            Target: { Ally: attacked, Job: [Swordman, Thief, Merchant, Monk, Star_Gladiator, Taekwon] }
+            When: [not_ally_kyrie, not_ally_assumptio, self_sp_ge120]
           - Name: kyrie_attacked
             Priority: 75
             Cast: PR_KYRIE
             Target: { Ally: attacked }
-            When: [not_ally_kyrie, self_sp_ge120]
+            When: [not_ally_kyrie, not_ally_assumptio, self_sp_ge120]
           # Where to stand: out of the boss's melee, and within Heal's reach (9 cells) of
           # whoever is being hit -- or, with nobody hit, of the nearest member.
           - Name: stay_back
             Priority: 74
+            When: master_distance_le7
+            Count: { Enemy: attacking, Boss: true, Range: 14, AtLeast: 1 }
             Target: { Enemy: boss, Range: 14 }
             KeepDistance: 5
           - Name: stay_near_the_hit
             Priority: 73
+            When: master_distance_le7
             Target: { Ally: attacked, NotSelf: true, Range: 14 }
             KeepDistance: { Min: 1, Max: 7 }
           - Name: stay_with_the_party
             Priority: 72
+            When: master_distance_le7
+            Count: { Enemy: attacking, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14, AtLeast: 1 }
             Target: { Ally: nearest, NotSelf: true, Range: 14 }
             KeepDistance: { Min: 1, Max: 7 }
           - Name: blessing
@@ -399,6 +701,7 @@ Body:
           # leave the Priest behind.
           - Name: no_melee
             Priority: 1
+            When: master_distance_le7
             Present: { Enemy: nearest, Range: 14 }
             Hold: true
 
@@ -417,11 +720,13 @@ Body:
           # Hurt, with something on it: step away and let the healer catch up.
           - Name: step_away
             Priority: 76
-            When: self_hp_pct_lt50
+            When: [self_hp_pct_lt50, master_distance_le7]
             Target: { Enemy: attacking, Who: self, Range: 3 }
             KeepDistance: 4
           - Name: stay_back
             Priority: 74
+            When: master_distance_le7
+            Count: { Enemy: attacking, Boss: true, Range: 14, AtLeast: 1 }
             Target: { Enemy: boss, Range: 14 }
             KeepDistance: { Min: 6, Max: 8 }
           # Three or more together on the party: the area spell its element suits best.
@@ -458,6 +763,7 @@ Body:
           # something is on the party, so it still follows its owner otherwise.
           - Name: no_melee
             Priority: 1
+            When: master_distance_le7
             Present: { Enemy: attacking, Range: 14 }
             Hold: true
 
@@ -469,6 +775,8 @@ Body:
         Rules:
           - Name: stay_back
             Priority: 74
+            When: master_distance_le7
+            Count: { Enemy: attacking, Mob: [OSIRIS, BAPHOMET, DOPPELGANGER, MISTRESS, GOLDEN_BUG, ORK_HERO, DRAKE, EDDGA, MAYA, MOONLIGHT, PHARAOH, PHREEONI, ORC_LORD, KNIGHT_OF_WINDSTORM, GARM, DARK_LORD, TURTLE_GENERAL, LORD_OF_DEATH, DRACULA, DARK_SNAKE_LORD, INCANTATION_SAMURAI, AMON_RA, TAO_GUNKA, RSX_0806, BACSOJIN_, B_SEYREN, B_EREMES, B_HARWORD, B_MAGALETA, B_SHECIL, B_KATRINN, B_YGNIZEM, APOCALIPS_H, LADY_TANEE, THANATOS, DETALE, KIEL_, RANDGRIS, GLOOMUNDERNIGHT, KTULLANUX, ATROCE, IFRIT, FALLINGBISHOP, BEELZEBUB_, GOPINICH, MOROCC_, KUBLIN, S_NYDHOG, BOITATA], Range: 14, AtLeast: 1 }
             Target: { Enemy: boss, Range: 14 }
             KeepDistance: { Min: 4, Max: 8 }
 
@@ -490,19 +798,19 @@ Body:
         Rules:
           - Name: kite_round_the_healer
             Priority: 60
-            When: self_hp_pct_lt30
+            When: [self_hp_pct_lt30, master_distance_le7]
             Target: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
             Kite: { Away: 4, Within: 7, Gap: 3 }
           # Nothing chasing it, so nothing to kite: go and stand by the healer instead of
           # waiting beside the boss (Phreeoni playtest 6).
           - Name: go_to_the_healer
             Priority: 59
-            When: self_hp_pct_lt30
+            When: [self_hp_pct_lt30, master_distance_le7]
             Target: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
             KeepDistance: { Min: 1, Max: 4 }
           - Name: wait_for_heal
             Priority: 58
-            When: self_hp_pct_lt30
+            When: [self_hp_pct_lt30, master_distance_le7]
             Present: { Ally: nearest, Job: Priest, NotSelf: true, Range: 14 }
             Hold: true
           # Slaves on the healer: one of them takes them off.
@@ -619,7 +927,7 @@ Body:
             Priority: 62
             Cast: PR_MAGNUS
             Target: { Enemy: attacking, Race: Undead }
-            Count: { Enemy: attacking, Race: Undead, Around: target, Range: 3, AtLeast: 3 }
+            Count: { Enemy: attacking, Race: Undead, Around: target, Range: 3, AtLeast: 5 }
             When: self_sp_ge150
             Consume: true                  # a Blue Gemstone, once companions carry them
             Cooldown: 6000
@@ -693,3 +1001,127 @@ Body:
             Target: { Ally: missing, Status: SC_ASPERSIO, Job: [Knight, Crusader, Assassin, Rogue, Blacksmith, Monk, Star_Gladiator] }
             When: self_sp_ge120
             Consume: true
+
+  # --- CPO command skills (Alt+S, Etc tab) -------------------------------------
+  # Passives to the game: pressing one on the F-bar sends nothing to the server (no cast
+  # bar, no after-cast delay). client/index.js catches the press and sends @clcmd; the
+  # script (npc/companion_commands.txt) puts a 6 s code on every companion of yours,
+  # four harmless Rune Knight reuse waits as bits (Refresh 1, Stormblast 2, Crush Strike
+  # 4, Millennium Shield 8; nothing in pre-re uses them), and these rules answer their
+  # code. The Cooldown (6.5 s, longer than the code) keeps it to one answer a press; the
+  # code lasting 6 s lets a companion busy casting answer once it's free (the user's rule:
+  # a command beats any rule not yet cast, and comes right after a cast already started).
+  # Codes: 1 Focus, 2 Fall Back, 3 and 4 free (were Gather, Hold) | Priest 5 Heal, 6 Buff, 7 Kyrie,
+  # 8 Cure, 9 Pneuma, 10 Safety Wall, 11 Sanctuary, 12 Assumptio, 14 Resurrect.
+  # (13 Lex Aeterna is cast by the script on the monster you click.) Other classes
+  # reuse 5-15: each class only reads its own.
+  - Mob: All
+    Jobs:
+      - Job: All
+        Rules:
+          # Focus: the script makes you attack the monster you clicked; everyone takes
+          # your target. (CPO: Stand By is the Orders tab's Stand By task, sent by the
+          # client; Fall Back also puts the task back on Follow.)
+          - Name: cpo_cmd_focus
+            Priority: 128
+            When: [self_reuse_refresh, not_self_reuse_stormblast, not_self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Target: { Enemy: target_of, Who: owner }
+            SetTarget: true
+          - Name: cpo_cmd_fallback
+            Priority: 129
+            When: [not_self_reuse_refresh, self_reuse_stormblast, not_self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Cooldown: 6500
+            Retreat: owner
+
+      - Job: [Acolyte, Priest]
+        Exact: true
+        Rules:
+          # A command waiting and you out of her reach (most of her spells reach about 9
+          # cells): she walks over first, then the command below casts once you are in range.
+          - Name: cpo_cmd_come_closer
+            Priority: 126
+            When:
+              AND:
+                - master_distance_ge8
+                - OR: [
+                  { AND: [self_reuse_refresh, not_self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield] },
+                  { AND: [not_self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield] },
+                  { AND: [self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield] },
+                  { AND: [not_self_reuse_refresh, not_self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield] },
+                  { AND: [self_reuse_refresh, not_self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield] },
+                  { AND: [not_self_reuse_refresh, self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield] },
+                  { AND: [self_reuse_refresh, self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield] },
+                  { AND: [not_self_reuse_refresh, not_self_reuse_stormblast, self_reuse_crushstrike, self_reuse_millenniumshield] },
+                  { AND: [not_self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, self_reuse_millenniumshield] }
+                  ]
+            Retreat: owner
+          - Name: cpo_cmd_heal
+            Priority: 128
+            When: [self_reuse_refresh, not_self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: AL_HEAL
+            Target: owner
+          - Name: cpo_cmd_bless
+            Priority: 128
+            When: [not_self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: AL_BLESSING
+            Target: owner
+          - Name: cpo_cmd_agi
+            Priority: 127
+            When: [not_self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: AL_INCAGI
+            Target: owner
+          - Name: cpo_cmd_kyrie
+            Priority: 128
+            When: [self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: PR_KYRIE
+            Target: owner
+            OnePerParty: true
+          - Name: cpo_cmd_cure
+            Priority: 128
+            When: [not_self_reuse_refresh, not_self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: PR_STRECOVERY
+            Target: owner
+            OnePerParty: true
+          - Name: cpo_cmd_pneuma
+            Priority: 128
+            When: [self_reuse_refresh, not_self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: AL_PNEUMA
+            Target: owner
+            OnePerParty: true
+          - Name: cpo_cmd_safetywall
+            Priority: 128
+            When: [not_self_reuse_refresh, self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: MG_SAFETYWALL
+            Target: owner
+            Consume: true
+            OnePerParty: true
+          - Name: cpo_cmd_sanctuary
+            Priority: 128
+            When: [self_reuse_refresh, self_reuse_stormblast, not_self_reuse_crushstrike, self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: PR_SANCTUARY
+            Target: owner
+            Consume: true
+            OnePerParty: true
+          - Name: cpo_cmd_assumptio
+            Priority: 128
+            When: [not_self_reuse_refresh, not_self_reuse_stormblast, self_reuse_crushstrike, self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: HP_ASSUMPTIO
+            Target: owner
+            OnePerParty: true
+          - Name: cpo_cmd_resurrect
+            Priority: 128
+            When: [not_self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, self_reuse_millenniumshield]
+            Cooldown: 6500
+            Cast: ALL_RESURRECTION
+            Target: dead_ally
+            Consume: true
+            OnePerParty: true

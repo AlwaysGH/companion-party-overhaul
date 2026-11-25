@@ -39,6 +39,28 @@ export const CLASS_KEY = {
     4041: 'alchemist', 4042: 'bard', 4043: 'dancer', 4044: 'crusader', 4045: 'super_novice',
     4046: 'taekwon', 4047: 'star_gladiator', 4048: 'star_gladiator', 4049: 'soul_linker',
 };
+// 3.14.5: 3rd classes + expanded (art by patkaiclan's set, the newer outfits). Job ids from
+// the client's own table (Online.js): normal, trans (_H), mounts (2), babies (_B) and the
+// alternate-outfit ids (_2ND, 4332-4348) all share one picture per class.
+for (const [key, ids] of Object.entries({
+    rune_knight: [4054, 4060, 4080, 4081, 4096, 4109, 4332, 4345], warlock: [4055, 4061, 4097, 4335],
+    ranger: [4056, 4062, 4084, 4085, 4098, 4111, 4337, 4346], arch_bishop: [4057, 4063, 4099, 4336],
+    mechanic: [4058, 4064, 4086, 4087, 4100, 4112, 4333, 4347], guillotine_cross: [4059, 4065, 4101, 4334],
+    royal_guard: [4066, 4073, 4082, 4083, 4102, 4110, 4338, 4348], sorcerer: [4067, 4074, 4103, 4341],
+    minstrel: [4068, 4075, 4104, 4343], wanderer: [4069, 4076, 4105, 4344], sura: [4070, 4077, 4106, 4342],
+    genetic: [4071, 4078, 4107, 4339], shadow_chaser: [4072, 4079, 4108, 4340],
+    kagerou: [4211, 4223], oboro: [4212, 4224], rebellion: [4215, 4229], summoner: [4218, 4220],
+    star_emperor: [4239, 4241, 4243, 4244], soul_reaper: [4240, 4242],
+    // 3.14.5: 4th classes (patkaiclan's set). Ids from JobConst.js: normal, _RIDING, and the
+    // 4278-4281 / 4316 second mounts.
+    dragon_knight: [4252, 4265, 4280], meister: [4253, 4266, 4279], shadow_cross: [4254, 4267],
+    arch_mage: [4255, 4268], cardinal: [4256, 4269], windhawk: [4257, 4270, 4278],
+    imperial_guard: [4258, 4271, 4281], biolo: [4259, 4272], abyss_chaser: [4260, 4273],
+    elemental_master: [4261, 4274], inquisitor: [4262, 4275], troubadour: [4263, 4276],
+    trouvere: [4264, 4277], sky_emperor: [4302, 4309, 4316], soul_ascetic: [4303, 4310],
+    shinkiro: [4304, 4311], shiranui: [4305, 4312], night_watch: [4306, 4313],
+    hyper_novice: [4307, 4314], spirit_handler: [4308, 4315],
+})) for (const id of ids) CLASS_KEY[id] = key;
 const CLASS_NAME = key => key.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
 
 const STYLE = `
@@ -68,6 +90,18 @@ const STYLE = `
 .bubble.urgent { border-color: #c0392b; }
 .bubble.urgent .who { color: #c0392b; }
 .bubble.plain, .bubble.plain * { cursor: default !important; }
+/* 3.14.5: group cut-in (style C+): lines said together. The first speaker stands at the corner,
+   the others to its left, smaller, a little dimmed and flush with the bottom of the screen;
+   one shared bubble to the left of the main face carries every line. */
+.por.grp { transform-origin: bottom right; filter: brightness(.78) saturate(.75); z-index: 2; }
+.por.grp.leave { opacity: 0; }
+.bubble.grp { right: 205px; bottom: 285px; width: auto; min-width: 170px; max-width: 280px; }
+.bubble.grp .who { display: none; }
+.bubble.grp .ln { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bubble.grp .ln b { color: #2f7fb8; }
+.bubble.grp.urgent .ln b { color: #c0392b; }
+.bubble.grp::after { right: -9px; bottom: 24px; border-right: 1px solid #8a7d68; border-bottom: 0; border-top: 1px solid #8a7d68; }
+.bubble.grp.urgent::after { border-color: #c0392b; }
 `;
 
 // 3.13.10: the game picks its cursor from the map cell under the mouse, and a mod's box
@@ -91,14 +125,27 @@ function guardHost(api) {
     } catch (e) { console.warn('[companion-party-overhaul] cursor guard:', e); }
     return _guard;
 }
-function plainCursor(el, api) {
-    let on = false, how = '';
+// 3.14.5: exported for the party frames too; shown(el) says whether it's still on screen
+// (a bubble: class "on"; the frames pass their own).
+// 3.14.5: the game's own Basic Information window first. Its guard (Online.js, a GUIComponent
+// in MouseMode.STOP) also turns the cursor back to the arrow; a mod window's host only stops the
+// map, so a cursor that came from a no-walk cell kept its red cross.
+// Its host id is the component's versioned name (createBasicInfo: "BasicInfoV5", "BasicInfoV4"...),
+// so look for any id starting with BasicInfo; then other always-open STOP windows.
+const stopHost = () => {
+    for (const sel of ['[id^="BasicInfo"]', '[id^="ShortCut"]', '[id^="MiniMap"]']) {
+        for (const b of document.querySelectorAll(sel)) if (b.isConnected && b.shadowRoot) return b;   // a GUIComponent host
+    }
+    return null;
+};
+export function plainCursor(el, api, shown = x => x.classList.contains('on')) {
+    let on = false, how = '', gEl = null;
     const game = () => document.querySelector('.cursor');
     el.addEventListener('mouseenter', () => {
         if (on) return;
-        const g = guardHost(api);
+        const g = stopHost() || guardHost(api);
         if (g) {
-            on = true; how = 'guard';
+            on = true; how = 'guard'; gEl = g;
             g.dispatchEvent(new Event('mouseenter'));
             return;
         }
@@ -112,7 +159,8 @@ function plainCursor(el, api) {
         if (!on) return;
         on = false;
         if (how === 'guard') {
-            if (_guard) _guard.dispatchEvent(new Event('mouseleave'));   // the map reads the cells again
+            if (gEl) gEl.dispatchEvent(new Event('mouseleave'));   // the map reads the cells again
+            gEl = null;
             return;
         }
         const c = game();
@@ -120,10 +168,13 @@ function plainCursor(el, api) {
         el.classList.remove('plain');
     };
     el.addEventListener('mouseleave', back);
+    // The game lets its guards go after any drag (a mousemove re-check); entering again is a no-op
+    // while it holds, so moving over us keeps the map stopped.
+    el.addEventListener('mousemove', () => { if (on && how === 'guard' && gEl) gEl.dispatchEvent(new Event('mouseenter')); });
     // A box that fades out under a still mouse never hears it leave: the map must read the
     // cells again at once, or a click on the ground would do nothing.
     if (typeof MutationObserver === 'function')
-        new MutationObserver(() => { if (on && !el.classList.contains('on')) back(); })
+        new MutationObserver(() => { if (on && !shown(el)) back(); })
             .observe(el, { attributes: true, attributeFilter: ['class'] });
     return back;
 }
@@ -147,31 +198,36 @@ const ASK_STYLE = STYLE + `
 .last { color: #8b8b8b; font-size: 10px; margin-top: 4px; }
 .tag { display: inline-block; float: right; font: bold 9px Tahoma, Verdana, sans-serif; letter-spacing: .04em; text-transform: uppercase;
   color: #2f7fb8; border: 1px solid #9cc3e0; background: #eef6fc; border-radius: 3px; padding: 0 4px; margin-top: 1px; }
-.bubble.gold { background: linear-gradient(#fffaf0, #fff1cf); border-color: #c9a227; box-shadow: 0 0 0 1px rgba(201,162,39,.35), 0 2px 12px rgba(201,162,39,.55); }
-.bubble.gold::after { background: #fff1cf; border-color: #c9a227; }
-.bubble.gold .tag { color: #8a6a00; border-color: #d9b545; background: #fff3c4; }
-.bubble.don .tag { color: #b5462f; border-color: #e3a291; background: #fdf0ec; }
-.bubble.danger { border-color: #c0392b; box-shadow: 0 0 0 1px rgba(192,57,43,.35), 0 2px 12px rgba(192,57,43,.5); }
-.bubble.danger::after { border-color: #c0392b; }
-.bubble.danger .who { color: #c0392b; }
-.bubble.danger .tag { color: #fff; border-color: #c0392b; background: #c0392b; }
 .btns button.two { display: block; width: 100%; padding: 4px 10px; font-weight: normal; text-align: left; }
 .btns button.two b { font-weight: bold; }
 .btns button.two small { font-size: 10px; color: #4f6a8f; margin-left: 4px; }
-.bubble.trait { border-color: #b8860b; }
-.bubble.trait .tag { color: #8a6a00; border-color: #d9b545; background: #fff3c4; }
-.bubble.story { border-color: #b8860b; }
-.bubble.story .tag { color: #8a6a00; border-color: #d9b545; background: #fff3c4; }
+/* 3.14.4: one colour per family (--k): edge glow, a light tint, the name and the label.
+   Heart rose (bond, story), Growth green (trait), Game gold (quiz, gold, don),
+   Battle red (mvp, danger), Errands blue (shop, pet). */
+.bubble.k { border-color: var(--k); background: color-mix(in srgb, var(--k) 9%, #fbfaf6);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--k) 35%, transparent), 0 2px 12px color-mix(in srgb, var(--k) 55%, transparent); }
+.bubble.k::after { border-color: var(--k); background: color-mix(in srgb, var(--k) 9%, #fbfaf6); }
+.bubble.k .who { color: var(--k); }
+.bubble.k .tag { color: var(--k); border-color: var(--k); background: color-mix(in srgb, var(--k) 12%, #fff); }
+.bubble.bond, .bubble.story { --k: #c2507a; }
+.bubble.trait, .bubble.ready { --k: #2e8b57; }
+.bubble.quiz, .bubble.gold, .bubble.don { --k: #b8900f; }
+.bubble.gold { background: linear-gradient(#fffaf0, #fff1cf); }
+.bubble.gold::after { background: #fff1cf; }
+.bubble.mvp, .bubble.danger { --k: #c0392b; }
+.bubble.danger .tag { color: #fff; background: #c0392b; }
+.bubble.shop, .bubble.pet { --k: #2f7fb8; }
 .bubble.story .btns button { text-align: left; }
 `;
-const ASK_TAGS = { quiz: 'Pop quiz', gold: '✦ Golden question', don: 'Double or nothing', danger: 'Danger', trait: 'Shaped by you', story: 'Life story' };
+const ASK_TAGS = { quiz: 'Pop quiz', gold: '✦ Golden question', don: 'Double or nothing', danger: 'Danger', trait: '❦ Growth', story: 'Life story',
+    bond: '♥ Bond', mvp: '♛ MVP', shop: 'Shopping', pet: 'Pet', ready: 'Ready' };
 const askWatch = new Set();   // the chat portraits' "step aside" switches
 let askOpen = null;           // { close(answer) }
 // 3.13.11: tag given: only a box with that tag (a danger box's close mustn't close an MVP find).
 export function closeAsk(tag) { if (!tag || askOpen?.tag === tag) askOpen?.close(undefined); }
 
 export function askKeep(api, { name, cls, sex, last, text }) {
-    return askChoice(api, { name, cls, sex, text, options: ['Yes', 'Not now'], note: last ? `The last time ${name} asks.` : '' })
+    return askChoice(api, { name, cls, sex, text, options: ['Yes', 'Not now'], note: last ? `The last time ${name} asks.` : '', tag: 'pet' })
         .then(i => i === undefined ? undefined : i === 0);
 }
 
@@ -233,7 +289,7 @@ export function askChoice(api, { name, cls, sex, text, options, note = '', secon
             t.className = 'tag';
             t.textContent = ASK_TAGS[tag];
             who.append(t);
-            bubble.classList.add(tag);
+            bubble.classList.add(tag, 'k');
         }
         root.querySelector('.q').textContent = text;
         const fit = () => { stageEl.style.transform = `scale(${Math.min(1, (innerHeight * 0.75) / 480)})`; };
@@ -348,8 +404,70 @@ export default function initPortraits(parameters, api) {
         }
     }
 
+    // 3.14.5: the group cut-in's other speakers (portrait elements of their own, not in els).
+    let extras = [];
+    function dropExtras() {
+        const gone = extras;
+        extras = [];
+        for (const d of gone) { d.classList.add('leave'); setTimeout(() => d.remove(), 500); }
+        bubble.classList.remove('grp');
+    }
+    const GATHER_MS = 350;     // lines from different companions this close together are one group
+    const GROUP_MS = 700;      // ...counted from the first one's arrival
+
+    function sayGroup(lines) {
+        clearTimeout(lingerTimer);
+        dropExtras();
+        const main = lines[0], rest = lines.slice(1);
+        current = main;
+        const d = portrait(main.name);
+        stage = [main.name];
+        void d.offsetWidth;
+        layout();
+        // The others: half the screen height or a bit less with many, overlapping more as they grow.
+        const s = rest.length > 4 ? 0.5 : 0.56;
+        const step = 320 * s * Math.max(0.3, 0.5 - 0.035 * Math.max(0, rest.length - 2));
+        rest.forEach((l, i) => {
+            const e = document.createElement('div');
+            e.className = 'por grp enter';
+            const img = document.createElement('img');
+            img.src = PICS[cast.get(l.name).key];
+            img.alt = l.name;
+            img.draggable = false;
+            e.append(img);
+            e.style.zIndex = String(2);
+            stageEl.insertBefore(e, stageEl.firstChild);   // behind the main speaker
+            extras.push(e);
+            void e.offsetWidth;
+            e.classList.remove('enter');
+            e.style.transform = `translateX(${-(198 + i * step)}px) scale(${s})`;
+        });
+        bubble.classList.remove('on');
+        clearTimeout(bubbleTimer);
+        clearInterval(typeTimer);
+        bubbleTimer = setTimeout(() => {
+            bubble.classList.add('grp');
+            bubble.classList.toggle('urgent', lines.some(l => l.urgent));
+            const txt = bubble.querySelector('.txt');
+            txt.textContent = '';
+            for (const l of lines) {
+                const ln = document.createElement('div');
+                ln.className = 'ln';
+                const b = document.createElement('b');
+                b.textContent = l.name + ': ';
+                ln.append(b, document.createTextNode(l.text));
+                txt.append(ln);
+            }
+            bubble.classList.add('on');
+        }, 260);
+        clearTimeout(timer);
+        timer = setTimeout(next, Math.min(9000, READ_MS(lines.map(l => l.text).join(' ')) * 0.8));
+    }
+
     function say(line) {
         clearTimeout(lingerTimer);
+        if (extras.length) dropExtras();
+        bubble.classList.remove('grp');
         current = line;
         const same = stage[0] === line.name;
         if (!same) {
@@ -384,10 +502,24 @@ export default function initPortraits(parameters, api) {
 
     function next() {
         current = null;
+        // 3.14.5: while a question box is up the portraits wait behind it (the lines are in the
+        // chat box already); they play once you've answered (onAsk).
+        if (asked) return;
         const now = Date.now();
         queue = queue.filter(l => l.urgent || now - l.at < STALE_MS);
         const l = queue.shift();
-        if (l && cast.has(l.name)) return say(l);
+        if (l && cast.has(l.name)) {
+            // 3.14.5: other companions' lines that came with it (within GROUP_MS): one group cut-in.
+            const group = [l];
+            for (let k = 0; k < queue.length && group.length < 8;) {
+                const o = queue[k];
+                if (o.at - l.at <= GROUP_MS && cast.has(o.name) && !group.some(g => g.name === o.name)) {
+                    group.push(o);
+                    queue.splice(k, 1);
+                } else k++;
+            }
+            return group.length > 1 ? sayGroup(group) : say(l);
+        }
         if (l) return next();
         lingerTimer = setTimeout(clearAll, LINGER_MS);
     }
@@ -396,6 +528,8 @@ export default function initPortraits(parameters, api) {
     function clearAll() {
         clearTimeout(timer); clearTimeout(lingerTimer); clearTimeout(bubbleTimer); clearInterval(typeTimer);
         current = null; queue = []; stage = [];
+        clearTimeout(gatherTimer);
+        dropExtras();
         bubble.classList.remove('on');
         cursorBack();
         for (const d of els.values()) d.className = 'por leave';
@@ -410,14 +544,22 @@ export default function initPortraits(parameters, api) {
             const k = queue.findIndex(l => !l.urgent);   // ahead of small talk, behind other urgent lines
             if (k < 0) queue.push(line); else queue.splice(k, 0, line);
         } else queue.push(line);
-        if (!current) { clearTimeout(lingerTimer); next(); }
+        // 3.14.5: a short wait before starting, so lines said together arrive and group up;
+        // and nothing starts while a question box is up.
+        if (!current && !asked && !gatherTimer) {
+            clearTimeout(lingerTimer);
+            gatherTimer = setTimeout(() => { gatherTimer = 0; if (!current && !asked) next(); }, GATHER_MS);
+        }
     }
+    let gatherTimer = 0;
 
     // ---- stepping aside for NPCs ----
     const npcOpen = new Set();
     let asked = false;   // 3.9.0: a "Can we keep it?" is up (askKeep)
     const hideCheck = () => stageEl.classList.toggle('hidden', asked || npcOpen.size > 0 || !!document.getElementById('cutin'));
-    const onAsk = on => { asked = on; hideCheck(); };
+    // 3.14.5: once the box closes, the lines that waited behind it play.
+    // (next() with nothing waiting starts the usual linger and clears the stage.)
+    const onAsk = on => { asked = on; hideCheck(); if (!on && !current) setTimeout(() => { if (!current && !asked) next(); }, 400); };
     askWatch.add(onAsk);
     api.cleanup(() => askWatch.delete(onAsk));
     api.on('ui:append', c => { if (c?.name === 'NpcBox' || c?.name === 'NpcMenu') { npcOpen.add(c.name); hideCheck(); } }, { replay: true });

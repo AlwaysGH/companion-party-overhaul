@@ -1,0 +1,106 @@
+SKILL_INFO_LIST = {
+	[SKID.CPO_FOCUS] = {
+		"KN_PIERCE";
+		SkillName = "CPO: Focus My Target",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 14 },
+	},
+	[SKID.CPO_FALLBACK] = {
+		"TF_BACKSLIDING";
+		SkillName = "CPO: Fall Back",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_HOLD] = {
+		"SM_ENDURE";
+		SkillName = "CPO: Stand By",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_HEAL] = {
+		"AL_HEAL";
+		SkillName = "CPO: Heal Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_BUFF] = {
+		"AL_BLESSING";
+		SkillName = "CPO: Buff Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_KYRIE] = {
+		"PR_KYRIE";
+		SkillName = "CPO: Kyrie Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_CURE] = {
+		"PR_STRECOVERY";
+		SkillName = "CPO: Cure Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_WALL] = {
+		"AL_PNEUMA";
+		SkillName = "CPO: Pneuma Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_SANCTUARY] = {
+		"PR_SANCTUARY";
+		SkillName = "CPO: Sanctuary Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_ASSUMPTIO] = {
+		"HP_ASSUMPTIO";
+		SkillName = "CPO: Assumptio Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_LEX] = {
+		"PR_LEXAETERNA";
+		SkillName = "CPO: Lex Aeterna",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 14 },
+	},
+	[SKID.CPO_SAFETYWALL] = {
+		"MG_SAFETYWALL";
+		SkillName = "CPO: Safety Wall Me",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+	[SKID.CPO_RESURRECT] = {
+		"ALL_RESURRECTION";
+		SkillName = "CPO: Resurrect",
+		MaxLv = 1,
+		SpAmount = { 0 },
+		bSeperateLv = false,
+		AttackRange = { 1 },
+	},
+}

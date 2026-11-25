@@ -1,0 +1,67 @@
+SKILL_DESCRIPT = {
+	[SKID.CPO_FOCUS] = {
+		"CPO: Focus My Target",
+		"Companion command. Press it on the F-bar, then click a monster: you go for it and every companion turns on it.",
+		"^777777Instant from the F-bar: no cast, no after-cast delay.^000000",
+	},
+	[SKID.CPO_FALLBACK] = {
+		"CPO: Fall Back",
+		"Companion command. Everyone breaks off and comes back to you, and the task goes back to Follow (ends Stand By or a hunt).",
+		"^777777Instant from the F-bar.^000000",
+	},
+	[SKID.CPO_HOLD] = {
+		"CPO: Stand By",
+		"Companion command. The Orders tab's Stand By task: everyone stays right here and waits, and only fights what attacks them.",
+		"^777777Instant from the F-bar. Needs Companion roaming on (app Settings, Population). CPO: Fall Back brings them back to Follow.^000000",
+	},
+	[SKID.CPO_HEAL] = {
+		"CPO: Heal Me",
+		"Companion command. Your Acolyte or Priest casts Heal on you.",
+		"^777777Instant from the F-bar. They pay the SP and need to be in range; busy casting, they answer once free.^000000",
+	},
+	[SKID.CPO_BUFF] = {
+		"CPO: Buff Me",
+		"Companion command. Your Acolyte or Priest casts Blessing and Increase AGI on you, in town too.",
+		"^777777Instant from the F-bar. They pay the SP.^000000",
+	},
+	[SKID.CPO_KYRIE] = {
+		"CPO: Kyrie Me",
+		"Companion command. Your Priest casts Kyrie Eleison on you, in town too.",
+		"^777777Instant from the F-bar. They pay the SP.^000000",
+	},
+	[SKID.CPO_CURE] = {
+		"CPO: Cure Me",
+		"Companion command. Your Priest casts Status Recovery on you (frozen, stone, stun).",
+		"^777777Instant from the F-bar. They pay the SP.^000000",
+	},
+	[SKID.CPO_WALL] = {
+		"CPO: Pneuma Me",
+		"Companion command. Your Acolyte or Priest puts Pneuma on you: ranged attacks miss you.",
+		"^777777Instant from the F-bar. They pay the SP.^000000",
+	},
+	[SKID.CPO_SAFETYWALL] = {
+		"CPO: Safety Wall Me",
+		"Companion command. Your Priest puts Safety Wall on you: melee hits are blocked.",
+		"^777777Instant from the F-bar. They pay the SP and a Blue Gemstone.^000000",
+	},
+	[SKID.CPO_SANCTUARY] = {
+		"CPO: Sanctuary Me",
+		"Companion command. Your Priest casts Sanctuary at your feet.",
+		"^777777Instant from the F-bar. They pay the SP and a Blue Gemstone. Sanctuary heals monsters standing in it too (not Undead or Demon).^000000",
+	},
+	[SKID.CPO_ASSUMPTIO] = {
+		"CPO: Assumptio Me",
+		"Companion command. Your High Priest casts Assumptio on you.",
+		"^777777Instant from the F-bar. High Priest only. They pay the SP.^000000",
+	},
+	[SKID.CPO_LEX] = {
+		"CPO: Lex Aeterna",
+		"Companion command. Press it on the F-bar, then click a monster: your Priest casts Lex Aeterna on it, so the next hit lands twice.",
+		"^777777Instant from the F-bar. They pay the SP and need to be in range.^000000",
+	},
+	[SKID.CPO_RESURRECT] = {
+		"CPO: Resurrect",
+		"Companion command. Your Priest revives the nearest fallen party member.",
+		"^777777Instant from the F-bar. They pay the SP and a Blue Gemstone.^000000",
+	},
+}

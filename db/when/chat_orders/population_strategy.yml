@@ -118,7 +118,7 @@ Body:
             On: { Event: party_chat, Match: "trap", From: owner, Within: 4000 }
             Cast: HT_ANKLESNARE
             Target: { Enemy: target_of, Who: owner }
-            Aim: { Cells: 1, From: target }  # rAthena won't lay a trap under a monster
+            Aim: { Cells: 2, From: target }  # 3.14.5: not on or next to anyone (rAthena), so 2 in front of it
             Consume: true
             Claim: { Name: ct.snare, For: 8000 }
 

@@ -112,9 +112,16 @@ function JobHead($p) {
 	$h + "        Rules:`n"
 }
 
-function Rule([string]$name, [string]$on, [string]$extra, [string]$say, [int]$cd) {
+# 3.14.5: hush while a question box is up. The script (OnTick) keeps the harmless
+# Reuse_Limit_Mtf status (a renewal item cooldown pre-re never uses) on every companion
+# while you're being asked something; these flavour lines wait it out. The boss sighting
+# and boss-cast warnings still speak: a fight that starts under the box needs them.
+$hush = "            When: not_self_reuse_limit_mtf`n"
+
+function Rule([string]$name, [string]$on, [string]$extra, [string]$say, [int]$cd, [bool]$quiet = $true) {
 	$r = "          - Name: $name`n            Priority: 150`n"
 	if ($on) { $r += "            On: $on`n" }
+	if ($quiet) { $r += $hush }
 	if ($extra) { $r += $extra }
 	$r += "            Say: $(Q $say)`n            Channel: area`n            Cooldown: $cd`n"
 	$r
@@ -140,8 +147,8 @@ foreach ($p in $pers) {
 $z += "  - Mob: Boss`n    Jobs:`n"
 foreach ($p in $pers) {
 	$z += JobHead $p
-	$z += Rule "cl_$($p.k)_fx_boss" '' "            Present: { Enemy: boss }`n" $fight[$p.k]['boss'] 180000
-	$z += Rule "cl_$($p.k)_fx_bosscast" '{ Event: casts, By: monster }' '' $fight[$p.k]['bosscast'] 30000
+	$z += Rule "cl_$($p.k)_fx_boss" '' "            Present: { Enemy: boss }`n" $fight[$p.k]['boss'] 180000 $false
+	$z += Rule "cl_$($p.k)_fx_bosscast" '{ Event: casts, By: monster }' '' $fight[$p.k]['bosscast'] 30000 $false
 }
 $z += "  - Mob: { Race: Undead }`n    Jobs:`n"
 foreach ($p in $pers) {

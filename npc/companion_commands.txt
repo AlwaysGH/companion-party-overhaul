@@ -1,0 +1,168 @@
+// companion-party-overhaul: CPO command skills (Alt+S, Etc tab).
+// Given at login (granted: no skill points, gone when the mod is). Drag them onto
+// any F-bar. What they do is in db/population_strategy.yml ("CPO command skills").
+-	script	cpo_commands	-1,{
+OnInit:
+	bindatcmd "clcmd", strnpcinfo(3) + "::OnCmd", 0, 99;
+	end;
+
+// client/index.js sends "@clcmd <order> <key|click> [monster id]" when you press a CPO
+// slot on the F-bar. Each companion of yours gets the order's code for 6 s: four
+// harmless Rune Knight reuse waits as bits (1 Refresh, 2 Stormblast, 4 Crush Strike,
+// 8 Millennium Shield); the rule for that code (db/population_strategy.yml) picks who
+// answers by class. Codes 5-15 are each class's own, so other classes reuse them.
+OnCmd:
+	.@cmd$ = .@atcmd_parameters$[0];
+	.@how$ = .@atcmd_parameters$[1];
+	.@tgt = atoi(.@atcmd_parameters$[2]);
+	// Code 3 was Gather On Me (merged into Fall Back), code 4 Hold (now CPO: Stand By, the
+	// Orders tab's Stand By task, sent by the client as @clstand): both free.
+	setarray .@order$, "", "focus", "fallback", "-", "-", "heal", "buff", "kyrie", "cure",
+		"pneuma", "safetywall", "sanctuary", "assumptio", "lex", "resurrect";
+	.@code = 0;
+	for (.@i = 1; .@i < getarraysize(.@order$); .@i++) {
+		if (.@order$[.@i] == .@cmd$) {
+			.@code = .@i;
+			break;
+		}
+	}
+	if (!.@code) {
+		debugmes "[cpo-cmd] unknown order '" + .@cmd$ + "' from " + strcharinfo(0);
+		end;
+	}
+	.@me = getcharid(3);
+	// Your companions on this map, alive.
+	.@pid = getcharid(1);
+	.@n = 0;
+	if (.@pid > 0) {
+		getpartymember .@pid, 2;
+		.@pn = $@partymembercount;
+		copyarray .@paid[0], $@partymemberaid[0], .@pn;
+		for (.@i = 0; .@i < .@pn; .@i++) {
+			if (.@paid[.@i] == .@me || population_is_shell(.@paid[.@i]) != 3)
+				continue;
+			.@nm$ = rid2name(.@paid[.@i]);
+			if (.@nm$ == "" || readparam(HP, .@nm$) <= 0)
+				continue;
+			.@c[.@n] = .@paid[.@i];
+			.@cn$[.@n] = .@nm$;
+			.@n++;
+		}
+	}
+	if (!.@n) {
+		dispbottom "[Companions] No companion with you to answer.", 0xFFCC66;
+		end;
+	}
+	// Click orders need a monster. getunittype gives the BL_ type (there is no
+	// UNITTYPE_MOB: an unknown name is a silent 0). Nested: || reads both sides and
+	// getunittype(0) warns.
+	if (.@cmd$ == "focus" || .@cmd$ == "lex") {
+		.@ok = 0;
+		if (.@tgt > 0)
+			.@ok = (getunittype(.@tgt) == BL_MOB);
+		if (!.@ok) {
+			dispbottom "[Companions] Click a monster for that order.", 0xFFCC66;
+			end;
+		}
+	}
+	if (.@cmd$ == "focus") {
+		// You go for it; the Focus rule makes everyone take your target.
+		unitattack .@me, .@tgt, 1;
+	}
+	if (.@cmd$ == "lex") {
+		// Lex Aeterna has one level in pre-re. The first Priest (High Priest and baby
+		// too) casts it, paying its own SP, from where it stands: out of its reach it
+		// doesn't walk over, and nothing happens.
+		for (.@i = 0; .@i < .@n; .@i++) {
+			.@ea = eaclass(readparam(Class, .@cn$[.@i])) & EAJ_UPPERMASK;
+			if (.@ea == EAJ_PRIEST) {
+				unitskilluseid .@c[.@i], "PR_LEXAETERNA", 1, .@tgt;
+				debugmes "[cpo-cmd] " + gettimestr("%H:%M:%S", 21) + " " + strcharinfo(0) + " pressed lex (" + .@how$ + "): " + .@cn$[.@i] + " casts on " + .@tgt;
+				end;
+			}
+		}
+		dispbottom "[Companions] No Priest with you for Lex Aeterna.", 0xFFCC66;
+		end;
+	}
+	if (.@cmd$ == "sanctuary") {
+		// 3.14.6 (user: "it's my order, not the AI's"): the first Priest casts it herself by
+		// script, on the cell you stood on. The engine's rule path refuses any Sanctuary that
+		// would heal a monster (a Skeggiold beside you = never); this is rAthena's own player
+		// path: her real cast time, 15+3*lv SP and a Blue Gemstone, range 9, line of sight.
+		// Mid-cast she can't start another: it tries every 0.5 s for 6 s, detached (your own
+		// clicks and commands stay free), and stops once a gem is spent (no second cast).
+		getmapxy(.@m$, .@x, .@y, BL_PC);
+		.@w = -1;
+		for (.@i = 0; .@i < .@n; .@i++) {
+			if ((eaclass(readparam(Class, .@cn$[.@i])) & EAJ_UPPERMASK) == EAJ_PRIEST) {
+				.@w = .@i;
+				break;
+			}
+		}
+		if (.@w < 0) {
+			dispbottom "[Companions] No Priest with you for Sanctuary.", 0xFFCC66;
+			end;
+		}
+		.@aid = .@c[.@w];
+		.@nm$ = .@cn$[.@w];
+		.@lv = 10;	// her own level below; 10 only if it can't be read
+		if (attachrid(.@aid, 0)) {
+			.@lv = getskilllv("PR_SANCTUARY");
+			attachrid .@me;
+		}
+		.@pm$ = "";
+		getmapxy(.@pm$, .@px, .@py, BL_PC, .@aid);
+		.@why$ = "";
+		if (.@lv < 1)
+			.@why$ = "I never learned Sanctuary.";
+		else if (countitem(717, .@aid) < 1)
+			.@why$ = "I'm out of Blue Gemstones!";
+		else if (readparam(SP, .@nm$) < 15 + 3 * .@lv)
+			.@why$ = "Not enough SP for Sanctuary!";
+		else if (.@pm$ != .@m$ || distance(.@px, .@py, .@x, .@y) > 9)
+			.@why$ = "Too far! Let me get closer.";
+		if (.@why$ != "") {
+			unittalk .@aid, .@nm$ + " : " + .@why$;
+			debugmes "[cpo-cmd] " + gettimestr("%H:%M:%S", 21) + " " + strcharinfo(0) + " pressed sanctuary (" + .@how$ + "): " + .@nm$ + " can't: " + .@why$;
+			end;
+		}
+		.@who$ = strcharinfo(0);
+		.@g0 = countitem(717, .@aid);
+		debugmes "[cpo-cmd] " + gettimestr("%H:%M:%S", 21) + " " + .@who$ + " pressed sanctuary (" + .@how$ + "): " + .@nm$ + " casts Lv " + .@lv + " at " + .@x + "," + .@y;
+		detachrid;
+		for (.@t = 0; .@t < 12; .@t++) {
+			if (countitem(717, .@aid) < .@g0 || readparam(HP, .@nm$) <= 0)
+				break;
+			unitskillusepos .@aid, "PR_SANCTUARY", .@lv, .@x, .@y;
+			sleep 500;
+		}
+		debugmes "[cpo-cmd] " + gettimestr("%H:%M:%S", 21) + " sanctuary for " + .@who$ + ": " + (countitem(717, .@aid) < .@g0 ? .@nm$ + " cast it (a gem spent)" : "no cast landed in 6 s (" + .@nm$ + " busy, blocked line, or knocked out)");
+		end;
+	}
+	// These waits can't be taken off by script (sc_end refuses NoClearbuff+NoForcedEnd),
+	// but starting one again replaces its timer: a bit that must be off gets 1 ms and
+	// ends by itself. For that instant all four are on = code 15, which no order uses.
+	setarray .@bit, SC_REUSE_REFRESH, SC_REUSE_STORMBLAST, SC_REUSE_CRUSHSTRIKE, SC_REUSE_MILLENNIUMSHIELD;
+	for (.@i = 0; .@i < .@n; .@i++) {
+		for (.@b = 0; .@b < 4; .@b++)
+			sc_start .@bit[.@b], ((.@code & (1 << .@b)) ? 6000 : 1), 1, 10000, SCSTART_NOAVOID|SCSTART_NOTICKDEF|SCSTART_NORATEDEF, .@c[.@i];
+	}
+	debugmes "[cpo-cmd] " + gettimestr("%H:%M:%S", 21) + " " + strcharinfo(0) + " pressed " + .@cmd$ + " (" + .@how$ + "), code " + .@code + " on " + .@n + " companion(s)";
+	end;
+
+OnPCLoginEvent:
+	skill "CPO_FOCUS", 1, SKILL_PERM_GRANT;
+	skill "CPO_FALLBACK", 1, SKILL_PERM_GRANT;
+	skill "CPO_HOLD", 1, SKILL_PERM_GRANT;
+	skill "CPO_HEAL", 1, SKILL_PERM_GRANT;
+	skill "CPO_BUFF", 1, SKILL_PERM_GRANT;
+	skill "CPO_KYRIE", 1, SKILL_PERM_GRANT;
+	skill "CPO_CURE", 1, SKILL_PERM_GRANT;
+	skill "CPO_WALL", 1, SKILL_PERM_GRANT;
+	skill "CPO_SANCTUARY", 1, SKILL_PERM_GRANT;
+	skill "CPO_ASSUMPTIO", 1, SKILL_PERM_GRANT;
+	skill "CPO_LEX", 1, SKILL_PERM_GRANT;
+	skill "CPO_RESURRECT", 1, SKILL_PERM_GRANT;
+	skill "CPO_SAFETYWALL", 1, SKILL_PERM_GRANT;
+	end;
+}

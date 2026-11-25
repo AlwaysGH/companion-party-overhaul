@@ -1,0 +1,75 @@
+# companion-party-overhaul: CPO command skills (Alt+S, Etc tab). Ids 3510-3549.
+# Passives to the game (no TargetType): pressing one on the F-bar sends nothing to the
+# server, so no cast bar and no after-cast delay. client/index.js catches the press
+# (by the slot's "CPO: ..." label) and sends @clcmd <order>; npc/companion_commands.txt
+# marks the companions and db/population_strategy.yml ("CPO command skills") answers.
+Header:
+  Type: SKILL_DB
+  Version: 4
+
+Body:
+  - Id: 3510
+    Name: CPO_FOCUS
+    Description: "CPO: Focus My Target"
+    MaxLevel: 1
+
+  - Id: 3511
+    Name: CPO_FALLBACK
+    Description: "CPO: Fall Back"
+    MaxLevel: 1
+
+  - Id: 3513
+    Name: CPO_HOLD
+    Description: "CPO: Stand By"
+    MaxLevel: 1
+
+  - Id: 3520
+    Name: CPO_HEAL
+    Description: "CPO: Heal Me"
+    MaxLevel: 1
+
+  - Id: 3521
+    Name: CPO_BUFF
+    Description: "CPO: Buff Me"
+    MaxLevel: 1
+
+  - Id: 3522
+    Name: CPO_KYRIE
+    Description: "CPO: Kyrie Me"
+    MaxLevel: 1
+
+  - Id: 3523
+    Name: CPO_CURE
+    Description: "CPO: Cure Me"
+    MaxLevel: 1
+
+  - Id: 3524
+    Name: CPO_WALL
+    Description: "CPO: Pneuma Me"
+    MaxLevel: 1
+
+  - Id: 3525
+    Name: CPO_SANCTUARY
+    Description: "CPO: Sanctuary Me"
+    MaxLevel: 1
+
+  - Id: 3526
+    Name: CPO_ASSUMPTIO
+    Description: "CPO: Assumptio Me"
+    MaxLevel: 1
+
+  - Id: 3527
+    Name: CPO_LEX
+    Description: "CPO: Lex Aeterna"
+    MaxLevel: 1
+
+  - Id: 3528
+    Name: CPO_RESURRECT
+    Description: "CPO: Resurrect"
+    MaxLevel: 1
+
+  - Id: 3529
+    Name: CPO_SAFETYWALL
+    Description: "CPO: Safety Wall Me"
+    MaxLevel: 1
+

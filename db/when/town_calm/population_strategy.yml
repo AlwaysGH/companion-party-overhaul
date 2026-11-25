@@ -28,6 +28,20 @@ Body:
             Priority: 132
             On: { Event: party_chat, Match: "kyrie me", From: owner, Within: 4000 }
             Switch: alert
+          # CPO command skills Buff Me (code 6), Kyrie Me (7) and Assumptio Me (12)
+          # lift the town calm too (codes: db/population_strategy.yml, CPO block).
+          - Name: ct_town_cmd_buff
+            Priority: 132
+            When: [not_self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Switch: alert
+          - Name: ct_town_cmd_kyrie
+            Priority: 132
+            When: [self_reuse_refresh, self_reuse_stormblast, self_reuse_crushstrike, not_self_reuse_millenniumshield]
+            Switch: alert
+          - Name: ct_town_cmd_assumptio
+            Priority: 132
+            When: [not_self_reuse_refresh, not_self_reuse_stormblast, self_reuse_crushstrike, self_reuse_millenniumshield]
+            Switch: alert
         Strategies:
           - Name: calm
             Ban: [AL_BLESSING, AL_INCAGI, AL_ANGELUS, PR_KYRIE, PR_MAGNIFICAT, PR_GLORIA,

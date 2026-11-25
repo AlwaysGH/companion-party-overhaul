@@ -13,7 +13,7 @@
 //   Asks "@clstat hud" (npc/companion_life.txt, OnCmdStat) every 1.5 s. It replaces the
 //   Companions window's old Status tab.
 import PICS from './portraits_data.js';
-import { CLASS_KEY } from './portraits.js';
+import { CLASS_KEY, plainCursor } from './portraits.js';
 
 // The head in each portrait (320 x 480): centre x, centre y, square size. Each head's
 // centre, top of the hair and chin were read off gridded sheets of all 74 (scratchpad
@@ -42,6 +42,29 @@ export const CROPS = {
     taekwon_f: [155, 102, 92], star_gladiator_m: [155, 98, 92], star_gladiator_f: [160, 95, 97],
     soul_linker_m: [158, 100, 97], soul_linker_f: [151, 108, 103], gunslinger_m: [150, 95, 114],
     gunslinger_f: [153, 102, 109], ninja_m: [163, 90, 108], ninja_f: [140, 96, 116],
+    // 3.14.5: 3rd classes + expanded (patkaiclan's set at 72%); faces re-centred by the user's notes.
+    arch_bishop_f: [132, 98, 126], arch_bishop_m: [165, 100, 121], genetic_f: [190, 98, 126], genetic_m: [180, 102, 126],
+    guillotine_cross_f: [162, 125, 109], guillotine_cross_m: [168, 110, 115], kagerou_m: [177, 98, 98],
+    minstrel_m: [160, 105, 121], mechanic_f: [157, 105, 144], mechanic_m: [164, 100, 126], oboro_f: [170, 128, 121],
+    ranger_f: [160, 115, 115], ranger_m: [162, 100, 121], rebellion_f: [190, 102, 115], rebellion_m: [184, 98, 109],
+    royal_guard_f: [173, 91, 109], royal_guard_m: [170, 100, 115], rune_knight_f: [167, 108, 115], rune_knight_m: [176, 98, 121],
+    shadow_chaser_f: [163, 106, 115], shadow_chaser_m: [196, 142, 115], sorcerer_f: [195, 123, 126], sorcerer_m: [177, 83, 115],
+    soul_reaper_f: [162, 105, 121], soul_reaper_m: [148, 95, 115], star_emperor_f: [141, 105, 121], star_emperor_m: [180, 129, 121],
+    summoner_f: [140, 128, 136], summoner_m: [200, 132, 130], sura_f: [204, 114, 115], sura_m: [190, 105, 115],
+    wanderer_f: [161, 100, 126], warlock_f: [172, 120, 121], warlock_m: [172, 101, 109],
+    // 3.14.5: 4th classes (patkaiclan's set, same 72% rule; bigger where the art was scaled up).
+    abyss_chaser_f: [160, 99, 116], abyss_chaser_m: [192, 103, 120], arch_mage_f: [160, 100, 135],
+    arch_mage_m: [168, 95, 96], biolo_f: [152, 102, 108], biolo_m: [160, 90, 108],
+    cardinal_f: [172, 100, 115], cardinal_m: [156, 101, 112], dragon_knight_f: [168, 95, 106],
+    dragon_knight_m: [160, 103, 106], elemental_master_f: [160, 86, 118], elemental_master_m: [184, 91, 106],
+    hyper_novice_f: [160, 114, 109], hyper_novice_m: [172, 103, 106], imperial_guard_f: [160, 103, 106],
+    imperial_guard_m: [160, 95, 106], inquisitor_f: [160, 95, 120], inquisitor_m: [160, 95, 106],
+    meister_f: [160, 94, 122], meister_m: [160, 103, 120], night_watch_f: [168, 95, 106],
+    night_watch_m: [176, 103, 106], shadow_cross_f: [167, 107, 106], shadow_cross_m: [176, 109, 99],
+    shinkiro_m: [168, 95, 106], shiranui_f: [168, 103, 106], sky_emperor_f: [160, 93, 132],
+    sky_emperor_m: [160, 90, 118], soul_ascetic_f: [160, 102, 109], soul_ascetic_m: [160, 91, 106],
+    spirit_handler_f: [160, 181, 135], spirit_handler_m: [165, 169, 136], troubadour_m: [172, 103, 106],
+    trouvere_f: [178, 101, 126], windhawk_f: [168, 93, 150], windhawk_m: [168, 103, 106],
 };
 const FACE = 46;   // px, at 100%
 
@@ -94,6 +117,19 @@ const STYLE = `
 .grip { position: absolute; right: -2px; bottom: -2px; width: 14px; height: 14px; opacity: 0; transition: opacity .2s;
   background: linear-gradient(135deg, transparent 50%, rgba(255, 215, 106, .9) 50% 60%, transparent 60% 70%, rgba(255, 215, 106, .9) 70% 80%, transparent 80%); }
 .fw:hover .grip, .grip.on { opacity: 1; }
+/* 3.14.5: the right-click menu, and following a companion: its frame glows, a tag under the frames. */
+.fmenu { position: fixed; z-index: 40; min-width: 150px; padding: 2px 0; background: linear-gradient(#f7f7f7, #e6e9ef);
+  border: 1px solid #8f9aaa; border-radius: 3px; box-shadow: 0 4px 14px rgba(0, 0, 0, .5); color: #2a3140; font: 11px Tahoma, Verdana, sans-serif; }
+.fmenu.hidden { display: none; }
+.fmenu .h { font-weight: bold; padding: 3px 10px; color: #4a6fa8; border-bottom: 1px solid #d3d9e3; }
+.fmenu .it { padding: 4px 10px; white-space: nowrap; }
+.fmenu .it:hover { background: #3c6ec2; color: #fff; }
+.fr.lead { box-shadow: 0 0 0 2px #7fc4f0, 0 0 10px rgba(127, 196, 240, .6); }
+.ftag { display: none; align-items: center; gap: 6px; align-self: flex-start; padding: 2px 6px; background: rgba(16, 20, 30, .85);
+  border: 1px solid #7fc4f0; border-radius: 4px; color: #dff2ff; font-size: 10.5px; white-space: nowrap; }
+.ftag.on { display: inline-flex; }
+.ftag b { font-weight: bold; }
+.ftag .stop { padding: 0 6px; border: 1px solid #7f8ea8; border-radius: 3px; background: linear-gradient(#fdfdfd, #d7dfeb); color: #333; font-weight: bold; font-size: 10px; }
 /* 3.10.1 status cues (beta). Face tints multiply like the client's own sprite tints
    (Online.js updateHealthState/updateBodyState); each corner icon wears its tint's colour. */
 .fx { position: absolute; inset: 0; border-radius: 2px; pointer-events: none; }
@@ -203,6 +239,10 @@ export default function frames(parameters, api, { openBag } = {}) {
     for (const type of ['mousedown', 'mouseup', 'click', 'contextmenu']) host.addEventListener(type, event => event.stopPropagation());
     document.body.appendChild(host);
     api.cleanup(() => host.remove());
+    // 3.14.5: the plain game cursor over the frames, as over the bubbles (no "can't walk"
+    // cross); let go when the frames hide under a still mouse.
+    const releaseCursor = plainCursor(wrap, api, x => !x.classList.contains('hidden'));
+    api.cleanup(() => releaseCursor());
 
     function place() {
         let left = 228, top = 8;
@@ -219,6 +259,56 @@ export default function frames(parameters, api, { openBag } = {}) {
         wrap.style.top = Math.max(0, Math.min(innerHeight - Math.min(h, innerHeight), top)) + 'px';
         wrap.style.transform = `scale(${size / 100})`;
     }
+
+    // 3.14.5: following a companion (the server says "@@event clfollow <char id>" or "-").
+    let following = '', lastList = [];
+    const tag = document.createElement('div');
+    tag.className = 'ftag';
+    function drawTag(list) {
+        if (list) lastList = list;
+        const c = lastList.find(x => x.cid === following);
+        tag.classList.toggle('on', !!c);
+        if (c) tag.innerHTML = `Following <b></b><span class="stop" data-act="unfollow">Stop</span>`, tag.querySelector('b').textContent = c.name;
+        for (const [cid, f] of shown) f.el.classList.toggle('lead', cid === following);
+    }
+    const follow = arg => Promise.resolve(api.server.request('clfollow', arg, { timeout: 4000 })).catch(() => {});
+    api.on('server:event', ({ command, text }) => {
+        if (command !== 'clfollow') return;
+        following = text === '-' ? '' : String(text || '').trim();
+        drawTag();
+    });
+    tag.addEventListener('mousedown', event => event.stopPropagation());   // not a frame drag
+    tag.addEventListener('click', event => {
+        if (event.composedPath().some(n => n.dataset?.act === 'unfollow')) follow('off');
+    });
+    // The right-click menu: Teleport to them (one Fly Wing, as before) / Follow them (or Stop following).
+    const menu = document.createElement('div');
+    menu.className = 'fmenu hidden';
+    root.appendChild(menu);
+    plainCursor(menu, api, x => !x.classList.contains('hidden'));
+    const closeMenu = () => menu.classList.add('hidden');
+    function openMenu(cid, x, y) {
+        const c = lastList.find(f => f.cid === cid);
+        if (!c) return;
+        menu.innerHTML = '<div class="h"></div><div class="it" data-act="tp">Teleport to them</div>'
+            + `<div class="it" data-act="${cid === following ? 'unfollow' : 'follow'}">${cid === following ? 'Stop following' : 'Follow them'}</div>`;
+        menu.querySelector('.h').textContent = c.name;
+        menu.dataset.cid = cid;
+        menu.classList.remove('hidden');
+        menu.style.left = Math.min(x, innerWidth - menu.offsetWidth - 4) + 'px';
+        menu.style.top = Math.min(y, innerHeight - menu.offsetHeight - 4) + 'px';
+    }
+    menu.addEventListener('click', event => {
+        const act = event.composedPath().find(n => n.dataset?.act)?.dataset.act, cid = menu.dataset.cid;
+        closeMenu();
+        if (!act || !cid || inDialog()) return;
+        if (act === 'tp') Promise.resolve(api.server.request('clgoto', cid, { timeout: 4000 })).catch(() => {});
+        else follow(act === 'follow' ? cid : 'off');
+    });
+    menu.addEventListener('contextmenu', event => event.preventDefault());
+    const outside = event => { if (!menu.classList.contains('hidden') && !event.composedPath().includes(menu)) closeMenu(); };
+    addEventListener('mousedown', outside, true);
+    api.cleanup(() => removeEventListener('mousedown', outside, true));
 
     // One frame per companion, built once and then only updated: the face is a portrait
     // (tens of KB as a data URL), not something to write into the page every 1.5 s.
@@ -314,6 +404,7 @@ export default function frames(parameters, api, { openBag } = {}) {
                 chip.innerHTML = chipKind === 'shop' ? COIN_SVG : chipKind ? BAG_SVG : '';
             }
             el.classList.toggle('lowsp', !out && !off && c.msp > 0 && spP < 20);
+            el.classList.toggle('lead', c.cid === following);   // 3.14.5
             // Moment cues from the change since the last answer (not on the first sight).
             if (!out && !off && f.hp >= 0 && c.mhp > 0) {
                 const delta = (c.hp - f.hp) * 100 / c.mhp;
@@ -328,9 +419,11 @@ export default function frames(parameters, api, { openBag } = {}) {
                 + (ail ? ` · ${AIL_NAME[ail]}` : '')
                 + (c.state === 'rest' ? ' · resting' : c.state === 'away' ? ' · on another map' : '')
                 + (c.shop ? ' · out shopping' : c.wt >= 70 ? ` · bag ${c.wt}% full` : '')
-                + (c.watch ? ' · on lookout' : '') + (c.pet ? ` · ${c.pet} out` : '') + '\nClick: their bag. Right-click: Fly Wing to them. Drag: move.';
+                + (c.watch ? ' · on lookout' : '') + (c.pet ? ` · ${c.pet} out` : '') + '\nClick: their bag. Right-click: Teleport to them or Follow them. Drag: move.';
         }
         for (const [cid, f] of shown) if (!seen.has(cid)) { f.el.remove(); shown.delete(cid); }
+        wrap.insertBefore(tag, grip);   // 3.14.5: the Following tag after the frames
+        drawTag(list);
         place();
     }
 
@@ -409,11 +502,12 @@ export default function frames(parameters, api, { openBag } = {}) {
         else if (drag.cid && openBag) openBag(drag.cid);
         drag = null;
     };
-    // 3.11.0: a right-click flies you to that companion (one Fly Wing; @clgoto says why not).
+    // 3.11.0: a right-click flew you to that companion; 3.14.5: it opens a menu, Teleport to
+    // them (the same one Fly Wing; @clgoto says why not) or Follow them (@clfollow).
     wrap.addEventListener('contextmenu', event => {
         event.preventDefault();
         const cid = event.composedPath().find(n => n.classList?.contains('fr'))?.dataset.cid;
-        if (cid && !inDialog()) Promise.resolve(api.server.request('clgoto', cid, { timeout: 4000 })).catch(() => {});
+        if (cid && !inDialog()) openMenu(cid, event.clientX, event.clientY);
     });
     addEventListener('mousemove', onMove, true);
     addEventListener('mouseup', onUp, true);
