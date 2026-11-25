@@ -12,10 +12,12 @@ Your companions as a real party of people who live in this world with you. This 
 - Healers heal the right person at the right time, with Kyrie on the tank and Safety Wall on the back line. Casters freeze, burst and interrupt monsters that heal or summon. The front line pulls packs off the back line and falls back to the Priest when overwhelmed.
 - They go first for whatever is hitting the healer, then whatever is hitting the casters, then your target.
 - You give orders with one click in the window's **Orders** tab, or in party chat: `assist me`, `free fight`, `regroup`, `heal me`, `buff me`, `kyrie me`, `wall me`, `land protector`, `aoe`, `trap`, `take a break` and `let's go`.
+- **Commands on your hotkey bar:** "CPO:" skills in your skill window (Alt+S, Etc tab). Drag them onto any hotkey bar and press them mid-fight. Everyone: Focus my target (click a monster), Fall Back, Stand By. Priest: Heal, Buff, Kyrie, Cure, Pneuma Me, Safety Wall, Sanctuary Me, Assumptio, Lex Aeterna and Resurrect. Your order goes ahead of whatever they planned next, and costs stay real (SP, gemstones).
 - `go hunt` sends them roaming as a group: they follow the tank, wait for each other and gather to revive the fallen. `come back` calls them back.
 - **MVP Hunt:** `find the mvp` (or **Find MVP** on the Orders tab) sends them hopping the map with Fly Wings (Acolyte classes Teleport for SP). The one who finds an MVP or a rare mini-boss calls it out, keeps a safe distance and marks it red on your minimap. You answer **Engage together**, **Stand by, I'll solo** or **Retreat**, then Fly Wing straight to them. During a solo, say `help me` in party chat to call everyone in.
 - **Stand By:** `stand by` holds them where they are and out of your fight. They only defend themselves.
-- Right-click a companion's party frame to Fly Wing to them.
+- **Danger and rescue:** a roaming companion at 50% HP asks you **Retreat** or **Send help**; under 30% it teleports back to you on its own, and once healed to 80% it asks whether to go back out or stay with you. When one falls far away, a rescuer flies over to revive it, then both fly back to you to recover.
+- Right-click a companion's party frame: **Teleport to them**, **Follow them** or **Stop following**.
 - `take us back` (or `take us home`, `open a portal`): an Acolyte-line companion opens a Warp Portal to your save point, and from town back to the exact spot you left. It costs a Blue Gemstone from their bags or yours (a setting).
 - They use the items you give them. They cure bad statuses, use Yggdrasil Seeds and Berries when they're in danger, revive the fallen with Yggdrasil Leaves (whoever carries one runs over), and drink speed potions near a boss. This needs the game's Companion inventory setting.
 - **Potions and food like a careful player:** in a fight, or while you walk on, a companion under 50% HP (a setting) uses the healing item from its bag that best fits the wound: potions, herbs, Meat, Cheese... Under 25% the strongest one. A Priest or Acolyte gets 2 seconds to heal first, and a heavy bag never stops them. Standing still after a fight, they sit and rest.
@@ -46,7 +48,7 @@ Your companions as a real party of people who live in this world with you. This 
 - Between fights they stand loosely around you, look around and walk patrols (scouts). They sit down beside the one they feel closest to.
 - A party purse fills with a little zeny from every monster you beat.
 - **Party loot:** monsters the party beats sometimes turn up an extra find from their own drop list, into the party bag. Sell it from the Loot tab to fill the purse, or take it yourself.
-- **Restock in town:** give each companion a shopping list (potions, Blue Gemstones, arrows...). Whenever you reach a town they top up from the party purse, at shop prices, with a Merchant's Discount. Red and Yellow Gemstones too, if you turn that setting on (NPC shops only sell Blue).
+- **Restock in town:** give each companion a shopping list (potions, Blue Gemstones, arrows...). Whenever you reach a town they top up from the party purse, at shop prices, with a Merchant's Discount. With the setting **Restock gemstones and SP items** on, also Red and Yellow Gemstones and SP items (Grape, Strawberry, Grape Juice, Honey, Blue Potion, Royal Jelly), which pre-renewal shops don't sell.
 - Fallen companions get back up when you leave the map.
 - Their lines in your chat box come in a colour of your choice.
 
@@ -55,7 +57,7 @@ Your companions as a real party of people who live in this world with you. This 
 Press **Alt+N**, or use the small on-screen button. Drag its corner to resize it. Four tabs:
 
 - **Orders:** your orders as buttons. Fight stance (Engage, Protect, Hold), Focus on your target, the Task card (Follow, Stand By, Hunt, Find MVP), Make camp / Pack up, Warp Portal and Merchant services (Appraise, Repair). An order nobody can carry out is greyed out, with the reason ("No Acolyte in the party", "No Blue Gemstone"...).
-- **Bag:** one companion at a time (pick them by name), laid out like the game's Equip window: their gear around them and the companion drawn in the middle. Below: their bag, a colour-coded weight bar (yellow from 50%, when natural regen stops; red from 90%, when they can't attack), and their **Restock** list.
+- **Bag:** one companion at a time (pick them by name), laid out like the game's Equip window: their gear around them and the companion drawn in the middle. Below: their bag, a colour-coded weight bar (yellow from 50%, when natural regen stops; red from 90%, when they can't attack), their speed potions (Bosses or Every fight), outfit, hair colour and hairstyle, and their **Restock** list.
 - **Loot:** the party purse and the party bag. **Sell all** sells everything but cards into the purse.
 - **Roster:** everyone you've saved, with portraits, Active and Inactive. Hire (your own class tier, at your level, for a one-time fee; your first companion is free), summon, bench, rebirth, homunculus and part ways. Each companion's ⋯ menu has **Stats** (live HIT, FLEE, DEF, CRIT, ASPD), **Skills**, **Role** and **Bond** (tier, perks and their Journal). The game menu's Companions button opens it (a setting).
 
